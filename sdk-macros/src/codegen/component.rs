@@ -171,7 +171,8 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
 
         impl #component_name {
             pub fn define(config: #config_name) -> #sdk::authoring::ComponentSpec<Self> {
-                #sdk::authoring::ComponentSpec::<Self>::new(config)
+                #sdk::authoring::ComponentSpec::<Self>::self_realizing(config)
+                    .expect("component! generated a matching self realization")
                     #(.requires_named_resource(#resource_requirements))*
                     #(.requires_system(#system_requirements))*
             }
@@ -193,12 +194,15 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 )
             }
 
-            fn runtime_attachment(
+        }
+
+        impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
+            fn self_realization(
                 config: &Self::Config,
-            ) -> ::std::option::Option<#sdk::component::ComponentRuntimeDefinition> {
+            ) -> #sdk::component::ComponentRuntimeDefinition {
                 let config = config.clone();
-                ::std::option::Option::Some(#sdk::component::ComponentRuntimeDefinition::new(
-                    Self::component_id(),
+                #sdk::component::ComponentRuntimeDefinition::new(
+                    <Self as #sdk::authoring::ComponentDefinition>::component_id(),
                     move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
                         #sdk::core::Health,
                         #sdk::component::ComponentError,
@@ -209,7 +213,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                         #(#operation_registrations)*
                         ::std::result::Result::Ok(#sdk::core::Health::Healthy)
                     },
-                ))
+                )
             }
         }
 

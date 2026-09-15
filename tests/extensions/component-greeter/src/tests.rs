@@ -280,7 +280,7 @@ fn greeter_component_uses_declared_component_identity() {
     );
     assert_eq!(Greeter::component_id().as_str(), "fabric.test.greeter");
     let definition: ComponentRuntimeDefinition = Greeter::define(GreeterConfig {})
-        .into_runtime_definition()
+        .into_self_realization()
         .expect("greeter runtime attachment");
     assert_eq!(
         definition.component_id().as_str(),
@@ -308,7 +308,7 @@ fn macro_generated_greeter_invokes_through_component_runtime() {
     let spec = Greeter::define(GreeterConfig {});
     let (mut instance, rails) = runtime_fixture(vec![(
         spec.declaration().clone(),
-        spec.into_runtime_definition(),
+        spec.into_self_realization(),
     )]);
     materialize_component(&rails, &greeter::component_id());
 
@@ -332,7 +332,7 @@ fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
     });
     let (mut instance, rails) = runtime_fixture(vec![(
         spec.declaration().clone(),
-        spec.into_runtime_definition(),
+        spec.into_self_realization(),
     )]);
     materialize_component(&rails, &scripted_greeter::component_id());
 
@@ -366,8 +366,8 @@ fn multiple_component_macros_can_coexist_in_one_module() {
     let alpha = AlphaComponent::define(AlphaComponentConfig {});
     let beta = BetaComponent::define(BetaComponentConfig {});
     let (mut instance, rails) = runtime_fixture(vec![
-        (alpha.declaration().clone(), alpha.into_runtime_definition()),
-        (beta.declaration().clone(), beta.into_runtime_definition()),
+        (alpha.declaration().clone(), alpha.into_self_realization()),
+        (beta.declaration().clone(), beta.into_self_realization()),
     ]);
     materialize_component(&rails, &alpha_component::component_id());
     materialize_component(&rails, &beta_component::component_id());
@@ -422,7 +422,7 @@ fn package_only_component_defines_identity_config_and_endpoints_without_runtime(
         operations[0].output_type().as_str(),
         "fabric.test.package-component.describe.output"
     );
-    assert!(spec.into_runtime_definition().is_none());
+    assert!(spec.into_self_realization().is_none());
 }
 
 #[test]
@@ -434,11 +434,11 @@ fn empty_component_without_operations_is_valid() {
         "fabric.test.empty-component"
     );
     assert!(spec.declaration().operations().is_empty());
-    assert!(spec.into_runtime_definition().is_none());
+    assert!(spec.into_self_realization().is_none());
 }
 
 #[test]
-fn macro_generated_component_exposes_declaration_and_runtime_attachment() {
+fn macro_generated_component_exposes_declaration_and_self_realization() {
     let spec = Greeter::define(GreeterConfig {});
 
     assert_eq!(
@@ -457,7 +457,7 @@ fn macro_generated_component_exposes_declaration_and_runtime_attachment() {
         "fabric.test.greeter.output"
     );
     assert!(
-        spec.into_runtime_definition().is_some(),
+        spec.into_self_realization().is_some(),
         "generated handlers must still attach a native runtime"
     );
 }

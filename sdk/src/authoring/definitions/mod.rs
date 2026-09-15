@@ -12,7 +12,7 @@ pub use adapter_definition::AdapterDefinition;
 pub use adapter_provider_module::AdapterProviderModule;
 pub use component_definition::{
     ComponentDefinition, ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
-    ComponentSystemScope,
+    ComponentSystemScope, SelfRealizingComponentDefinition,
 };
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;

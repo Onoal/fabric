@@ -12,7 +12,7 @@ pub use definitions::{
     AdaptableResourceDefinition, AdapterDefinition, AdapterProviderModule, ComponentDefinition,
     ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
     ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceDefinition,
-    ResourceRealization, ResourceSelection,
+    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,

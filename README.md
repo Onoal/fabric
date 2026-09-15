@@ -98,7 +98,8 @@ live runtime.
 
 ## Project status
 
-Fabric is in early development. The current public API targets the 0.1 line.
+The latest crates.io release is Fabric 0.1.1. The `main` branch is developing
+the 0.2 line.
 
 ## License
 

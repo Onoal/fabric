@@ -289,13 +289,13 @@ fn component_macro_codegen_supports_typed_operations() {
             .contains("let component_mod = format_ident!(\"{}\", to_snake_case(component_name));")
             && codegen.contains("pub mod operations {")
             && codegen.contains("impl #sdk::authoring::ComponentDefinition for #component_name")
-            && codegen.contains("#sdk::authoring::ComponentSpec::<Self>::new(config)")
+            && codegen.contains("#sdk::authoring::ComponentSpec::<Self>::self_realizing(config)")
             && codegen.contains("scope.operation(")
             && codegen.contains("scope.operation_with_context(")
             && codegen.contains("#sdk::component::InvocationContext")
             && !codegen.contains("InvocationContext::new")
             && !codegen.contains("InvocationRail"),
-        "component! should lower into ComponentDefinition, ComponentSpec, and ComponentRuntimeScope registration"
+        "component! should lower into semantic ComponentDefinition, explicit self realization, and ComponentRuntimeScope registration"
     );
     assert!(
         codegen.contains("fn declaration() -> #sdk::component::ComponentDeclaration")
@@ -303,7 +303,7 @@ fn component_macro_codegen_supports_typed_operations() {
         "component! should populate declarative endpoint metadata from its static operation table"
     );
     assert!(
-        codegen.contains("fn runtime_attachment(")
+        codegen.contains("impl #sdk::authoring::SelfRealizingComponentDefinition")
             && codegen.contains("ComponentRuntimeDefinition::new("),
         "component! should attach handlers through the optional native runtime bridge"
     );

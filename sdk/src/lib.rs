@@ -29,6 +29,7 @@ pub use authoring::{
     FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
     IntoFabricSystem, IntoResourceName, PrimaryResourceContract, PrimarySystemContract, Requires,
     ResourceDefinition, ResourceManifestEntry, ResourceRealization, ResourceSelection,
-    SystemDefinition, SystemManifestEntry, SystemRealization, SystemRequires, SystemSelection,
+    SelfRealizingComponentDefinition, SystemDefinition, SystemManifestEntry, SystemRealization,
+    SystemRequires, SystemSelection,
 };
 pub use error::SdkAuthoringError;

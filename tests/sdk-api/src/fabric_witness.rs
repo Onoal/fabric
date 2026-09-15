@@ -1559,6 +1559,42 @@ struct SystemOwnedComponent;
 struct SystemOwnedComponentB;
 struct CombinedOwnedComponent;
 struct AlphaComponent;
+struct MismatchedSelfRealizingComponent;
+
+#[derive(Clone)]
+struct MismatchedSelfRealizingComponentConfig;
+
+impl ComponentDefinition for MismatchedSelfRealizingComponent {
+    type Config = MismatchedSelfRealizingComponentConfig;
+
+    fn component_id() -> ComponentId {
+        ComponentId::new("fabric.test.component.mismatched-self-realization").expect("component id")
+    }
+
+    fn declaration() -> fabric_component::ComponentDeclaration {
+        fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
+    }
+}
+
+impl SelfRealizingComponentDefinition for MismatchedSelfRealizingComponent {
+    fn self_realization(_config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+        fabric_component::ComponentRuntimeDefinition::new(
+            ComponentId::new("fabric.test.component.other-self-realization").expect("component id"),
+            |_scope| Ok(Health::Healthy),
+        )
+    }
+}
+
+#[test]
+fn self_realization_must_match_its_component_declaration() {
+    assert!(
+        ComponentSpec::<MismatchedSelfRealizingComponent>::self_realizing(
+            MismatchedSelfRealizingComponentConfig,
+        )
+        .is_err(),
+        "a self realization for another ComponentId must be rejected"
+    );
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct AlphaObservation {
@@ -1577,29 +1613,26 @@ impl ComponentDefinition for AlphaComponent {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for AlphaComponent {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let clock = scope.resource(&Requires::<Clock>::versioned(
-                    ContractVersionRequirement::parse("^1").expect("clock requirement"),
-                ))?;
-                let system = scope.system(&SystemRequires::<AdaptedOperations>::versioned(
-                    ContractVersionRequirement::parse("^1").expect("system requirement"),
-                ))?;
-                capture.lock().expect("capture").push(AlphaObservation {
-                    tick: clock
-                        .current_tick()
-                        .map_err(|_| fabric_component::ComponentError::Unavailable)?
-                        .value(),
-                    marker: system.current_marker().value(),
-                });
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let clock = scope.resource(&Requires::<Clock>::versioned(
+                ContractVersionRequirement::parse("^1").expect("clock requirement"),
+            ))?;
+            let system = scope.system(&SystemRequires::<AdaptedOperations>::versioned(
+                ContractVersionRequirement::parse("^1").expect("system requirement"),
+            ))?;
+            capture.lock().expect("capture").push(AlphaObservation {
+                tick: clock
+                    .current_tick()
+                    .map_err(|_| fabric_component::ComponentError::Unavailable)?
+                    .value(),
+                marker: system.current_marker().value(),
+            });
+            Ok(Health::Healthy)
+        })
     }
 }
 
@@ -1618,22 +1651,18 @@ impl ComponentDefinition for ResourceOwnedComponent {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for ResourceOwnedComponent {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(counter.current_value().value());
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
+            capture
+                .lock()
+                .expect("capture lock")
+                .push(counter.current_value().value());
+            Ok(Health::Healthy)
+        })
     }
 }
 
@@ -1645,21 +1674,18 @@ impl ComponentDefinition for ResourceOwnedComponentB {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for ResourceOwnedComponentB {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(counter.current_value().value());
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
+            capture
+                .lock()
+                .expect("capture lock")
+                .push(counter.current_value().value());
+            Ok(Health::Healthy)
+        })
     }
 }
 
@@ -1671,23 +1697,20 @@ impl ComponentDefinition for SystemOwnedComponent {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for SystemOwnedComponent {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
-                ))?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(system.current_marker().value());
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                ContractVersionRequirement::parse("^1.2").expect("requirement"),
+            ))?;
+            capture
+                .lock()
+                .expect("capture lock")
+                .push(system.current_marker().value());
+            Ok(Health::Healthy)
+        })
     }
 }
 
@@ -1699,23 +1722,20 @@ impl ComponentDefinition for SystemOwnedComponentB {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for SystemOwnedComponentB {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
-                ))?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(system.current_marker().value());
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                ContractVersionRequirement::parse("^1.2").expect("requirement"),
+            ))?;
+            capture
+                .lock()
+                .expect("capture lock")
+                .push(system.current_marker().value());
+            Ok(Health::Healthy)
+        })
     }
 }
 
@@ -1727,26 +1747,41 @@ impl ComponentDefinition for CombinedOwnedComponent {
     fn declaration() -> fabric_component::ComponentDeclaration {
         fabric_component::ComponentDeclaration::new(Self::component_id(), Vec::new())
     }
-    fn runtime_attachment(
-        config: &Self::Config,
-    ) -> Option<fabric_component::ComponentRuntimeDefinition> {
+}
+impl SelfRealizingComponentDefinition for CombinedOwnedComponent {
+    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
         let capture = Arc::clone(&config.capture);
-        Some(fabric_component::ComponentRuntimeDefinition::new(
-            Self::component_id(),
-            move |scope| {
-                let resource = scope.resource(&Requires::<DirectCounter>::provisional())?;
-                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
-                ))?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(resource.current_value().value() + system.current_marker().value());
-                Ok(Health::Healthy)
-            },
-        ))
+        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
+            let resource = scope.resource(&Requires::<DirectCounter>::provisional())?;
+            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                ContractVersionRequirement::parse("^1.2").expect("requirement"),
+            ))?;
+            capture
+                .lock()
+                .expect("capture lock")
+                .push(resource.current_value().value() + system.current_marker().value());
+            Ok(Health::Healthy)
+        })
     }
 }
+
+macro_rules! self_realizing_define {
+    ($component:ty, $config:ty) => {
+        impl $component {
+            fn define(config: $config) -> ComponentSpec<Self> {
+                ComponentSpec::<Self>::self_realizing(config)
+                    .expect("handwritten self realization matches ComponentId")
+            }
+        }
+    };
+}
+
+self_realizing_define!(AlphaComponent, AlphaConfig);
+self_realizing_define!(ResourceOwnedComponent, ResourceOwnedComponentConfig);
+self_realizing_define!(ResourceOwnedComponentB, ResourceOwnedComponentConfig);
+self_realizing_define!(SystemOwnedComponent, ResourceOwnedComponentConfig);
+self_realizing_define!(SystemOwnedComponentB, ResourceOwnedComponentConfig);
+self_realizing_define!(CombinedOwnedComponent, ResourceOwnedComponentConfig);
 
 #[test]
 fn component_owned_system_requirement_lowers_through_core_and_reaches_its_runtime() {

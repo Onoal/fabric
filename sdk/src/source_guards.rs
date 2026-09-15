@@ -325,12 +325,12 @@ fn component_definition_owns_canonical_component_identity() {
         "ComponentDefinition must expose the configured specification bridge"
     );
     assert!(
-        source.contains("fn runtime_attachment(config: &Self::Config)"),
-        "ComponentDefinition must expose runtime behavior as an optional attachment"
+        !source.contains("runtime_attachment"),
+        "ComponentDefinition must not own a local realization hook"
     );
     assert!(
-        source.contains("-> Option<ComponentRuntimeDefinition>"),
-        "Component runtime attachment must stay optional for declaration-only Components"
+        source.contains("pub trait SelfRealizingComponentDefinition: ComponentDefinition"),
+        "native realization must be explicit and separate from ComponentDefinition"
     );
     assert!(
         source.contains("pub fn new(config: C::Config) -> Self"),
@@ -338,12 +338,11 @@ fn component_definition_owns_canonical_component_identity() {
     );
     assert!(
         source.contains("pub fn declaration(&self) -> &ComponentDeclaration"),
-        "ComponentSpec must preserve declarative truth independently of runtime attachment"
+        "ComponentSpec must preserve declarative truth independently of local realization"
     );
     assert!(
-        source
-            .contains("pub fn into_runtime_definition(self) -> Option<ComponentRuntimeDefinition>"),
-        "ComponentSpec must expose runtime attachment through an explicit optional conversion"
+        source.contains("pub fn into_self_realization(self) -> Option<ComponentRuntimeDefinition>"),
+        "ComponentSpec must expose explicit self realization separately from declaration"
     );
     assert!(
         !source.contains("from_runtime_definition"),

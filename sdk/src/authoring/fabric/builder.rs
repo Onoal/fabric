@@ -120,7 +120,7 @@ pub struct Fabric {
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
     component_declarations: Vec<ComponentDeclaration>,
-    component_attachments: Vec<ComponentRuntimeDefinition>,
+    component_self_realizations: Vec<ComponentRuntimeDefinition>,
 }
 
 impl Fabric {
@@ -142,7 +142,7 @@ impl Fabric {
             module_declarations: Vec::new(),
             typed_modules: Vec::new(),
             component_declarations: Vec::new(),
-            component_attachments: Vec::new(),
+            component_self_realizations: Vec::new(),
         }
     }
 
@@ -181,8 +181,8 @@ impl Fabric {
             .extend(parts.semantic_provider_selections);
         self.component_system_provider_selections
             .extend(parts.semantic_system_provider_selections);
-        if let Some(attachment) = parts.runtime {
-            self.component_attachments.push(attachment);
+        if let Some(self_realization) = parts.self_realization {
+            self.component_self_realizations.push(self_realization);
         }
         self
     }
@@ -221,17 +221,17 @@ impl Fabric {
             mut module_declarations,
             typed_modules,
             component_declarations,
-            component_attachments,
+            component_self_realizations,
         } = self;
 
         let mut default_modules = typed_modules;
         // The native host carries every composed Component declaration, even
-        // when no runtime attachment exists. Declaration-only Components are
+        // when no local self realization exists. Declaration-only Components are
         // host-known without any fake runtime behavior.
         let component_runtime_export = if !component_declarations.is_empty() {
             let native_module = ComponentRuntimeModule::with_components(
                 component_declarations,
-                component_attachments,
+                component_self_realizations,
             )?;
             module_declarations.push(native_module.declaration());
             default_modules.push(Box::new(native_module));

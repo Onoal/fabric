@@ -23,14 +23,14 @@ Core resolve the capability providers.
 
 | Layer | Meaning |
 | --- | --- |
-| `ComponentDefinition` | Typed authoring definition: Config type, `ComponentId`, declaration, and optional runtime attachment. |
+| `ComponentDefinition` | Typed semantic definition: Config type, `ComponentId`, and declaration. |
 | `ComponentDeclaration` | Runtime-free semantic truth: `ComponentId`, Operations, Resource requirements, and System requirements. |
 | `ComponentSpec` | One configured declarative use, such as `Greeter::define(GreeterConfig { ... })`, including requirements and provider-selection lowering. |
 | `ComponentParticipation` | One active runtime incarnation, scoped to an Instance generation and participation identity. |
 
-`component!` implements the normal `ComponentDefinition` path, but it is an
-authoring convenience rather than the ontology. Handwritten definitions use
-the same public machinery.
+`component!` implements the normal semantic definition and explicit native
+self-realization path, but it is authoring convenience rather than ontology.
+Handwritten definitions use the same public machinery.
 
 ```text
 ComponentDefinition
@@ -155,17 +155,17 @@ Result<Result<Document, DocumentError>, ComponentError>
 
 The inner result may be `DocumentNotFound`, validation failure, or another
 package-owned outcome. The outer error covers Fabric concerns such as an
-unavailable Component, operation type mismatch, missing runtime attachment, or
+unavailable Component, operation type mismatch, missing local realization, or
 stale generation/participation. Fabric does not merge these into a universal
 application error.
 
-## Runtime attachment and participation
+## Native realization and participation
 
-`ComponentDeclaration != ComponentRuntimeDefinition`. A definition may return
-no runtime attachment, so declaration-only Components—including zero-operation
-Components—are valid semantic truth. They are known to the Component
-environment, but native local materialization without an attachment fails with
-an explicit missing-runtime-attachment error.
+`ComponentDeclaration != ComponentRuntimeDefinition`. A `ComponentSpec` may
+carry no local self-realization, so declaration-only Components—including
+zero-operation Components—are valid semantic truth. They are known to the
+Component environment, but native local materialization without a realization
+fails with the existing `MissingComponentRuntimeAttachment` error.
 
 Normally `component!` generates an attachment that obtains Core-resolved
 dependencies, constructs the typed dependencies value, registers operations,

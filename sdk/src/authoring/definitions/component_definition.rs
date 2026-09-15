@@ -6,7 +6,7 @@ use crate::authoring::{
     PrimarySystemContract, SystemRequires, SystemSelection,
 };
 use fabric_component::{
-    ComponentDeclaration, ComponentId, ComponentResourceDependency,
+    ComponentDeclaration, ComponentError, ComponentId, ComponentResourceDependency,
     ComponentResourceRequirementDeclaration, ComponentResourceRequirementName,
     ComponentRuntimeDefinition, ComponentSystemRequirementDeclaration,
     component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
@@ -16,7 +16,7 @@ use fabric_core::{
     ModuleError, ModuleId, ModuleRuntime,
 };
 
-/// Typed Resource access for a Component runtime attachment. The requirement
+/// Typed Resource access for a Component self realization. The requirement
 /// is declaration truth owned by the ComponentSpec and has already been
 /// resolved by Core before this scope is made available.
 pub trait ComponentResourceScope {
@@ -412,7 +412,7 @@ where
 {
     config: C::Config,
     declaration: ComponentDeclaration,
-    runtime: Option<ComponentRuntimeDefinition>,
+    self_realization: Option<ComponentRuntimeDefinition>,
     resource_contributions: Vec<Box<dyn ComponentResourceContribution>>,
     system_contributions: Vec<Box<dyn ComponentSystemContribution>>,
     provider_selections: Vec<ContractProviderSelection>,
@@ -422,7 +422,7 @@ where
 
 pub(crate) struct ComponentSpecParts {
     pub(crate) declaration: ComponentDeclaration,
-    pub(crate) runtime: Option<ComponentRuntimeDefinition>,
+    pub(crate) self_realization: Option<ComponentRuntimeDefinition>,
     pub(crate) carriers: Vec<Box<dyn Module>>,
     pub(crate) provider_selections: Vec<ContractProviderSelection>,
     pub(crate) semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
@@ -439,11 +439,10 @@ pub trait ComponentDefinition: Sized + Send + Sync + 'static {
     fn define(config: Self::Config) -> ComponentSpec<Self> {
         ComponentSpec::<Self>::new(config)
     }
+}
 
-    fn runtime_attachment(config: &Self::Config) -> Option<ComponentRuntimeDefinition> {
-        let _ = config;
-        None
-    }
+pub trait SelfRealizingComponentDefinition: ComponentDefinition {
+    fn self_realization(config: &Self::Config) -> ComponentRuntimeDefinition;
 }
 
 impl<C> ComponentSpec<C>
@@ -452,7 +451,7 @@ where
 {
     pub fn new(config: C::Config) -> Self {
         Self {
-            runtime: C::runtime_attachment(&config),
+            self_realization: None,
             declaration: C::declaration(),
             config,
             resource_contributions: Vec::new(),
@@ -463,6 +462,26 @@ where
         }
     }
 
+    pub fn declaration_only(config: C::Config) -> Self {
+        Self::new(config)
+    }
+
+    pub fn self_realizing(config: C::Config) -> Result<Self, ComponentError>
+    where
+        C: SelfRealizingComponentDefinition,
+    {
+        let realization = C::self_realization(&config);
+        if realization.component_id() != &C::component_id() {
+            return Err(ComponentError::DuplicateComponentRuntimeDefinition(
+                realization.component_id().clone(),
+            ));
+        }
+        Ok(Self {
+            self_realization: Some(realization),
+            ..Self::new(config)
+        })
+    }
+
     pub fn config(&self) -> &C::Config {
         &self.config
     }
@@ -471,8 +490,8 @@ where
         &self.declaration
     }
 
-    pub fn into_runtime_definition(self) -> Option<ComponentRuntimeDefinition> {
-        self.runtime
+    pub fn into_self_realization(self) -> Option<ComponentRuntimeDefinition> {
+        self.self_realization
     }
 
     pub fn requires_resource<R>(mut self, requirement: Requires<R>) -> Self
@@ -604,7 +623,7 @@ where
         );
         ComponentSpecParts {
             declaration: self.declaration,
-            runtime: self.runtime,
+            self_realization: self.self_realization,
             carriers,
             provider_selections: self.provider_selections,
             semantic_provider_selections: self.semantic_provider_selections,

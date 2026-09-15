@@ -65,8 +65,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.1.0\", path = \"resource\" }",
         "fabric-system = { package = \"onoal-fabric-system\", version = \"0.1.0\", path = \"system\" }",
         "fabric-component = { package = \"onoal-fabric-component\", version = \"0.1.0\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.1.1\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.1.1\", path = \"sdk\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.2.0\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.2.0\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -105,8 +105,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         let source =
             fs::read_to_string(repository.join(manifest)).expect("read corrected manifest");
         assert!(
-            source.contains("version = \"0.1.1\"") && !source.contains("version.workspace = true"),
-            "only the corrected public package must carry its explicit 0.1.1 version: {manifest}"
+            source.contains("version = \"0.2.0\"") && !source.contains("version.workspace = true"),
+            "only the active public package must carry its explicit 0.2.0 version: {manifest}"
         );
     }
 

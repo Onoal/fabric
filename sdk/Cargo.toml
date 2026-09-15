@@ -1,5 +1,5 @@
 [package]
-name = "onoal-fabric-sdk"
+name = "onoal-fabric"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

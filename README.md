@@ -38,7 +38,7 @@ Add the normal Rust SDK package to your application:
 
 ```toml
 [dependencies]
-fabric-sdk = { package = "onoal-fabric-sdk", version = "0.1.0" }
+fabric-sdk = { package = "onoal-fabric", version = "0.1.0" }
 ```
 
 Then import its stable Rust crate name:

@@ -101,9 +101,9 @@ name = "fabric-test-adapter-clock-memory"
 version = "0.1.0"
 dependencies = [
  "fabric-test-resource-clock",
+ "onoal-fabric",
  "onoal-fabric-core",
  "onoal-fabric-resource",
- "onoal-fabric-sdk",
 ]
 
 [[package]]
@@ -112,8 +112,8 @@ version = "0.1.0"
 dependencies = [
  "fabric-test-resource-counter",
  "fabric-test-system-operations",
+ "onoal-fabric",
  "onoal-fabric-core",
- "onoal-fabric-sdk",
  "trybuild",
 ]
 
@@ -124,9 +124,9 @@ dependencies = [
  "fabric-test-resource-counter",
  "fabric-test-system-operations",
  "futures",
+ "onoal-fabric",
  "onoal-fabric-component",
  "onoal-fabric-core",
- "onoal-fabric-sdk",
  "trybuild",
 ]
 
@@ -137,7 +137,7 @@ dependencies = [
  "fabric-test-adapter-clock-memory",
  "fabric-test-resource-clock",
  "futures",
- "onoal-fabric-sdk",
+ "onoal-fabric",
 ]
 
 [[package]]
@@ -152,9 +152,9 @@ dependencies = [
 name = "fabric-test-resource-clock"
 version = "0.1.0"
 dependencies = [
+ "onoal-fabric",
  "onoal-fabric-core",
  "onoal-fabric-resource",
- "onoal-fabric-sdk",
  "thiserror",
 ]
 
@@ -162,9 +162,9 @@ dependencies = [
 name = "fabric-test-resource-counter"
 version = "0.1.0"
 dependencies = [
+ "onoal-fabric",
  "onoal-fabric-core",
  "onoal-fabric-resource",
- "onoal-fabric-sdk",
  "trybuild",
 ]
 
@@ -178,10 +178,10 @@ dependencies = [
  "fabric-test-resource-counter",
  "fabric-test-system-operations",
  "futures",
+ "onoal-fabric",
  "onoal-fabric-component",
  "onoal-fabric-core",
  "onoal-fabric-host",
- "onoal-fabric-sdk",
  "onoal-fabric-system",
  "trybuild",
 ]
@@ -191,9 +191,9 @@ name = "fabric-test-system-operations"
 version = "0.1.0"
 dependencies = [
  "fabric-test-resource-clock",
+ "onoal-fabric",
  "onoal-fabric-core",
  "onoal-fabric-resource",
- "onoal-fabric-sdk",
  "onoal-fabric-system",
  "trybuild",
 ]
@@ -366,6 +366,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "onoal-fabric"
+version = "0.1.0"
+dependencies = [
+ "onoal-fabric-component",
+ "onoal-fabric-core",
+ "onoal-fabric-host",
+ "onoal-fabric-resource",
+ "onoal-fabric-sdk-macros",
+ "onoal-fabric-system",
+]
+
+[[package]]
 name = "onoal-fabric-component"
 version = "0.1.0"
 dependencies = [
@@ -400,18 +412,6 @@ dependencies = [
  "semver",
  "sha2",
  "thiserror",
-]
-
-[[package]]
-name = "onoal-fabric-sdk"
-version = "0.1.0"
-dependencies = [
- "onoal-fabric-component",
- "onoal-fabric-core",
- "onoal-fabric-host",
- "onoal-fabric-resource",
- "onoal-fabric-sdk-macros",
- "onoal-fabric-system",
 ]
 
 [[package]]

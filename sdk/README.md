@@ -13,7 +13,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric-sdk = { package = "onoal-fabric-sdk", version = "0.1.0" }
+fabric-sdk = { package = "onoal-fabric", version = "0.1.0" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:

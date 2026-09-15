@@ -31,7 +31,7 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         ("onoal-fabric-system", "fabric_system"),
         ("onoal-fabric-component", "fabric_component"),
         ("onoal-fabric-sdk-macros", "fabric_sdk_macros"),
-        ("onoal-fabric-sdk", "fabric_sdk"),
+        ("onoal-fabric", "fabric_sdk"),
     ] {
         assert!(metadata.contains(&format!("\"name\":\"{package}\"")));
         assert!(metadata.contains(&format!("\"name\":\"{library}\"")));
@@ -66,7 +66,7 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "fabric-system = { package = \"onoal-fabric-system\", version = \"0.1.0\", path = \"system\" }",
         "fabric-component = { package = \"onoal-fabric-component\", version = \"0.1.0\", path = \"component\" }",
         "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.1.0\", path = \"sdk-macros\" }",
-        "fabric-sdk = { package = \"onoal-fabric-sdk\", version = \"0.1.0\", path = \"sdk\" }",
+        "fabric-sdk = { package = \"onoal-fabric\", version = \"0.1.0\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),

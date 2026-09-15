@@ -108,5 +108,6 @@ definition -> Composition -> build -> Manifest inspection
            -> Instance materialization -> start -> operation -> stop
 ```
 
-The [Concepts overview](concepts/README.md) explains the pieces in this flow.
-Read [Architecture](architecture.md) when you need the precise semantic model.
+Next, read [Composition](concepts/composition.md) to understand the declaration
+that `build()` created. The [Concepts overview](concepts/README.md) maps the
+remaining pieces; read [Architecture](architecture.md) for the precise model.

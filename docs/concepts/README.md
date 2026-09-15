@@ -6,8 +6,9 @@ using Fabric.
 
 ## The concepts
 
-**Composition** is the reusable declaration of a system: its participants,
-requirements, selections, and declared structure.
+**[Composition](composition.md)** is the reusable declaration of a system: its
+participants, requirements, selections, and declared structure. Start here to
+understand the difference between what Fabric declares and what it runs.
 
 **Instance** is one live materialization of a Composition. It owns lifecycle,
 generation, and runtime state.

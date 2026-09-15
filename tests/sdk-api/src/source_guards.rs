@@ -85,6 +85,7 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "docs/README.md",
         "docs/getting-started.md",
         "docs/concepts/README.md",
+        "docs/concepts/composition.md",
         "docs/architecture.md",
         "docs/advanced/raw-api.md",
     ] {
@@ -243,6 +244,7 @@ fn public_tree_uses_neutral_documentation_and_macro_diagnostics() {
         repository.join("docs/README.md"),
         repository.join("docs/getting-started.md"),
         repository.join("docs/concepts/README.md"),
+        repository.join("docs/concepts/composition.md"),
         repository.join("docs/architecture.md"),
         repository.join("docs/advanced/raw-api.md"),
         repository.join("sdk/README.md"),

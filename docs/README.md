@@ -17,7 +17,7 @@ Fabric documentation has three levels.
    - [Composition](concepts/composition.md)
    - [Instance](concepts/instance.md)
    - [Component](concepts/component.md)
-   - Resource
+   - [Resource](concepts/resource.md)
    - System
    - Adapter
    - Host

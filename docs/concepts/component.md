@@ -216,5 +216,6 @@ registry rails exist for advanced integrations, but ordinary authoring uses
 definition, declaration, requirements, operations, materialization, and the
 bounded Instance Component surface.
 
+Next: [Resource](resource.md), the semantic technical capability boundary.
 Return to the [Concept map](README.md) or the precise
 [Architecture](../architecture.md).

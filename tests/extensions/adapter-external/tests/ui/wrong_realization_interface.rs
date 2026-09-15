@@ -1,4 +1,4 @@
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub WrongRealizationInterfaceAdapter
         for resource fabric_test_resource_counter::AdaptedCounter
         implements fabric_test_system_operations::AdaptedOperationsRealization

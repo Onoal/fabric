@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
+use fabric::prelude::{AdapterDefinition, ResourceDefinition};
 use fabric_core::{
     Health, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
 };
 use fabric_resource::{AdapterResourceSchemaSupport, ResourceId};
-use fabric_sdk::prelude::{AdapterDefinition, ResourceDefinition};
 
 use crate::{CounterValue, definition::adapted_counter};
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub FixedCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
         schema: provisional;
         realization: "1.0.0";
@@ -25,7 +25,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub IncompatibleSchemaCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
         schema: "^9";
         realization: "1.0.0";
@@ -42,7 +42,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub WrongVersionCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
         schema: provisional;
         realization: "2.0.0";

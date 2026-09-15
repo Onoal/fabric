@@ -34,5 +34,5 @@ fabric-core = { package = "onoal-fabric-core", version = "0.1.0", path = "core" 
 fabric-resource = { package = "onoal-fabric-resource", version = "0.1.0", path = "resource" }
 fabric-system = { package = "onoal-fabric-system", version = "0.1.0", path = "system" }
 fabric-component = { package = "onoal-fabric-component", version = "0.1.0", path = "component" }
-fabric-sdk-macros = { package = "onoal-fabric-sdk-macros", version = "0.1.0", path = "sdk-macros" }
-fabric-sdk = { package = "onoal-fabric", version = "0.1.0", path = "sdk" }
+fabric-sdk-macros = { package = "onoal-fabric-sdk-macros", version = "0.1.1", path = "sdk-macros" }
+fabric = { package = "onoal-fabric", version = "0.1.1", path = "sdk" }

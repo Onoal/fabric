@@ -1,15 +1,15 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::prelude::*;
+use fabric::{
+    core::{ContractProviderSelection, ContractRequirement},
+    ids::module,
+};
 use fabric_component::ComponentMaterializer;
 use fabric_core::{
     BlockBuilder, BlockId, CompositionError, ContractId, ContractKey, ContractVersionRequirement,
     Health, InstanceGeneration, InstanceId, LifecycleState, ModuleBindings, ModuleContract,
     ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
-};
-use fabric_sdk::prelude::*;
-use fabric_sdk::{
-    core::{ContractProviderSelection, ContractRequirement},
-    ids::module,
 };
 use fabric_system::{SystemId, SystemSchemaDescriptor};
 use fabric_test_adapter_clock_memory::{
@@ -61,7 +61,7 @@ struct MacroDependencyOutput {
     origin: InvocationOrigin,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     MacroDependencyProbe {
         id: "fabric.test.component.macro-dependency-probe";
 
@@ -109,7 +109,7 @@ struct ContextOutput {
     origin: InvocationOrigin,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     ContextProbe {
         id: "fabric.test.component.context-probe";
         config {}
@@ -147,7 +147,7 @@ enum DocumentError {
     NotFound,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     DocumentProbe {
         id: "fabric.test.component.document-probe";
         config {}
@@ -177,7 +177,7 @@ struct DualCounterOutput {
     secondary: u64,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     DualCounterProbe {
         id: "fabric.test.component.dual-counter-probe";
         config {}

@@ -1,4 +1,4 @@
-fabric_sdk::system! {
+fabric::system! {
     pub DerivedOperations {
         id: "fabric.test.operations.derived";
 

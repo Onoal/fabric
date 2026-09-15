@@ -1,6 +1,6 @@
 use fabric_test_system_operations::{OperationMarker, TestOperations};
 
-fabric_sdk::system! {
+fabric::system! {
     pub DuplicateSystemDependencyField {
         id: "fabric.test.system.duplicate-dependency-field";
 

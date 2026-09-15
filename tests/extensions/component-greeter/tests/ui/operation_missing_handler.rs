@@ -1,4 +1,4 @@
-use fabric_sdk::component;
+use fabric::component;
 
 #[derive(Clone)]
 pub struct Input;

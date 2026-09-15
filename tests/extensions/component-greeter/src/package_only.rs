@@ -13,10 +13,10 @@
 //! A `src/tests.rs` source guard pins this negative space so the package
 //! cannot silently regain a runtime obligation.
 
+use fabric::prelude::ComponentDefinition;
 use fabric_component::{
     ComponentDeclaration, ComponentId, OperationDefinition, OperationId, OperationTypeId,
 };
-use fabric_sdk::prelude::ComponentDefinition;
 
 #[derive(Clone)]
 pub struct PackageComponentConfig {

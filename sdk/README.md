@@ -1,25 +1,25 @@
-# fabric-sdk
+# fabric
 
-`fabric-sdk` is the normal Rust authoring layer for Fabric. It is an ergonomic
+`fabric` is the normal Rust authoring layer for Fabric. It is an ergonomic
 frontend over the same public typed machinery available to handwritten
 third-party extensions.
 
-Use `fabric_sdk::prelude::*` for normal Resource, System, Adapter, Component,
+Use `fabric::prelude::*` for normal Resource, System, Adapter, Component,
 Host, Fabric, Instance, and semantic Manifest work. Use explicit named modules
-such as `fabric_sdk::authoring`, `fabric_sdk::core`, and
-`fabric_sdk::component` for advanced/raw capability.
+such as `fabric::authoring`, `fabric::core`, and
+`fabric::component` for advanced/raw capability.
 
 Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric-sdk = { package = "onoal-fabric", version = "0.1.0" }
+fabric = { package = "onoal-fabric", version = "0.1.0" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
 
 ```rust
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 ```
 
 ## Normal flow
@@ -28,7 +28,7 @@ Normal authoring is define, select, compose, build, inspect, materialize,
 start, operate Components, then stop:
 
 ```rust
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 
 let built = Fabric::new("example")
     .expect("valid composition id")
@@ -72,7 +72,7 @@ Adaptable Resources and Systems expose an intentional public typed realization
 interface. Adapter authors name both target and interface:
 
 ```rust
-fabric_sdk::adapter! {
+fabric::adapter! {
     ExampleAdapter
         for resource ExampleResource
         implements ExampleResourceRealization
@@ -102,7 +102,7 @@ requirements in `system {}`. Handlers receive resolved semantic contracts in a
 generated dependencies value; a Component never depends on an Adapter.
 
 ```rust
-fabric_sdk::component! {
+fabric::component! {
     Notes {
         id: "example.notes";
         config { prefix: String; }
@@ -200,12 +200,12 @@ need; no generated private module is required.
 intentionally imported explicitly:
 
 ```rust
-use fabric_sdk::authoring::FabricBuilder;
+use fabric::authoring::FabricBuilder;
 ```
 
 Raw Modules, Bindings, Contract provider selections, and Component rails are
-likewise available through named modules, for example `fabric_sdk::core` and
-`fabric_sdk::component`. They remain useful advanced capability, but normal
+likewise available through named modules, for example `fabric::core` and
+`fabric::component`. They remain useful advanced capability, but normal
 packages should not need them.
 
 The repository's `experimental/` modules are not forwarded through the SDK.

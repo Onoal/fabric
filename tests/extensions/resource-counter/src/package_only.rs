@@ -17,11 +17,11 @@
 //! A `src/tests.rs` source guard pins this negative space so the package
 //! cannot silently regain a runtime obligation.
 
-use fabric_core::{ContractKey, ModuleDeclaration};
-use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor};
-use fabric_sdk::prelude::{
+use fabric::prelude::{
     IntoResourceName, PrimaryResourceContract, ResourceDefinition, ResourceSelection,
 };
+use fabric_core::{ContractKey, ModuleDeclaration};
+use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor};
 
 #[derive(Clone)]
 pub struct PackageOnlyConfig {

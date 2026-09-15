@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::ComponentDefinition;
 use fabric_component::{
     ComponentId, ComponentMaterializer, ComponentRuntimeDefinition, ComponentRuntimeModule,
     InvocationRail, OperationKey, OperationRail,
@@ -8,7 +9,6 @@ use fabric_core::{
     BlockBuilder, BlockId, CompositionBuilder, CompositionId, ContractRequirement, Health,
     Instance, InstanceId, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
 };
-use fabric_sdk::ComponentDefinition;
 use futures::executor::block_on;
 
 use crate::{
@@ -174,7 +174,7 @@ struct ScriptedOutput {
     message: String,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     pub ScriptedGreeter {
         id: "fabric.test.scripted.greeter";
 
@@ -219,7 +219,7 @@ struct AlphaOutput {
     value: u64,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     pub AlphaComponent {
         id: "fabric.test.alpha.component";
 
@@ -250,7 +250,7 @@ struct BetaOutput {
     value: u64,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     pub BetaComponent {
         id: "fabric.test.beta.component";
 

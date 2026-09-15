@@ -1,6 +1,6 @@
 use fabric_test_system_operations::{OperationMarker, TestOperations};
 
-fabric_sdk::system! {
+fabric::system! {
     pub MissingSystemDependencyCompatibility {
         id: "fabric.test.system.missing-dependency-compatibility";
 

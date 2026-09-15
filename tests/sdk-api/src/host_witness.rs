@@ -1,4 +1,4 @@
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 
 #[test]
 fn sdk_exposes_generic_host_compatibility_with_open_facilities() {

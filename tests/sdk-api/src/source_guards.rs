@@ -31,7 +31,7 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         ("onoal-fabric-system", "fabric_system"),
         ("onoal-fabric-component", "fabric_component"),
         ("onoal-fabric-sdk-macros", "fabric_sdk_macros"),
-        ("onoal-fabric", "fabric_sdk"),
+        ("onoal-fabric", "fabric"),
     ] {
         assert!(metadata.contains(&format!("\"name\":\"{package}\"")));
         assert!(metadata.contains(&format!("\"name\":\"{library}\"")));
@@ -65,12 +65,39 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.1.0\", path = \"resource\" }",
         "fabric-system = { package = \"onoal-fabric-system\", version = \"0.1.0\", path = \"system\" }",
         "fabric-component = { package = \"onoal-fabric-component\", version = \"0.1.0\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.1.0\", path = \"sdk-macros\" }",
-        "fabric-sdk = { package = \"onoal-fabric\", version = \"0.1.0\", path = \"sdk\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.1.1\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.1.1\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
             "canonical sibling dependency must retain package alias, version, and local path: {dependency}"
+        );
+    }
+
+    assert!(
+        !workspace_manifest.contains("fabric-sdk = {"),
+        "the primary Fabric dependency key must remain fabric"
+    );
+
+    for document in [
+        "README.md",
+        "sdk/README.md",
+        "docs/architecture.md",
+        "docs/raw-api.md",
+    ] {
+        let source = fs::read_to_string(repository.join(document)).expect("read public document");
+        assert!(
+            !source.contains("fabric_sdk") && !source.contains("fabric-sdk"),
+            "public primary-crate documentation must use fabric: {document}"
+        );
+    }
+
+    for manifest in ["sdk-macros/Cargo.toml", "sdk/Cargo.toml"] {
+        let source =
+            fs::read_to_string(repository.join(manifest)).expect("read corrected manifest");
+        assert!(
+            source.contains("version = \"0.1.1\"") && !source.contains("version.workspace = true"),
+            "only the corrected public package must carry its explicit 0.1.1 version: {manifest}"
         );
     }
 

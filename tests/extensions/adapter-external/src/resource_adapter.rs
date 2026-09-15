@@ -1,4 +1,4 @@
-use fabric_sdk::prelude::{HostFacilityId, HostRequirement};
+use fabric::prelude::{HostFacilityId, HostRequirement};
 use fabric_test_resource_counter::{
     AdaptedCounter as ExternalCounter, AdaptedCounterRealization as ExternalCounterRealization,
     CounterValue,
@@ -9,7 +9,7 @@ pub fn external_counter_host_facility() -> HostFacilityId {
         .expect("static external counter host facility")
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub ExternalCounterAdapter for resource ExternalCounter implements ExternalCounterRealization {
         schema: provisional;
         realization: "1.0.0";
@@ -26,7 +26,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub HostBoundExternalCounterAdapter for resource ExternalCounter implements ExternalCounterRealization {
         schema: provisional;
         realization: "1.0.0";

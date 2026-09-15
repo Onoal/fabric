@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use fabric_core::{ContractKey, ContractRequirement, ModuleDeclaration};
-use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor, ResourceSchemaVersion};
-use fabric_sdk::prelude::{
+use fabric::prelude::{
     AdaptableResourceDefinition, IntoResourceName, PrimaryResourceContract, ResourceDefinition,
     ResourceSelection,
 };
+use fabric_core::{ContractKey, ContractRequirement, ModuleDeclaration};
+use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor, ResourceSchemaVersion};
 
 use crate::{BoundClockRealization, ClockContract, ClockRealizationContract, NativeClock};
 

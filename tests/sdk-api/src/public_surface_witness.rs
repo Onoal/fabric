@@ -1,4 +1,4 @@
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 use fabric_test_component_greeter::{Greeter, GreeterConfig, GreeterInput, greeter};
 
 #[test]
@@ -36,8 +36,8 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
 
 #[test]
 fn raw_capabilities_remain_available_through_named_sdk_modules() {
-    use fabric_sdk::component::{InvocationRail, OperationRail};
-    use fabric_sdk::core::{Module, ModuleBindings, ModuleRuntime};
+    use fabric::component::{InvocationRail, OperationRail};
+    use fabric::core::{Module, ModuleBindings, ModuleRuntime};
 
     let _: Option<InvocationRail> = None;
     let _: Option<OperationRail> = None;

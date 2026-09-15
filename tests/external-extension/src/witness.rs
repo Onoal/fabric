@@ -1,4 +1,4 @@
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 use fabric_test_adapter_clock_memory::MemoryClock;
 use fabric_test_resource_clock::{Clock, ClockConfig, ClockError};
 
@@ -17,7 +17,7 @@ fn test_host() -> HostDescriptor {
     )
 }
 
-fabric_sdk::component! {
+fabric::component! {
     EcosystemClockProbe {
         id: "fabric.test.ecosystem.clock-probe";
 

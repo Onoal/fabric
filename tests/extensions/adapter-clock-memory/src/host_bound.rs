@@ -1,6 +1,6 @@
+use fabric::prelude::{AdapterDefinition, HostFacilityId, HostRequirement, ResourceDefinition};
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
 use fabric_resource::{AdapterResourceSchemaSupport, ResourceSchemaRequirement};
-use fabric_sdk::prelude::{AdapterDefinition, HostFacilityId, HostRequirement, ResourceDefinition};
 use fabric_test_resource_clock::{Clock, clock_realization_contract_key};
 
 use crate::memory::{MemoryClock, MemoryClockProvider};

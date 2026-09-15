@@ -34,7 +34,7 @@ A Resource or adaptable System may expose a public realization trait. An
 Adapter names both sides explicitly:
 
 ```rust
-fabric_sdk::adapter! {
+fabric::adapter! {
     ExampleAdapter
         for resource ExampleResource
         implements ExampleResourceRealization
@@ -101,17 +101,17 @@ world. `Block` is advanced grouping and reporting machinery, not dependency
 topology. Core graph truth—not Block order—determines dependency and lifecycle
 ordering.
 
-The normal authoring path is `fabric_sdk` and `fabric_sdk::prelude`. Advanced
+The normal authoring path is `fabric` and `fabric::prelude`. Advanced
 capability remains public through named modules including
-`fabric_sdk::authoring`, `fabric_sdk::core`, and `fabric_sdk::component`.
+`fabric::authoring`, `fabric::core`, and `fabric::component`.
 Handwritten third-party definitions and typed realization interfaces use the
 same public machinery as macro-generated definitions.
 
 An ordinary Rust function is the supported Composition reuse mechanism:
 
 ```rust
-pub fn local_stack() -> fabric_sdk::Fabric {
-    fabric_sdk::Fabric::new("example").expect("valid composition id")
+pub fn local_stack() -> fabric::Fabric {
+    fabric::Fabric::new("example").expect("valid composition id")
 }
 ```
 

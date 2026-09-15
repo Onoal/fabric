@@ -1,4 +1,4 @@
-error[E0599]: the method `using` exists for struct `fabric_sdk::authoring::definitions::resource_selection::ResourceSelection<DirectCounter>`, but its trait bounds were not satisfied
+error[E0599]: the method `using` exists for struct `fabric::authoring::definitions::resource_selection::ResourceSelection<DirectCounter>`, but its trait bounds were not satisfied
  --> tests/ui/direct_only_resource_using_adapter.rs:7:10
   |
 5 |       let _ = DirectCounter::select("primary", DirectCounterConfig { value: 7 })
@@ -11,9 +11,9 @@ error[E0599]: the method `using` exists for struct `fabric_sdk::authoring::defin
   |
  ::: $WORKSPACE/tests/extensions/resource-counter/src/definition.rs
   |
-  | / fabric_sdk::resource! {
+  | / fabric::resource! {
   | |     pub DirectCounter {
   | |_____________________- doesn't satisfy `_: AdaptableResourceDefinition`
   |
   = note: the following trait bounds were not satisfied:
-          `DirectCounter: fabric_sdk::authoring::definitions::resource_definition::AdaptableResourceDefinition`
+          `DirectCounter: fabric::authoring::definitions::resource_definition::AdaptableResourceDefinition`

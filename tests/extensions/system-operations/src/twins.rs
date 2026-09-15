@@ -1,4 +1,4 @@
-fabric_sdk::system! {
+fabric::system! {
     pub AlphaOperations {
         id: "fabric.test.system.alpha";
 
@@ -25,7 +25,7 @@ fabric_sdk::system! {
     }
 }
 
-fabric_sdk::system! {
+fabric::system! {
     pub BetaOperations {
         id: "fabric.test.system.beta";
 

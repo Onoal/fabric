@@ -7,10 +7,10 @@ use crate::ast::{
     RequirementLiteral, SystemDependencyDefinition,
 };
 
-use super::common::{sdk_path, to_snake_case};
+use super::common::{fabric_path, to_snake_case};
 
 pub fn expand_component(input: &ComponentInput) -> TokenStream {
-    let sdk = sdk_path();
+    let sdk = fabric_path();
     let visibility = &input.visibility;
     let component_name = &input.name;
     let config_name = format_ident!("{}Config", component_name);

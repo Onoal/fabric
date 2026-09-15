@@ -1,5 +1,5 @@
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
-use fabric_sdk::prelude::{
+use fabric::prelude::{
     AdapterDefinition, AdapterResourceSchemaSupport, ResourceId,
 };
 use fabric_test_system_operations::{AdaptedOperations, AdaptedOperationsConfig};

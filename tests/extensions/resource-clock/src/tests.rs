@@ -1,9 +1,9 @@
+use fabric::prelude::{
+    AdaptableResourceDefinition, PrimaryResourceContract, Requires, ResourceDefinition,
+};
 use fabric_core::{
     ContractRequirementDeclaration, ContractVersionRequirement, ModuleRuntime,
     ProvidedContractDeclaration,
-};
-use fabric_sdk::prelude::{
-    AdaptableResourceDefinition, PrimaryResourceContract, Requires, ResourceDefinition,
 };
 
 use crate::{
@@ -137,7 +137,7 @@ fn clock_remains_a_handwritten_resource_definition() {
         "Clock should remain a handwritten Resource definition"
     );
     assert!(
-        !definition.contains("fabric_sdk::resource!"),
+        !definition.contains("fabric::resource!"),
         "Clock should remain a handwritten Resource definition"
     );
 }

@@ -59,14 +59,14 @@ pub fn contract_wrapper_method_tokens(method: &ContractMethod) -> TokenStream {
     }
 }
 
-pub fn sdk_path() -> TokenStream {
-    match crate_name("fabric-sdk") {
+pub fn fabric_path() -> TokenStream {
+    match crate_name("onoal-fabric") {
         Ok(FoundCrate::Itself) => quote!(crate),
         Ok(FoundCrate::Name(name)) => {
             let ident = Ident::new(&name, Span::call_site());
             quote!(::#ident)
         }
-        Err(_) => quote!(::fabric_sdk),
+        Err(_) => quote!(::fabric),
     }
 }
 

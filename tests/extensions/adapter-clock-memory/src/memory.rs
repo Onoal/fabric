@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::prelude::{AdapterDefinition, ResourceDefinition};
 use fabric_core::{
     Health, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
 };
 use fabric_resource::{AdapterResourceSchemaSupport, ResourceSchemaRequirement};
-use fabric_sdk::prelude::{AdapterDefinition, ResourceDefinition};
 use fabric_test_resource_clock::{
     Clock, ClockError, ClockRealization, ClockRealizationContract, ClockTick,
     clock_realization_contract_key,

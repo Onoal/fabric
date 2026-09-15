@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 fabric-core.workspace = true
-fabric-sdk.workspace = true
+fabric.workspace = true
 fabric-test-resource-counter = { path = "../resource-counter" }
 fabric-test-system-operations = { path = "../system-operations" }
 

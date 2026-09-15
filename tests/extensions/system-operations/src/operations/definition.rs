@@ -3,7 +3,7 @@ use fabric_system::{SystemId, SystemSchemaVersion};
 
 use crate::OperationSequence;
 
-fabric_sdk::system! {
+fabric::system! {
     pub TestOperations {
         id: "fabric.test.operations";
 

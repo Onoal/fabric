@@ -1,4 +1,4 @@
-use fabric_sdk::component;
+use fabric::component;
 use fabric_test_resource_counter::DirectCounter;
 
 struct Input;

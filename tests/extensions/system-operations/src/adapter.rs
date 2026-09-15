@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
+use fabric::prelude::{AdapterDefinition, ContractDependency, ResourceDefinition, SystemRequires};
 use fabric_core::{
     ContractVersionRequirement, Health, ModuleBindings, ModuleContract, ModuleDeclaration,
     ModuleError, ModuleId, ModuleRuntime,
 };
 use fabric_resource::{AdapterResourceSchemaSupport, ResourceSchemaRequirement};
-use fabric_sdk::prelude::{
-    AdapterDefinition, ContractDependency, ResourceDefinition, SystemRequires,
-};
 use fabric_test_resource_clock::{
     Clock, ClockError, ClockRealization, ClockRealizationContract, ClockTick,
     clock_realization_contract_key,

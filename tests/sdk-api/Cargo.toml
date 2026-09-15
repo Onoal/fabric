@@ -8,7 +8,7 @@ publish = false
 fabric-core.workspace = true
 fabric-component.workspace = true
 fabric-host.workspace = true
-fabric-sdk.workspace = true
+fabric.workspace = true
 fabric-system.workspace = true
 fabric-test-adapter-clock-memory = { path = "../extensions/adapter-clock-memory" }
 fabric-test-resource-clock = { path = "../extensions/resource-clock" }

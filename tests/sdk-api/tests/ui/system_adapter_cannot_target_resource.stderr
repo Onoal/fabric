@@ -9,7 +9,7 @@ error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinit
 9 | |         }));
   | |__________^ expected `Clock`, found `AdaptedOperations`
   |
-note: required by a bound in `fabric_sdk::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
+note: required by a bound in `fabric::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
  --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
   |
   |     pub fn using<A>(
@@ -29,7 +29,7 @@ error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinit
 9 | |         }));
   | |__________^ expected `AdapterResourceSchemaSupport`, found `AdapterSystemSchemaSupport`
   |
-note: required by a bound in `fabric_sdk::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
+note: required by a bound in `fabric::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
  --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
   |
   |     pub fn using<A>(

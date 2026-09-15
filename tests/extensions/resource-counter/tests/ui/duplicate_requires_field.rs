@@ -1,4 +1,4 @@
-use fabric_sdk::resource;
+use fabric::resource;
 
 resource! {
     pub DuplicateRequiresField {

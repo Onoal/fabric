@@ -563,7 +563,7 @@ fn sdk_reexports_the_current_package_macro_frontends_only() {
 
     assert!(
         lib.contains("pub use fabric_sdk_macros::{adapter, component, resource, system};"),
-        "fabric-sdk should re-export adapter!, component!, resource!, and system!"
+        "fabric should re-export adapter!, component!, resource!, and system!"
     );
     assert!(
         prelude.contains("pub use crate::{adapter, component, resource, system};"),
@@ -572,7 +572,7 @@ fn sdk_reexports_the_current_package_macro_frontends_only() {
     let forbidden = "fabric_sdk_macros::host";
     assert!(
         !lib.contains(forbidden),
-        "fabric-sdk must not re-export unsupported macro frontend {forbidden}"
+        "fabric must not re-export unsupported macro frontend {forbidden}"
     );
 }
 
@@ -631,11 +631,11 @@ fn sdk_exposes_a_curated_generic_system_surface() {
 
     assert!(
         lib.contains("pub mod system;"),
-        "fabric-sdk should expose a dedicated generic system facade"
+        "fabric should expose a dedicated generic system facade"
     );
     assert!(
         lib.contains("pub mod adapter;"),
-        "fabric-sdk should expose a dedicated generic adapter facade"
+        "fabric should expose a dedicated generic adapter facade"
     );
     assert!(
         adapter.contains("pub use crate::authoring::{AdapterDefinition, AdapterProviderModule};"),
@@ -764,7 +764,7 @@ fn sdk_docs_describe_the_current_public_contract() {
         "SDK README must separate semantic Manifest inspection from raw diagnostics"
     );
     assert!(
-        readme.contains("use fabric_sdk::authoring::FabricBuilder;"),
+        readme.contains("use fabric::authoring::FabricBuilder;"),
         "SDK README must keep FabricBuilder on the explicit advanced path"
     );
     let internal_labels = (1..=5)
@@ -832,8 +832,8 @@ fn generic_fabric_crates_do_not_depend_back_on_sdk() {
     ] {
         let source = fs::read_to_string(&manifest).expect("read manifest");
         assert!(
-            !source.contains("fabric-sdk"),
-            "{} must not depend on fabric-sdk",
+            !source.contains("\nfabric =") && !source.contains("\nfabric="),
+            "{} must not declare a dependency on the primary fabric crate",
             manifest.display()
         );
     }

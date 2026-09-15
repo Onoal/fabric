@@ -38,13 +38,13 @@ Add the normal Rust SDK package to your application:
 
 ```toml
 [dependencies]
-fabric-sdk = { package = "onoal-fabric", version = "0.1.0" }
+fabric = { package = "onoal-fabric", version = "0.1.0" }
 ```
 
 Then import its stable Rust crate name:
 
 ```rust
-use fabric_sdk::prelude::*;
+use fabric::prelude::*;
 ```
 
 To develop Fabric from source:

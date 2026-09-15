@@ -1,6 +1,6 @@
 use fabric_test_system_operations::OperationMarker;
 
-fabric_sdk::system! {
+fabric::system! {
     pub MissingRuntimeMethod {
         id: "fabric.test.system.missing-runtime";
 

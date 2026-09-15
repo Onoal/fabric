@@ -3,7 +3,7 @@ use fabric_test_system_operations::{
     AdaptedOperationsRealization as ExternalOperationsRealization, OperationMarker,
 };
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub ExternalOperationsAdapter for system ExternalOperations implements ExternalOperationsRealization {
         schema: "^2";
         realization: "1.0.0";
@@ -20,7 +20,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub ExternalOperationsWithSystemAdapter for system ExternalOperations implements ExternalOperationsRealization {
         schema: "^2";
         realization: "1.0.0";

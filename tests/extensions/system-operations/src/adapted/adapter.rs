@@ -1,8 +1,8 @@
 #[cfg(test)]
 use std::sync::{Arc, Mutex};
 
+use fabric::prelude::AdapterDefinition;
 use fabric_core::{Health, ModuleContract, ModuleError, ModuleId, ModuleRuntime};
-use fabric_sdk::prelude::AdapterDefinition;
 use fabric_system::{AdapterSystemSchemaSupport, SystemSchemaRequirement};
 
 use crate::{AdaptedOperations, adapted_operations_system_id};
@@ -13,7 +13,7 @@ use fabric_core::{ContractKey, ContractVersion};
 #[cfg(test)]
 use crate::OperationMarker;
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub FixedOperationsAdapter for system crate::adapted::definition::AdaptedOperations implements crate::AdaptedOperationsRealization {
         schema: "^2";
         realization: "1.0.0";
@@ -30,7 +30,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub AlternateOperationsAdapter for system crate::adapted::definition::AdaptedOperations implements crate::AdaptedOperationsRealization {
         schema: "^2";
         realization: "1.0.0";
@@ -47,7 +47,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub IncompatibleSchemaOperationsAdapter for system crate::adapted::definition::AdaptedOperations implements crate::AdaptedOperationsRealization {
         schema: "^3";
         realization: "1.0.0";
@@ -64,7 +64,7 @@ fabric_sdk::adapter! {
     }
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub WrongVersionOperationsAdapter for system crate::adapted::definition::AdaptedOperations implements crate::AdaptedOperationsRealization {
         schema: "^2";
         realization: "2.0.0";

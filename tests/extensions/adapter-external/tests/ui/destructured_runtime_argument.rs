@@ -1,4 +1,4 @@
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub DestructuredArgumentAdapter for system fabric_test_system_operations::AdaptedOperations implements fabric_test_system_operations::AdaptedOperationsRealization {
         schema: "^2";
         realization: "1.0.0";

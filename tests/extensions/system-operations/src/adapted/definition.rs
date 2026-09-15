@@ -3,7 +3,7 @@ use fabric_system::{SystemId, SystemSchemaVersion};
 
 type AdaptedOperationsRealizationContract = adapted_operations::realization::raw::AdapterContract;
 
-fabric_sdk::system! {
+fabric::system! {
     pub AdaptedOperations {
         id: "fabric.test.operations.adapted";
 

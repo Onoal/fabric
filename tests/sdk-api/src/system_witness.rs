@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::authoring::{CompositionExt, FabricBuilder};
+use fabric::prelude::*;
 use fabric_core::{
     ContractIdentity, Health, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
 };
-use fabric_sdk::authoring::{CompositionExt, FabricBuilder};
-use fabric_sdk::prelude::*;
 use fabric_test_system_operations::{
     OperationMarker, TestOperations, TestOperationsConfig, operations_contract_version,
 };

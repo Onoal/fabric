@@ -4,17 +4,17 @@ use quote::{format_ident, quote};
 use crate::ast::{RealizationDefinition, RequirementDefinition, ResourceInput};
 
 use super::common::{
-    PrimaryContractTokens, SubjectKind, method_call_args, primary_contract_tokens,
-    requirement_literal_expr, runtime_method_tokens, sdk_path, to_snake_case, version_literal_expr,
+    PrimaryContractTokens, SubjectKind, fabric_path, method_call_args, primary_contract_tokens,
+    requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
 pub fn expand_resource(input: &ResourceInput) -> TokenStream {
-    let sdk = sdk_path();
+    let sdk = fabric_path();
     let visibility = &input.visibility;
     let resource_name = &input.name;
     let config_name = format_ident!("{}Config", resource_name);
     let resource_mod = format_ident!("{}", to_snake_case(resource_name));
-    let raw_impl_mod = format_ident!("__fabric_sdk_raw_{}", to_snake_case(resource_name));
+    let raw_impl_mod = format_ident!("__fabric_raw_{}", to_snake_case(resource_name));
     let contract = input
         .contracts
         .iter()
@@ -367,10 +367,7 @@ fn realization_tokens(
     subject_kind: &'static str,
 ) -> TokenStream {
     let realization_mod = format_ident!("realization");
-    let raw_impl_mod = format_ident!(
-        "__fabric_sdk_realization_raw_{}",
-        to_snake_case(subject_name)
-    );
+    let raw_impl_mod = format_ident!("__fabric_realization_raw_{}", to_snake_case(subject_name));
     let service_name = format_ident!("{}Service", realization.name);
     let contract_name = format_ident!("{}Contract", realization.name);
     let contract_id = &realization.contract_id;

@@ -1,13 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use fabric_core::{
-    CompositionError, ContractCompatibilityRequirement, ContractIdentity,
-    ContractProviderSelection, ContractVersion, ContractVersionRequirement, Health, Module,
-    ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
-    ProvidedContractDeclaration,
-};
-use fabric_resource::ResourceCompatibilityError;
-use fabric_sdk::{
+use fabric::{
     authoring::{CompositionExt, FabricBuilder},
     ids::module,
     prelude::{
@@ -16,6 +9,13 @@ use fabric_sdk::{
         ResourceDefinition,
     },
 };
+use fabric_core::{
+    CompositionError, ContractCompatibilityRequirement, ContractIdentity,
+    ContractProviderSelection, ContractVersion, ContractVersionRequirement, Health, Module,
+    ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
+    ProvidedContractDeclaration,
+};
+use fabric_resource::ResourceCompatibilityError;
 
 use crate::definition::{adapted_counter, derived_counter};
 use crate::{
@@ -27,7 +27,7 @@ use crate::{
     counter_resource_id, direct_counter::raw as direct_counter_raw,
 };
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub VersionedCounter {
         id: "fabric.test.counter.versioned";
 
@@ -54,7 +54,7 @@ fabric_sdk::resource! {
     }
 }
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub VersionedDerivedCounter {
         id: "fabric.test.counter.versioned-derived";
 
@@ -93,7 +93,7 @@ fabric_sdk::resource! {
     }
 }
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub IncompatibleVersionedDerivedCounter {
         id: "fabric.test.counter.incompatible-versioned-derived";
 

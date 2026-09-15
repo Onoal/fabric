@@ -1,6 +1,6 @@
 [package]
 name = "onoal-fabric"
-version.workspace = true
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -8,7 +8,7 @@ description = "Ergonomic Rust SDK for composing and operating Fabric systems."
 publish = ["crates-io"]
 
 [lib]
-name = "fabric_sdk"
+name = "fabric"
 
 [dependencies]
 fabric-component.workspace = true

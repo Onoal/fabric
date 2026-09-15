@@ -1,11 +1,11 @@
-use fabric_sdk::prelude::{HostFacilityId, HostRequirement};
+use fabric::prelude::{HostFacilityId, HostRequirement};
 
 pub fn host_bound_operations_facility() -> HostFacilityId {
     HostFacilityId::new("fabric.test.host.operations")
         .expect("static host-bound operations facility")
 }
 
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub HostBoundOperationsAdapter for system crate::adapted::definition::AdaptedOperations implements crate::AdaptedOperationsRealization {
         schema: "^2";
         realization: "1.0.0";

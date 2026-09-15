@@ -1,6 +1,6 @@
 use fabric_test_system_operations::OperationMarker;
 
-fabric_sdk::system! {
+fabric::system! {
     pub DuplicateRealizationMethod {
         id: "fabric.test.system.duplicate-realization-method";
 

@@ -1,15 +1,15 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::prelude::*;
+use fabric::{
+    authoring::{CompositionExt, FabricBuilder},
+    ids::module,
+    resource::ResourceSchemaRequirement,
+};
 use fabric_core::{
     CompositionError, ContractCompatibilityRequirement, ContractIdentity, ContractKey,
     ContractProviderSelection, ContractVersion, ContractVersionRequirement, Health, ModuleBindings,
     ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
-};
-use fabric_sdk::prelude::*;
-use fabric_sdk::{
-    authoring::{CompositionExt, FabricBuilder},
-    ids::module,
-    resource::ResourceSchemaRequirement,
 };
 use fabric_test_adapter_clock_memory::{
     HostBoundClockAdapter, MemoryClock, host_bound_clock_facility,

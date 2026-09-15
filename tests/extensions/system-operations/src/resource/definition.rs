@@ -1,9 +1,9 @@
-use fabric_core::{ContractKey, ContractVersionRequirement, ModuleDeclaration};
-use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor};
-use fabric_sdk::prelude::{
+use fabric::prelude::{
     IntoResourceName, PrimaryResourceContract, ResourceDefinition, ResourceSelection,
     SystemRequires,
 };
+use fabric_core::{ContractKey, ContractVersionRequirement, ModuleDeclaration};
+use fabric_resource::{ResourceError, ResourceId, ResourceSchemaDescriptor};
 
 use crate::{
     SystemBackedResourceContract, TestOperations, resource::runtime::SystemBackedResourceRuntime,

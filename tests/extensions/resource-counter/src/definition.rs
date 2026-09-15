@@ -2,7 +2,7 @@
 
 use crate::CounterValue;
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub DirectCounter {
         id: "fabric.test.counter";
 
@@ -29,7 +29,7 @@ fabric_sdk::resource! {
     }
 }
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub DerivedCounter {
         id: "fabric.test.counter.derived";
 
@@ -73,7 +73,7 @@ fabric_sdk::resource! {
     }
 }
 
-fabric_sdk::resource! {
+fabric::resource! {
     pub AdaptedCounter {
         id: "fabric.test.counter.adapted";
 

@@ -15,8 +15,8 @@
 //! source guard pins this negative space so the package cannot silently
 //! regain a runtime obligation.
 
+use fabric::prelude::{PrimarySystemContract, SystemDefinition, SystemSelection};
 use fabric_core::{ContractId, ContractKey, ModuleDeclaration};
-use fabric_sdk::prelude::{PrimarySystemContract, SystemDefinition, SystemSelection};
 use fabric_system::{SystemId, SystemSchemaDescriptor};
 
 #[derive(Clone)]

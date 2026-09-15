@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use fabric_sdk::prelude::*;
-use fabric_sdk::{core::*, ids::*};
+use fabric::prelude::*;
+use fabric::{core::*, ids::*};
 
 #[derive(Clone)]
 pub struct NotesContract {

@@ -1,14 +1,14 @@
 use std::sync::{Arc, Mutex};
 
-use fabric_core::{
-    CompositionError, ContractIdentity, Health, ModuleBindings, ModuleContract, ModuleError,
-    ModuleId, ModuleRuntime,
-};
-use fabric_sdk::{
+use fabric::{
     authoring::{CompositionExt, FabricBuilder},
     core::ContractProviderSelection,
     ids::module,
     prelude::*,
+};
+use fabric_core::{
+    CompositionError, ContractIdentity, Health, ModuleBindings, ModuleContract, ModuleError,
+    ModuleId, ModuleRuntime,
 };
 use fabric_test_resource_counter::{AdaptedCounter, AdaptedCounterConfig};
 use fabric_test_system_operations::{
@@ -49,7 +49,7 @@ struct CounterCapture {
 #[derive(Clone)]
 struct CounterConsumer {
     module_id: ModuleId,
-    requirement: fabric_sdk::Requires<AdaptedCounter>,
+    requirement: fabric::Requires<AdaptedCounter>,
     capture: Arc<Mutex<Option<CounterCapture>>>,
 }
 
@@ -57,7 +57,7 @@ impl CounterConsumer {
     fn new(capture: Arc<Mutex<Option<CounterCapture>>>) -> Self {
         Self {
             module_id: ModuleId::new("external.counter.consumer").expect("module id"),
-            requirement: fabric_sdk::Requires::<AdaptedCounter>::provisional(),
+            requirement: fabric::Requires::<AdaptedCounter>::provisional(),
             capture,
         }
     }

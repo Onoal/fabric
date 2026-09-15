@@ -13,9 +13,9 @@
 //! A `src/tests.rs` source guard pins this negative space so the package
 //! cannot silently regain a runtime obligation.
 
+use fabric::prelude::{AdapterDefinition, ResourceDefinition};
 use fabric_core::{ContractVersion, ModuleDeclaration, ModuleId};
 use fabric_resource::AdapterResourceSchemaSupport;
-use fabric_sdk::prelude::{AdapterDefinition, ResourceDefinition};
 
 use crate::{AdaptedCounter, definition::adapted_counter};
 

@@ -4,15 +4,15 @@ use syn::Path;
 
 use crate::ast::{AdapterInput, AdapterTargetKind, SystemDependencyDefinition};
 
-use super::common::{method_call_args, runtime_method_tokens, sdk_path, to_snake_case};
+use super::common::{fabric_path, method_call_args, runtime_method_tokens, to_snake_case};
 
 pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
-    let sdk = sdk_path();
+    let sdk = fabric_path();
     let visibility = &input.visibility;
     let adapter_name = &input.name;
     let config_name = format_ident!("{}Config", adapter_name);
     let adapter_mod = format_ident!("{}", to_snake_case(adapter_name));
-    let raw_impl_mod = format_ident!("__fabric_sdk_adapter_raw_{}", to_snake_case(adapter_name));
+    let raw_impl_mod = format_ident!("__fabric_adapter_raw_{}", to_snake_case(adapter_name));
     let target = &input.target;
     let interface = &input.realization_interface;
     let interface_assertion = quote! {

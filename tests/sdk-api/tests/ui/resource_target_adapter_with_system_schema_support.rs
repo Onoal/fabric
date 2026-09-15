@@ -1,5 +1,5 @@
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
-use fabric_sdk::prelude::{
+use fabric::prelude::{
     AdapterDefinition, AdapterSystemSchemaSupport, SystemId,
 };
 use fabric_test_resource_clock::{Clock, ClockConfig};

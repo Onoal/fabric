@@ -1,4 +1,4 @@
-fabric_sdk::adapter! {
+fabric::adapter! {
     pub MutSelfRuntimeAdapter for resource fabric_test_resource_counter::AdaptedCounter implements fabric_test_resource_counter::AdaptedCounterRealization {
         schema: provisional;
         realization: "1.0.0";

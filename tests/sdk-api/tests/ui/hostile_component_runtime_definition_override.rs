@@ -1,6 +1,6 @@
 use fabric_component::{ComponentError, ComponentId, ComponentRuntimeDefinition, ComponentRuntimeScope};
 use fabric_core::Health;
-use fabric_sdk::prelude::ComponentDefinition;
+use fabric::prelude::ComponentDefinition;
 
 struct ForeignComponent;
 

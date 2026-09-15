@@ -23,7 +23,7 @@ fn system_manifest_stays_generic_and_has_no_kernel_cycles() {
         "fabric-core",
         "fabric-host",
         "fabric-resource-registry",
-        "fabric-sdk",
+        "fabric =",
         "fabric-test",
     ] {
         assert!(

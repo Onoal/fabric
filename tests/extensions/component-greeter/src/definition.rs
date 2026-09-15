@@ -8,7 +8,7 @@ pub struct GreeterOutput {
     pub message: String,
 }
 
-fabric_sdk::component! {
+fabric::component! {
     pub Greeter {
         id: "fabric.test.greeter";
 

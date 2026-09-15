@@ -1,0 +1,16 @@
+[package]
+name = "fabric-test-component-greeter"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric-component.workspace = true
+fabric-core.workspace = true
+fabric-sdk.workspace = true
+
+[dev-dependencies]
+futures = "0.3.31"
+trybuild = "1.0.111"
+fabric-test-resource-counter = { path = "../resource-counter" }
+fabric-test-system-operations = { path = "../system-operations" }

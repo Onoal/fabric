@@ -1,0 +1,13 @@
+error: component operation handlers with dependencies must declare `|dependencies, input: Type|`
+  --> tests/ui/dependency_handler_wrong_shape.rs:17:26
+   |
+17 |                 handler |input: Input| async move { Ok(Output) };
+   |                          ^^^^^
+
+warning: unused import: `fabric_test_resource_counter::DirectCounter`
+ --> tests/ui/dependency_handler_wrong_shape.rs:2:5
+  |
+2 | use fabric_test_resource_counter::DirectCounter;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

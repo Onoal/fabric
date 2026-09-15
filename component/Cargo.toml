@@ -1,0 +1,16 @@
+[package]
+name = "onoal-fabric-component"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Component declaration, runtime, and typed operation primitives for Fabric."
+publish = false
+
+[lib]
+name = "fabric_component"
+
+[dependencies]
+fabric-core.workspace = true
+fabric-resource.workspace = true
+fabric-system.workspace = true

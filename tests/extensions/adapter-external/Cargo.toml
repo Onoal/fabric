@@ -1,0 +1,14 @@
+[package]
+name = "fabric-test-adapter-external"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric-core.workspace = true
+fabric-sdk.workspace = true
+fabric-test-resource-counter = { path = "../resource-counter" }
+fabric-test-system-operations = { path = "../system-operations" }
+
+[dev-dependencies]
+trybuild = "1.0.111"

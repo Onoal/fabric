@@ -1,0 +1,5 @@
+error: component! supports only one `operations { ... }` section
+  --> tests/ui/duplicate_operations_section.rs:24:20
+   |
+24 |         operations {}
+   |                    ^

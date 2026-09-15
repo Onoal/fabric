@@ -1,0 +1,22 @@
+[package]
+name = "onoal-fabric-sdk-macros"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Procedural macros for the Fabric Rust SDK."
+publish = false
+
+[lib]
+name = "fabric_sdk_macros"
+proc-macro = true
+
+[dependencies]
+proc-macro-crate = "3.4.0"
+proc-macro2 = "1.0.103"
+quote = "1.0.42"
+semver = "1.0.27"
+syn = { version = "2.0.108", features = ["full", "parsing"] }
+
+[dev-dependencies]
+trybuild = "1.0.111"

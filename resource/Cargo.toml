@@ -1,0 +1,20 @@
+[package]
+name = "onoal-fabric-resource"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Occurrence-based Resource semantics for Fabric."
+publish = false
+
+[lib]
+name = "fabric_resource"
+
+[dependencies]
+semver = "1.0.27"
+sha2 = "0.10.9"
+thiserror = "2.0.20"
+
+[dev-dependencies]
+fabric-binding = { path = "../experimental/binding" }
+fabric-core.workspace = true

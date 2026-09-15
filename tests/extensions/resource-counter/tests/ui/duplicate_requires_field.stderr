@@ -1,0 +1,11 @@
+error: duplicate resource dependency field `source` is not supported
+  --> tests/ui/duplicate_requires_field.rs:12:13
+   |
+12 |             source: SecondCounter(provisional);
+   |             ^^^^^^
+
+error: first dependency field `source` declared here
+  --> tests/ui/duplicate_requires_field.rs:11:13
+   |
+11 |             source: FirstCounter(provisional);
+   |             ^^^^^^

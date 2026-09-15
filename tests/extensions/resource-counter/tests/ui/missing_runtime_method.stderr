@@ -1,0 +1,5 @@
+error: missing runtime implementation for contract method `current_value`
+  --> tests/ui/missing_runtime_method.rs:17:20
+   |
+17 |                 fn current_value(&self) -> u64;
+   |                    ^^^^^^^^^^^^^

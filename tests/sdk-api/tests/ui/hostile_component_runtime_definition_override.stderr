@@ -1,0 +1,29 @@
+error[E0407]: method `prepare` is not a member of trait `ComponentDefinition`
+  --> tests/ui/hostile_component_runtime_definition_override.rs:14:5
+   |
+14 | /     fn prepare(
+15 | |         _config: &Self::Config,
+16 | |         _scope: &ComponentRuntimeScope,
+17 | |     ) -> Result<Health, ComponentError> {
+18 | |         Ok(Health::Healthy)
+19 | |     }
+   | |_____^ not a member of trait `ComponentDefinition`
+
+error[E0407]: method `runtime_definition` is not a member of trait `ComponentDefinition`
+  --> tests/ui/hostile_component_runtime_definition_override.rs:21:5
+   |
+21 | /     fn runtime_definition(_config: Self::Config) -> ComponentRuntimeDefinition {
+22 | |         ComponentRuntimeDefinition::new(
+23 | |             ComponentId::new("fabric.test.hijacked").expect("component id"),
+24 | |             |_scope| Ok(Health::Healthy),
+25 | |         )
+26 | |     }
+   | |_____^ not a member of trait `ComponentDefinition`
+
+error[E0046]: not all trait items implemented, missing: `declaration`
+ --> tests/ui/hostile_component_runtime_definition_override.rs:7:1
+  |
+7 | impl ComponentDefinition for ForeignComponent {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `declaration` in implementation
+  |
+  = help: implement the missing item: `fn declaration() -> ComponentDeclaration { todo!() }`

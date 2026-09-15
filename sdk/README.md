@@ -1,0 +1,208 @@
+# fabric-sdk
+
+`fabric-sdk` is the normal Rust authoring layer for Fabric. It is an ergonomic
+frontend over the same public typed machinery available to handwritten
+third-party extensions.
+
+Use `fabric_sdk::prelude::*` for normal Resource, System, Adapter, Component,
+Host, Fabric, Instance, and semantic Manifest work. Use explicit named modules
+such as `fabric_sdk::authoring`, `fabric_sdk::core`, and
+`fabric_sdk::component` for advanced/raw capability.
+
+Fabric is currently developed from source. From a checkout of this workspace,
+normal code imports the SDK through its public Rust crate name:
+
+```rust
+use fabric_sdk::prelude::*;
+```
+
+## Normal flow
+
+Normal authoring is define, select, compose, build, inspect, materialize,
+start, operate Components, then stop:
+
+```rust
+use fabric_sdk::prelude::*;
+
+let built = Fabric::new("example")
+    .expect("valid composition id")
+    .component(Greeter::define(GreeterConfig {}))
+    .build()
+    .expect("build");
+
+let manifest = built.manifest();
+assert_eq!(manifest.components().len(), 1);
+
+let mut instance = built.materialize_named("example.local").expect("instance");
+instance.start().expect("start");
+let components = instance.components().expect("component host");
+components.materialize::<Greeter>().expect("materialize component");
+let output = futures::executor::block_on(
+    components.invoke_external(&greeter::operations::greet(), GreeterInput { name: "Ada".into() }),
+).expect("runtime invocation");
+assert_eq!(output.message, "hello, Ada");
+components.dematerialize::<Greeter>().expect("dematerialize component");
+instance.stop();
+```
+
+`BuiltFabric` materializes to `FabricInstance`; raw
+`built.composition().materialize(...)` remains available to advanced Core
+users. `FabricInstance::components()` is `None` when the Composition has no
+Component host. It is a bounded Component operational façade, not a general
+Instance service locator.
+
+Host-constrained Adapter compositions materialize explicitly with a
+`HostDescriptor` through the host-aware high-level materialization method.
+
+## Resource, System, and Adapter authoring
+
+`resource!` defines occurrence-based capability; normal occurrences are
+`ResourceId + ResourceName`. `system!` defines instance-wide shared
+infrastructure; normal typed Composition has one coherent occurrence per
+`SystemId`. Both macros and handwritten implementations use public definition,
+selection, contract, and realization seams.
+
+Adaptable Resources and Systems expose an intentional public typed realization
+interface. Adapter authors name both target and interface:
+
+```rust
+fabric_sdk::adapter! {
+    ExampleAdapter
+        for resource ExampleResource
+        implements ExampleResourceRealization
+    {
+        schema: provisional;
+        realization: "1.0.0";
+        config { value: u64; }
+        runtime {
+            fn current_value(&self) -> ExampleValue {
+                ExampleValue::new(self.config.value)
+            }
+        }
+    }
+}
+```
+
+For Systems use `for system ExampleSystem implements
+ExampleSystemRealization`. The interface is statically tied to its target;
+normal Adapter code never discovers it through generated module layout. Alias
+imports and ordinary public re-exports work. Adapter config stays normal typed
+Rust, and Adapter selection stays Composition truth.
+
+## Component dependencies and operations
+
+`component!` declares Resource requirements in `requires {}` and System
+requirements in `system {}`. Handlers receive resolved semantic contracts in a
+generated dependencies value; a Component never depends on an Adapter.
+
+```rust
+fabric_sdk::component! {
+    Notes {
+        id: "example.notes";
+        config { prefix: String; }
+        requires { storage: ExampleStore(provisional); }
+        system { operations: ExampleOperations(version = "^1"); }
+        operations {
+            save {
+                id: "example.notes.save";
+                input: SaveInput = "example.notes.save.input";
+                output: SaveOutput = "example.notes.save.output";
+                context: invocation;
+                handler |context, dependencies, input: SaveInput| async move {
+                    let _ = (&config.prefix, &context, &dependencies.storage, input);
+                    Ok(SaveOutput {})
+                };
+            }
+        }
+    }
+}
+```
+
+Context is opt-in. Handler shapes are `|input|`, `|dependencies, input|`,
+`|context, input|`, and `|context, dependencies, input|`. `InvocationContext`
+is runtime-supplied provenance (InstanceId, InstanceGeneration, InvocationId,
+and root InvocationOrigin), not identity, authorization, tracing, or network
+metadata.
+
+A Resource field is a Component-local role. Two same-target requirements have
+different local names and can be selected independently:
+
+```rust
+requires {
+    storage: ExampleStore(provisional);
+    cache: ExampleStore(provisional);
+}
+// Composition selects `Notes::requirements::storage()` and
+// `Notes::requirements::cache()` independently.
+```
+
+The local role is not the selected ResourceName. The Component declares a need;
+Composition binds it to an occurrence.
+
+An operation has one typed output. Domain failure belongs in that output;
+`ComponentError` remains the outer Fabric runtime/control plane:
+
+```rust
+output: Result<Document, DocumentError> = "example.documents.open.outcome";
+handler |input: OpenDocument| async move {
+    Ok(repository.open(input.id))
+};
+
+// Result<Result<Document, DocumentError>, ComponentError>
+let domain_outcome = components.invoke_external(&documents::operations::open(), input).await?;
+match domain_outcome {
+    Ok(document) => { /* success */ }
+    Err(DocumentError::NotFound) => { /* semantic failure */ }
+}
+```
+
+## Inspection
+
+`FabricManifest` is immutable semantic Composition inspection. It exposes
+Resources, Systems, Components, Component Resource bindings, and Component
+System bindings. A Resource binding directly identifies the selected
+`ResourceId + ResourceName`; normal inspection need not use ModuleId.
+
+```rust
+for binding in built.manifest().component_resource_bindings() {
+    println!("{} -> {} {:?}", binding.requirement_name(), binding.resource_id(), binding.resource_name());
+}
+```
+
+Raw backing diagnostics remain intentionally available, but outside normal
+semantic inspection:
+
+```rust
+let diagnostics = built.manifest().diagnostics();
+let _modules = diagnostics.module_declarations();
+let _providers = diagnostics.provider_selections();
+```
+
+Manifest is not a deployment, package, serialization, reconstruction, or live
+runtime-state format.
+
+## Handwritten extensions and raw APIs
+
+Macros are optional. Public handwritten seams include `ResourceDefinition`,
+`SystemDefinition`, `AdapterDefinition`, `ComponentDefinition`,
+`PrimaryResourceContract`, `PrimarySystemContract`, `Requires`,
+`SystemRequires`, and typed realization interfaces. They are available through
+the root/prelude and the explicit `authoring` module according to the authoring
+need; no generated private module is required.
+
+`FabricBuilder`, `BlockAuthor`, and `CompositionExt` are advanced APIs and are
+intentionally imported explicitly:
+
+```rust
+use fabric_sdk::authoring::FabricBuilder;
+```
+
+Raw Modules, Bindings, Contract provider selections, and Component rails are
+likewise available through named modules, for example `fabric_sdk::core` and
+`fabric_sdk::component`. They remain useful advanced capability, but normal
+packages should not need them.
+
+The repository's `experimental/` modules are not forwarded through the SDK.
+Fabric 0.1 also does not define Component-to-Component declarative dependencies,
+global registries, scheduler/placement, deployment/reconstruction formats,
+dynamic plugins, or IDL generation.

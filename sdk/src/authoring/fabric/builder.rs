@@ -1,0 +1,291 @@
+use std::error::Error;
+use std::fmt;
+
+use fabric_component::{
+    ComponentDeclaration, ComponentRuntimeDefinition, ComponentRuntimeHandle,
+    ComponentRuntimeModule, component_runtime_handle_contract_key,
+};
+use fabric_core::{
+    Block, BlockId, Composition, CompositionError, CompositionExport, CompositionId, ContractId,
+    ContractProviderSelection, Module, ModuleDeclaration, ModuleRuntime,
+};
+
+struct StoredTypedModule {
+    inner: Box<dyn Module>,
+}
+
+impl StoredTypedModule {
+    fn new(inner: Box<dyn Module>) -> Self {
+        Self { inner }
+    }
+}
+
+impl Module for StoredTypedModule {
+    fn declaration(&self) -> ModuleDeclaration {
+        self.inner.declaration()
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        self.inner.materialize()
+    }
+}
+
+use super::manifest::{FabricManifest, ResourceManifestEntry, SystemManifestEntry};
+use super::resource::IntoFabricResource;
+use super::system::IntoFabricSystem;
+use crate::authoring::{BlockAuthor, ComponentDefinition, ComponentSpec, FabricBuilder};
+use crate::ids::{IntoBlockId, IntoCompositionId};
+
+const DEFAULT_BLOCK_ID: &str = "fabric.sdk.default";
+const COMPONENT_RUNTIME_EXPORT_ID: &str = "fabric.sdk.export.component-runtime";
+
+#[derive(Debug)]
+pub enum FabricBuildError {
+    Component(fabric_component::ComponentError),
+    Composition(CompositionError),
+}
+
+impl fmt::Display for FabricBuildError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Component(error) => error.fmt(f),
+            Self::Composition(error) => error.fmt(f),
+        }
+    }
+}
+
+impl Error for FabricBuildError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Component(error) => Some(error),
+            Self::Composition(error) => Some(error),
+        }
+    }
+}
+
+impl From<fabric_component::ComponentError> for FabricBuildError {
+    fn from(value: fabric_component::ComponentError) -> Self {
+        Self::Component(value)
+    }
+}
+
+impl From<CompositionError> for FabricBuildError {
+    fn from(value: CompositionError) -> Self {
+        Self::Composition(value)
+    }
+}
+
+#[derive(Debug)]
+pub struct BuiltFabric {
+    composition: Composition,
+    manifest: FabricManifest,
+    component_runtime_export: Option<CompositionExport<ComponentRuntimeHandle>>,
+}
+
+impl BuiltFabric {
+    pub fn composition(&self) -> &Composition {
+        &self.composition
+    }
+
+    pub fn manifest(&self) -> &FabricManifest {
+        &self.manifest
+    }
+
+    pub fn into_composition(self) -> Composition {
+        self.composition
+    }
+
+    pub fn into_parts(self) -> (Composition, FabricManifest) {
+        (self.composition, self.manifest)
+    }
+
+    pub(crate) fn component_runtime_export(
+        &self,
+    ) -> Option<&CompositionExport<ComponentRuntimeHandle>> {
+        self.component_runtime_export.as_ref()
+    }
+}
+
+pub struct Fabric {
+    composition_id: CompositionId,
+    blocks: Vec<Block>,
+    raw_block_ids: Vec<BlockId>,
+    provider_selections: Vec<ContractProviderSelection>,
+    component_resource_provider_selections:
+        Vec<super::manifest::ComponentResourceBindingManifestEntry>,
+    component_system_provider_selections: Vec<super::manifest::ComponentSystemBindingManifestEntry>,
+    resources: Vec<ResourceManifestEntry>,
+    systems: Vec<SystemManifestEntry>,
+    components: Vec<ComponentDeclaration>,
+    module_declarations: Vec<ModuleDeclaration>,
+    typed_modules: Vec<Box<dyn Module>>,
+    component_declarations: Vec<ComponentDeclaration>,
+    component_attachments: Vec<ComponentRuntimeDefinition>,
+}
+
+impl Fabric {
+    pub fn new(composition_id: impl IntoCompositionId) -> Result<Self, CompositionError> {
+        Ok(Self::from_id(composition_id.into_composition_id()?))
+    }
+
+    pub fn from_id(composition_id: CompositionId) -> Self {
+        Self {
+            composition_id,
+            blocks: Vec::new(),
+            raw_block_ids: Vec::new(),
+            provider_selections: Vec::new(),
+            component_resource_provider_selections: Vec::new(),
+            component_system_provider_selections: Vec::new(),
+            resources: Vec::new(),
+            systems: Vec::new(),
+            components: Vec::new(),
+            module_declarations: Vec::new(),
+            typed_modules: Vec::new(),
+            component_declarations: Vec::new(),
+            component_attachments: Vec::new(),
+        }
+    }
+
+    pub fn resource(mut self, resource: impl IntoFabricResource) -> Self {
+        let contribution = resource.into_fabric_resource();
+        self.resources.push(contribution.entry().clone());
+        self.module_declarations
+            .extend(contribution.declarations().iter().cloned());
+        self.provider_selections
+            .extend(contribution.provider_selections().iter().cloned());
+        self.typed_modules.extend(contribution.modules());
+        self
+    }
+
+    pub fn system(mut self, system: impl IntoFabricSystem) -> Self {
+        let contribution = system.into_fabric_system();
+        self.systems.push(contribution.entry().clone());
+        self.module_declarations
+            .extend(contribution.declarations().iter().cloned());
+        self.provider_selections
+            .extend(contribution.provider_selections().iter().cloned());
+        self.typed_modules.extend(contribution.modules());
+        self
+    }
+
+    pub fn component<C>(mut self, component: ComponentSpec<C>) -> Self
+    where
+        C: ComponentDefinition,
+    {
+        let parts = component.into_parts();
+        self.components.push(parts.declaration.clone());
+        self.component_declarations.push(parts.declaration);
+        self.typed_modules.extend(parts.carriers);
+        self.provider_selections.extend(parts.provider_selections);
+        self.component_resource_provider_selections
+            .extend(parts.semantic_provider_selections);
+        self.component_system_provider_selections
+            .extend(parts.semantic_system_provider_selections);
+        if let Some(attachment) = parts.runtime {
+            self.component_attachments.push(attachment);
+        }
+        self
+    }
+
+    pub fn with_block(mut self, block: Block) -> Self {
+        self.raw_block_ids.push(block.id().clone());
+        self.blocks.push(block);
+        self
+    }
+
+    pub fn block(
+        self,
+        block_id: impl IntoBlockId,
+        configure: impl FnOnce(BlockAuthor) -> BlockAuthor,
+    ) -> Result<Self, CompositionError> {
+        let block = configure(BlockAuthor::new(block_id)?).build();
+        Ok(self.with_block(block))
+    }
+
+    pub fn select_provider(mut self, selection: ContractProviderSelection) -> Self {
+        self.provider_selections.push(selection);
+        self
+    }
+
+    pub fn build(self) -> Result<BuiltFabric, FabricBuildError> {
+        let Self {
+            composition_id,
+            blocks,
+            raw_block_ids,
+            provider_selections,
+            component_resource_provider_selections,
+            component_system_provider_selections,
+            resources,
+            systems,
+            components,
+            mut module_declarations,
+            typed_modules,
+            component_declarations,
+            component_attachments,
+        } = self;
+
+        let mut default_modules = typed_modules;
+        // The native host carries every composed Component declaration, even
+        // when no runtime attachment exists. Declaration-only Components are
+        // host-known without any fake runtime behavior.
+        let component_runtime_export = if !component_declarations.is_empty() {
+            let native_module = ComponentRuntimeModule::with_components(
+                component_declarations,
+                component_attachments,
+            )?;
+            module_declarations.push(native_module.declaration());
+            default_modules.push(Box::new(native_module));
+            Some(CompositionExport::new(
+                ContractId::new(COMPONENT_RUNTIME_EXPORT_ID).expect("static export id"),
+                fabric_core::ContractRequirement::provisional(
+                    component_runtime_handle_contract_key().id().clone(),
+                ),
+            ))
+        } else {
+            None
+        };
+
+        let mut builder = FabricBuilder::from_id(composition_id);
+        // The deterministic default Block is a grouping choice only. Core
+        // binds, initializes, and starts runtime modules in resolved
+        // dependency order regardless of Block or contribution order.
+        if !default_modules.is_empty() {
+            let mut default_block = BlockAuthor::from_id(default_block_id());
+            for module in default_modules {
+                default_block = default_block.module(StoredTypedModule::new(module));
+            }
+            builder = builder.with_block(default_block.build());
+        }
+        for block in blocks {
+            builder = builder.with_block(block);
+        }
+        for selection in &provider_selections {
+            builder = builder.select_provider(selection.clone());
+        }
+        if let Some(export) = &component_runtime_export {
+            builder = builder.export(export.clone());
+        }
+        let composition = builder.build()?;
+
+        let manifest = FabricManifest::new(
+            resources,
+            systems,
+            components,
+            module_declarations,
+            provider_selections,
+            component_resource_provider_selections,
+            component_system_provider_selections,
+            raw_block_ids,
+            composition.exports().to_vec(),
+        );
+        Ok(BuiltFabric {
+            composition,
+            manifest,
+            component_runtime_export,
+        })
+    }
+}
+
+pub(crate) fn default_block_id() -> fabric_core::BlockId {
+    fabric_core::BlockId::new(DEFAULT_BLOCK_ID).expect("static high-level fabric default block id")
+}

@@ -1,0 +1,39 @@
+error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinition>::Target == Clock`
+ --> tests/ui/system_adapter_cannot_target_resource.rs:7:16
+  |
+7 |           .using(FixedOperationsAdapter::new(FixedOperationsAdapterConfig {
+  |  __________-----_^
+  | |          |
+  | |          required by a bound introduced by this call
+8 | |             value: 7,
+9 | |         }));
+  | |__________^ expected `Clock`, found `AdaptedOperations`
+  |
+note: required by a bound in `fabric_sdk::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
+ --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
+  |
+  |     pub fn using<A>(
+  |            ----- required by a bound in this associated function
+...
+  |         A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+  |                              ^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`
+
+error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinition>::SchemaSupport == AdapterResourceSchemaSupport`
+ --> tests/ui/system_adapter_cannot_target_resource.rs:7:16
+  |
+7 |           .using(FixedOperationsAdapter::new(FixedOperationsAdapterConfig {
+  |  __________-----_^
+  | |          |
+  | |          required by a bound introduced by this call
+8 | |             value: 7,
+9 | |         }));
+  | |__________^ expected `AdapterResourceSchemaSupport`, found `AdapterSystemSchemaSupport`
+  |
+note: required by a bound in `fabric_sdk::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
+ --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
+  |
+  |     pub fn using<A>(
+  |            ----- required by a bound in this associated function
+...
+  |         A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+  |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`

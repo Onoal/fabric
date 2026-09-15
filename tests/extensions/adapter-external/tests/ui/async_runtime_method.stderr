@@ -1,0 +1,5 @@
+error: async adapter runtime methods are not supported
+  --> tests/ui/async_runtime_method.rs:11:22
+   |
+11 |             async fn current_value(&self) -> fabric_test_resource_counter::CounterValue {
+   |                      ^^^^^^^^^^^^^

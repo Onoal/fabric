@@ -1,0 +1,21 @@
+error[E0271]: type mismatch resolving `<WrongSchemaSupportClockAdapter as AdapterDefinition>::SchemaSupport == AdapterResourceSchemaSupport`
+  --> tests/ui/resource_target_adapter_with_system_schema_support.rs:35:16
+   |
+35 |         .using(WrongSchemaSupportClockAdapter);
+   |          ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type mismatch resolving `<WrongSchemaSupportClockAdapter as AdapterDefinition>::SchemaSupport == AdapterResourceSchemaSupport`
+   |          |
+   |          required by a bound introduced by this call
+   |
+note: expected this to be `AdapterResourceSchemaSupport`
+  --> tests/ui/resource_target_adapter_with_system_schema_support.rs:12:26
+   |
+12 |     type SchemaSupport = AdapterSystemSchemaSupport;
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required by a bound in `ResourceSelection::<R>::using`
+  --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
+   |
+   |     pub fn using<A>(
+   |            ----- required by a bound in this associated function
+...
+   |         A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`

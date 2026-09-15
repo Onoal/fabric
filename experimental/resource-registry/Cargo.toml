@@ -1,0 +1,13 @@
+[package]
+name = "fabric-resource-registry"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric-core.workspace = true
+fabric-resource.workspace = true
+thiserror = "2.0.20"
+
+[dev-dependencies]
+tempfile = "3.23.0"

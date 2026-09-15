@@ -1,0 +1,13 @@
+error: runtime method `extra` has no matching contract declaration
+  --> tests/ui/undeclared_runtime_method.rs:25:16
+   |
+25 |             fn extra(&self) -> OperationMarker {
+   |                ^^^^^
+
+warning: unused import: `fabric_test_system_operations::OperationMarker`
+ --> tests/ui/undeclared_runtime_method.rs:1:5
+  |
+1 | use fabric_test_system_operations::OperationMarker;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

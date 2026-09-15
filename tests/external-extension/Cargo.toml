@@ -1,0 +1,11 @@
+[package]
+name = "fabric-test-external-extension"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric-sdk.workspace = true
+fabric-test-adapter-clock-memory = { path = "../extensions/adapter-clock-memory" }
+fabric-test-resource-clock = { path = "../extensions/resource-clock" }
+futures = "0.3.31"

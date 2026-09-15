@@ -1,0 +1,5 @@
+error: generic adapter runtime methods are not supported
+  --> tests/ui/generic_runtime_method.rs:11:16
+   |
+11 |             fn current_marker<T>(&self) -> fabric_test_system_operations::OperationMarker {
+   |                ^^^^^^^^^^^^^^

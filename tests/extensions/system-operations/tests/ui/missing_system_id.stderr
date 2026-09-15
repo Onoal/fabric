@@ -1,0 +1,13 @@
+error: system! requires an `id: ...;` declaration
+ --> tests/ui/missing_system_id.rs:4:9
+  |
+4 |     pub MissingSystemId {
+  |         ^^^^^^^^^^^^^^^
+
+warning: unused import: `fabric_test_system_operations::OperationMarker`
+ --> tests/ui/missing_system_id.rs:1:5
+  |
+1 | use fabric_test_system_operations::OperationMarker;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

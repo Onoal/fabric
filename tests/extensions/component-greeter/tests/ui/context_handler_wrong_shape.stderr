@@ -1,0 +1,5 @@
+error: context-aware component operation handlers must declare `|context, input: Type|`
+  --> tests/ui/context_handler_wrong_shape.rs:16:26
+   |
+16 |                 handler |input: Input| async move { Ok(Output) };
+   |                          ^^^^^

@@ -1,0 +1,19 @@
+[package]
+name = "onoal-fabric-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Ergonomic Rust SDK for composing and operating Fabric systems."
+publish = false
+
+[lib]
+name = "fabric_sdk"
+
+[dependencies]
+fabric-component.workspace = true
+fabric-core.workspace = true
+fabric-host.workspace = true
+fabric-resource.workspace = true
+fabric-system.workspace = true
+fabric-sdk-macros.workspace = true

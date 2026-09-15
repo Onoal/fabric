@@ -1,0 +1,5 @@
+error: resource realization methods must use an `&self` receiver
+  --> tests/ui/mut_self_realization_method.rs:23:16
+   |
+23 |             fn current_value(&mut self) -> u64;
+   |                ^^^^^^^^^^^^^

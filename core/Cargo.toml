@@ -1,0 +1,19 @@
+[package]
+name = "onoal-fabric-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core composition, contract resolution, and Instance materialization for Fabric."
+publish = false
+
+[lib]
+name = "fabric_core"
+
+[dependencies]
+fabric-host.workspace = true
+semver = "1.0.27"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+serde_json = "1.0.145"

@@ -1,0 +1,5 @@
+error: component operation requires an `input: Type = "...";` declaration
+  --> tests/ui/operation_missing_input.rs:16:13
+   |
+16 |             greet {
+   |             ^^^^^

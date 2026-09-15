@@ -1,0 +1,11 @@
+error: duplicate runtime method `current_value` is not supported
+  --> tests/ui/duplicate_runtime_method.rs:15:16
+   |
+15 |             fn current_value(&self) -> fabric_test_resource_counter::CounterValue {
+   |                ^^^^^^^^^^^^^
+
+error: first `current_value` runtime method declared here
+  --> tests/ui/duplicate_runtime_method.rs:11:16
+   |
+11 |             fn current_value(&self) -> fabric_test_resource_counter::CounterValue {
+   |                ^^^^^^^^^^^^^

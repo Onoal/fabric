@@ -1,0 +1,13 @@
+error: missing runtime implementation for contract method `current_marker`
+  --> tests/ui/missing_runtime_method.rs:16:20
+   |
+16 |                 fn current_marker(&self) -> OperationMarker;
+   |                    ^^^^^^^^^^^^^^
+
+warning: unused import: `fabric_test_system_operations::OperationMarker`
+ --> tests/ui/missing_runtime_method.rs:1:5
+  |
+1 | use fabric_test_system_operations::OperationMarker;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default

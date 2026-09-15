@@ -1,0 +1,5 @@
+error: generic resource realization methods are not supported
+  --> tests/ui/generic_realization_method.rs:23:16
+   |
+23 |             fn current_value<T>(&self, value: T) -> T;
+   |                ^^^^^^^^^^^^^

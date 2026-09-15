@@ -1,0 +1,11 @@
+error: duplicate component operation `greet`
+  --> tests/ui/duplicate_operation_name.rs:26:13
+   |
+26 |             greet {
+   |             ^^^^^
+
+error: first operation declared here
+  --> tests/ui/duplicate_operation_name.rs:16:13
+   |
+16 |             greet {
+   |             ^^^^^

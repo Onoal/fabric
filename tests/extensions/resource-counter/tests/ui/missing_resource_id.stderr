@@ -1,0 +1,5 @@
+error: resource! requires an `id: ...;` declaration
+ --> tests/ui/missing_resource_id.rs:4:9
+  |
+4 |     pub MissingResourceId {
+  |         ^^^^^^^^^^^^^^^^^

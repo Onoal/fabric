@@ -1,0 +1,5 @@
+error: unexpected end of input, resource dependency requires explicit `provisional` or `version = "..."` compatibility
+  --> tests/ui/requires_missing_compatibility.rs:11:35
+   |
+11 |             source: DirectCounter();
+   |                                   ^

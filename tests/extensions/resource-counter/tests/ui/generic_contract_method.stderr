@@ -1,0 +1,17 @@
+error: generic resource contract methods are not supported
+  --> tests/ui/generic_contract_method.rs:17:20
+   |
+17 |                 fn current_value<T>(&self, value: T) -> u64;
+   |                    ^^^^^^^^^^^^^
+
+error: generic resource runtime methods are not supported
+  --> tests/ui/generic_contract_method.rs:22:16
+   |
+22 |             fn current_value<T>(&self, _value: T) -> u64 {
+   |                ^^^^^^^^^^^^^
+
+error: runtime method `current_value` does not match the declared contract signature
+  --> tests/ui/generic_contract_method.rs:17:20
+   |
+17 |                 fn current_value<T>(&self, value: T) -> u64;
+   |                    ^^^^^^^^^^^^^

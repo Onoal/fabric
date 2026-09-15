@@ -1,0 +1,11 @@
+error: duplicate system dependency field `operations` is not supported
+  --> tests/ui/duplicate_system_dependency_field.rs:12:13
+   |
+12 |             operations: fabric_test_system_operations::TestOperations(version = "^1");
+   |             ^^^^^^^^^^
+
+error: first dependency field `operations` declared here
+  --> tests/ui/duplicate_system_dependency_field.rs:11:13
+   |
+11 |             operations: fabric_test_system_operations::TestOperations(version = "^1.2");
+   |             ^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: resource realization contract requires a `compatibility: ...;` declaration
+  --> tests/ui/missing_realization_compatibility.rs:19:17
+   |
+19 |         adapter Adapter {
+   |                 ^^^^^^^

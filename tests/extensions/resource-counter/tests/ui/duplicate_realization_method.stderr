@@ -1,0 +1,11 @@
+error: duplicate realization method `current_value` is not supported
+  --> tests/ui/duplicate_realization_method.rs:24:16
+   |
+24 |             fn current_value(&self) -> u64;
+   |                ^^^^^^^^^^^^^
+
+error: first `current_value` realization method declared here
+  --> tests/ui/duplicate_realization_method.rs:23:16
+   |
+23 |             fn current_value(&self) -> u64;
+   |                ^^^^^^^^^^^^^

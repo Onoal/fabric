@@ -1,0 +1,5 @@
+error: resource! supports only one `adapter ... { ... }` realization section
+  --> tests/ui/duplicate_adapter_section.rs:26:17
+   |
+26 |         adapter SecondaryAdapter {
+   |                 ^^^^^^^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: async resource realization methods are not supported
+  --> tests/ui/async_realization_method.rs:23:22
+   |
+23 |             async fn current_value(&self) -> u64;
+   |                      ^^^^^^^^^^^^^

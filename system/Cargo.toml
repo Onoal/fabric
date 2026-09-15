@@ -1,0 +1,19 @@
+[package]
+name = "onoal-fabric-system"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Instance-wide System semantics for Fabric."
+publish = false
+
+[lib]
+name = "fabric_system"
+
+[dependencies]
+semver = "1.0.27"
+thiserror = "2.0.20"
+
+[dev-dependencies]
+fabric-core.workspace = true
+fabric-resource.workspace = true

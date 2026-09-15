@@ -1,0 +1,5 @@
+error: component! requires an `id: ...;` declaration
+  --> tests/ui/missing_component_id.rs:10:9
+   |
+10 |     pub MissingComponentId {
+   |         ^^^^^^^^^^^^^^^^^^

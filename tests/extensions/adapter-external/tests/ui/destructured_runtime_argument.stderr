@@ -1,0 +1,5 @@
+error: adapter runtime methods arguments must use simple `name: Type` bindings
+  --> tests/ui/destructured_runtime_argument.rs:13:17
+   |
+13 |                 (value,): (u64,),
+   |                 ^^^^^^^^

@@ -1,0 +1,11 @@
+error: resource contract methods must use an `&self` receiver
+  --> tests/ui/mut_self_receiver.rs:17:20
+   |
+17 |                 fn current_value(&mut self) -> u64;
+   |                    ^^^^^^^^^^^^^
+
+error: resource runtime methods must use an `&self` receiver
+  --> tests/ui/mut_self_receiver.rs:22:16
+   |
+22 |             fn current_value(&mut self) -> u64 {
+   |                ^^^^^^^^^^^^^

@@ -82,8 +82,11 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     for document in [
         "README.md",
         "sdk/README.md",
+        "docs/README.md",
+        "docs/getting-started.md",
+        "docs/concepts/README.md",
         "docs/architecture.md",
-        "docs/raw-api.md",
+        "docs/advanced/raw-api.md",
     ] {
         let source = fs::read_to_string(repository.join(document)).expect("read public document");
         assert!(
@@ -232,13 +235,16 @@ fn public_tree_uses_neutral_documentation_and_macro_diagnostics() {
         .expect("canonical repository root");
 
     assert!(repository.join("docs/architecture.md").exists());
-    assert!(repository.join("docs/raw-api.md").exists());
+    assert!(repository.join("docs/advanced/raw-api.md").exists());
     assert!(!repository.join("PROVENANCE.md").exists());
 
     for document in [
         repository.join("README.md"),
+        repository.join("docs/README.md"),
+        repository.join("docs/getting-started.md"),
+        repository.join("docs/concepts/README.md"),
         repository.join("docs/architecture.md"),
-        repository.join("docs/raw-api.md"),
+        repository.join("docs/advanced/raw-api.md"),
         repository.join("sdk/README.md"),
     ] {
         let source = fs::read_to_string(&document).expect("read public document");

@@ -12,6 +12,7 @@ members = [
     "sdk-macros",
     "tests/raw-api",
     "tests/sdk-api",
+    "tests/docs-getting-started",
     "tests/extensions/resource-clock",
     "tests/extensions/resource-counter",
     "tests/extensions/system-operations",

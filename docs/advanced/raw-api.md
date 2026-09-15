@@ -4,9 +4,11 @@ Fabric's raw API is the advanced Core authoring surface beneath `fabric`.
 It is public and supported for explicit integration work; it is not the normal
 high-level authoring path.
 
-Use named SDK modules such as `fabric::core`, `fabric::component`, and
+Use named Fabric modules such as `fabric::core`, `fabric::component`, and
 `fabric::authoring` when intentionally working below the high-level
-frontend. The SDK's normal path is documented in [the SDK guide](../sdk/README.md).
+frontend. Begin with [Getting Started](../getting-started.md) for normal
+authoring, and use the [Architecture](../architecture.md) for the complete
+semantic model.
 
 ## Raw flow
 

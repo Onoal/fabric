@@ -1,8 +1,8 @@
 # fabric
 
-`fabric` is the normal Rust authoring layer for Fabric. It is an ergonomic
-frontend over the same public typed machinery available to handwritten
-third-party extensions.
+`fabric` is the main Rust crate for Fabric. This directory implements the
+high-level Rust authoring surface over the same public typed machinery
+available to handwritten third-party extensions.
 
 Use `fabric::prelude::*` for normal Resource, System, Adapter, Component,
 Host, Fabric, Instance, and semantic Manifest work. Use explicit named modules
@@ -13,7 +13,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.1.0" }
+fabric = { package = "onoal-fabric", version = "0.1.1" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -21,6 +21,11 @@ Normal code imports the SDK through its public Rust crate name:
 ```rust
 use fabric::prelude::*;
 ```
+
+For the normal learning path, read [Getting Started](../docs/getting-started.md),
+then the [Concepts overview](../docs/concepts/README.md). This document is
+package-level API documentation; [Architecture](../docs/architecture.md) and
+the [Advanced Raw API](../docs/advanced/raw-api.md) provide deeper context.
 
 ## Normal flow
 

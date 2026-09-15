@@ -1,8 +1,9 @@
 # Fabric architecture
 
-This document describes the Fabric 0.1 public model. The [SDK guide](../sdk/README.md)
-describes normal Rust usage, and the [raw API guide](raw-api.md) describes
-advanced Core authoring.
+This document describes the Fabric 0.1 public model. Start with
+[Getting Started](getting-started.md) and the [Concepts overview](concepts/README.md)
+for the learning path. The [Advanced Raw API](advanced/raw-api.md) describes
+direct Core authoring.
 
 ## Model and ownership
 

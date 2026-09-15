@@ -1,86 +1,102 @@
 # Fabric
 
 Fabric is a Rust framework for describing, composing, realizing, and operating
-technical systems through explicit semantic boundaries. It separates what a
-system needs from how that need is implemented, while keeping declarations and
-live runtime state distinct.
+technical systems through explicit semantic boundaries.
+
+It separates a system's semantic meaning from the concrete implementations
+that realize it, and separates both from the live state of a running system.
+That makes dependencies explicit, lets compatible implementations be
+replaceable, and gives first-party and third-party extensions the same public
+authoring surface.
 
 ## Why Fabric?
 
-Fabric helps applications and extension packages:
+Fabric helps a system describe behavior, the capabilities that behavior needs,
+shared Systems, implementations that realize Resources or Systems, Host
+compatibility, a declarative Composition, and one or more live Instances.
 
-- express semantic capabilities independently from concrete implementations;
-- make dependencies and provider choices explicit;
-- compose systems declaratively;
-- replace compatible realizations without changing Component behavior; and
-- use the same public machinery for first-party and third-party extensions.
-
-## Core model
+The central distinction is:
 
 ```text
-Fabric
-├── Resource       an occurrence-based technical capability
-├── System         an instance-wide shared capability
-├── Adapter         a concrete Resource or System realization
-├── Component       semantic behavior expressed as typed operations
-├── Host            environmental compatibility information
-├── Composition     a declarative assembly
-└── Instance        one live materialization of a Composition
+Composition = what the system declares
+Instance    = one live materialization of that declaration
 ```
 
-Resources, Systems, Adapters, and Components are declared in a Composition.
-Materializing that Composition creates an Instance with its own lifecycle and
-runtime state.
+A Composition can therefore be inspected, reused, and materialized more than
+once without becoming runtime state itself.
 
-## Getting started
+## How Fabric fits together
 
-Add the normal Rust SDK package to your application:
+```text
+                         Composition
+                              |
+          +-------------------+-------------------+
+          |                   |                   |
+      Component            Resource             System
+          |                   |                   |
+          |              realized by         realized by
+          +-------------------+-------------------+
+                              |
+                           Adapter
+                              |
+                     compatible with
+                              |
+                             Host
+
+                 Composition materializes an Instance
+```
+
+- **Component** expresses typed behavior and can require Resources and Systems.
+- **Resource** is an occurrence-based technical capability.
+- **System** is an instance-wide shared capability.
+- **Adapter** realizes a Resource or System for a concrete environment.
+- **Host** describes environmental compatibility for a realization.
+- **Manifest** inspects the semantic declarations in a Composition.
+
+## Install
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.1.0" }
+fabric = { package = "onoal-fabric", version = "0.1.1" }
 ```
-
-Then import its stable Rust crate name:
 
 ```rust
 use fabric::prelude::*;
 ```
 
-To develop Fabric from source:
+## A first look
 
-```bash
-git clone https://github.com/Onoal/fabric.git
-cd fabric
-cargo test --workspace
+```rust
+use fabric::prelude::*;
+
+let built = Fabric::new("example")
+    .expect("valid composition")
+    .build()
+    .expect("build");
+
+let manifest = built.manifest();
+let mut instance = built
+    .materialize_named("example.local")
+    .expect("materialize");
+
+instance.start().expect("start");
+// Operate declared Components here when the Composition contains them.
+instance.stop();
 ```
 
-## Documentation
+The [Getting Started guide](docs/getting-started.md) builds on this with a
+complete Component operation and explains each transition from declaration to
+live runtime.
 
-- [Rust SDK guide](sdk/README.md)
-- [Architecture](docs/architecture.md)
-- [Advanced raw API](docs/raw-api.md)
-- [Contributing](CONTRIBUTING.md)
+## Where to go next
 
-## Repository structure
+- New to Fabric? Start with [Getting Started](docs/getting-started.md).
+- Want the conceptual map? Read [Concepts](docs/concepts/README.md).
+- Need the precise model? Read the [Architecture](docs/architecture.md).
+- Building directly on Core? See the [Advanced Raw API](docs/advanced/raw-api.md).
+- Contributing from source? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-```text
-core/              structural composition and runtime machinery
-resource/          occurrence-based capabilities
-system/            instance-wide capabilities
-component/         semantic behavior and typed operations
-host/              environmental compatibility
-sdk/               high-level Rust authoring
-sdk-macros/        SDK procedural macros
-experimental/      non-standard experimental machinery
-tests/             integration and extension tests
-docs/              architecture and advanced API documentation
-```
-
-The modules under `experimental/` are retained research and experimental
-machinery. They are outside the normal Fabric SDK and Fabric 0.1 public model.
-
-## Status
+## Project status
 
 Fabric is in early development. The current public API targets the 0.1 line.
 

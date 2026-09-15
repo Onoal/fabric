@@ -131,6 +131,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-test-docs-getting-started"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "onoal-fabric",
+]
+
+[[package]]
 name = "fabric-test-external-extension"
 version = "0.1.0"
 dependencies = [

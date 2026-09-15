@@ -26,9 +26,9 @@ impl OperationsDrivenClockAdapter {
 
 impl AdapterDefinition for OperationsDrivenClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("static requirement"),

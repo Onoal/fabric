@@ -41,9 +41,9 @@ impl PackageOnlyAdapter {
 
 impl AdapterDefinition for PackageOnlyAdapter {
     type Target = AdaptedCounter;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::provisional(AdaptedCounter::resource_id())
     }
 

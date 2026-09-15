@@ -68,14 +68,14 @@ where
 impl<S, A> Sealed for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
 {
 }
 
 impl<S, A> IntoFabricSystem for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
 {
     fn into_fabric_system(self) -> FabricSystemContribution {
         let (system, adapter, selection) = self.into_raw_parts();

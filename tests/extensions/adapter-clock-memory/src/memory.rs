@@ -70,9 +70,9 @@ impl ClockRealization for MemoryClock {
 
 impl AdapterDefinition for MemoryClock {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("schema requirement"),

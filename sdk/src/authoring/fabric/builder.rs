@@ -33,7 +33,59 @@ impl Module for StoredTypedModule {
 use super::manifest::{FabricManifest, ResourceManifestEntry, SystemManifestEntry};
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
-use crate::authoring::{BlockAuthor, ComponentDefinition, ComponentSpec, FabricBuilder};
+use crate::authoring::definitions::ComponentSpecParts;
+use crate::authoring::{
+    AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentDefinition,
+    ComponentRealization, ComponentSpec, FabricBuilder,
+};
+use fabric_component::ComponentId;
+
+#[doc(hidden)]
+pub trait IntoFabricComponent {
+    fn into_fabric_component(
+        self,
+    ) -> (
+        ComponentSpecParts,
+        Vec<Box<dyn Module>>,
+        Vec<ContractProviderSelection>,
+    );
+}
+
+impl<C> IntoFabricComponent for ComponentSpec<C>
+where
+    C: ComponentDefinition,
+{
+    fn into_fabric_component(
+        self,
+    ) -> (
+        ComponentSpecParts,
+        Vec<Box<dyn Module>>,
+        Vec<ContractProviderSelection>,
+    ) {
+        (self.into_parts(), Vec::new(), Vec::new())
+    }
+}
+
+impl<C, A> IntoFabricComponent for ComponentRealization<C, A>
+where
+    C: AdaptableComponentDefinition,
+    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+{
+    fn into_fabric_component(
+        self,
+    ) -> (
+        ComponentSpecParts,
+        Vec<Box<dyn Module>>,
+        Vec<ContractProviderSelection>,
+    ) {
+        let (component, adapter, bridge, selection) = self.into_parts();
+        (
+            component.into_parts(),
+            vec![Box::new(adapter), Box::new(bridge)],
+            vec![selection],
+        )
+    }
+}
 use crate::ids::{IntoBlockId, IntoCompositionId};
 
 const DEFAULT_BLOCK_ID: &str = "fabric.sdk.default";
@@ -168,14 +220,13 @@ impl Fabric {
         self
     }
 
-    pub fn component<C>(mut self, component: ComponentSpec<C>) -> Self
-    where
-        C: ComponentDefinition,
-    {
-        let parts = component.into_parts();
+    pub fn component(mut self, component: impl IntoFabricComponent) -> Self {
+        let (parts, modules, selections) = component.into_fabric_component();
         self.components.push(parts.declaration.clone());
         self.component_declarations.push(parts.declaration);
         self.typed_modules.extend(parts.carriers);
+        self.typed_modules.extend(modules);
+        self.provider_selections.extend(selections);
         self.provider_selections.extend(parts.provider_selections);
         self.component_resource_provider_selections
             .extend(parts.semantic_provider_selections);

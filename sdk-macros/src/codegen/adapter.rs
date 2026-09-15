@@ -106,9 +106,9 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
 
         impl #sdk::authoring::AdapterDefinition for #adapter_name {
             type Target = #target;
-            type SchemaSupport = #schema_support_ty;
+            type Compatibility = #schema_support_ty;
 
-            fn schema_support(&self) -> Self::SchemaSupport {
+            fn compatibility(&self) -> Self::Compatibility {
                 #schema_support_expr
             }
 

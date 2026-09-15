@@ -85,7 +85,7 @@ where
         adapter: A,
     ) -> Result<ResourceRealization<R, A>, ResourceCompatibilityError>
     where
-        A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+        A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
     {
         let schema = R::schema();
         if R::resource_id() != *schema.resource() {
@@ -95,7 +95,7 @@ where
                 role: ResourceCompatibilityRole::Schema,
             });
         }
-        adapter.schema_support().accepts_schema(&schema)?;
+        adapter.compatibility().accepts_schema(&schema)?;
         let provider_module_id = derive_realization_provider_module_id(&self.module_id)
             .expect("static realization suffix must preserve module id validity");
         let selection = ContractProviderSelection::new(

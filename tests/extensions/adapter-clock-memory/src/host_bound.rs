@@ -20,9 +20,9 @@ impl HostBoundClockAdapter {
 
 impl AdapterDefinition for HostBoundClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> Self::SchemaSupport {
+    fn compatibility(&self) -> Self::Compatibility {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("schema requirement"),

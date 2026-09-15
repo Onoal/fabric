@@ -98,9 +98,9 @@ impl Default for MissingContractOperationsAdapter {
 
 impl AdapterDefinition for MissingContractOperationsAdapter {
     type Target = AdaptedOperations;
-    type SchemaSupport = AdapterSystemSchemaSupport;
+    type Compatibility = AdapterSystemSchemaSupport;
 
-    fn schema_support(&self) -> AdapterSystemSchemaSupport {
+    fn compatibility(&self) -> AdapterSystemSchemaSupport {
         AdapterSystemSchemaSupport::versioned(
             adapted_operations_system_id(),
             SystemSchemaRequirement::parse("^2").expect("schema requirement"),
@@ -138,9 +138,9 @@ impl LifecycleCaptureOperationsAdapter {
 #[cfg(test)]
 impl AdapterDefinition for LifecycleCaptureOperationsAdapter {
     type Target = AdaptedOperations;
-    type SchemaSupport = AdapterSystemSchemaSupport;
+    type Compatibility = AdapterSystemSchemaSupport;
 
-    fn schema_support(&self) -> AdapterSystemSchemaSupport {
+    fn compatibility(&self) -> AdapterSystemSchemaSupport {
         AdapterSystemSchemaSupport::versioned(
             adapted_operations_system_id(),
             SystemSchemaRequirement::parse("^2").expect("schema requirement"),

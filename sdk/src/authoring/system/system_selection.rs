@@ -57,12 +57,12 @@ where
 {
     pub fn using<A>(self, adapter: A) -> Result<SystemRealization<S, A>, SystemCompatibilityError>
     where
-        A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+        A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
     {
         let system_id = S::system_id();
         let schema = S::schema();
         schema.ensure_system(&system_id)?;
-        adapter.schema_support().accepts_schema(&schema)?;
+        adapter.compatibility().accepts_schema(&schema)?;
         let provider_module_id = derive_realization_provider_module_id(&self.module_id)?;
         let selection = ContractProviderSelection::new(
             self.module_id.clone(),

@@ -1137,11 +1137,11 @@ fn declaration_only_adapter_defines_target_schema_and_realization_without_runtim
 
     assert_eq!(adapter.config().label, "package-counter-notes");
     assert_eq!(
-        adapter.schema_support().resource(),
+        adapter.compatibility().resource(),
         &AdaptedCounter::resource_id()
     );
     adapter
-        .schema_support()
+        .compatibility()
         .accepts_schema(&AdaptedCounter::schema())
         .expect("adapter schema support must accept the target schema");
     assert_eq!(adapter.host_requirement(), HostRequirement::new());

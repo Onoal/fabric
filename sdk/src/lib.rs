@@ -22,13 +22,14 @@ mod tests;
 pub use fabric_sdk_macros::{adapter, component, resource, system};
 
 pub use authoring::{
-    AdaptableResourceDefinition, AdaptableSystemDefinition, AdapterDefinition,
-    AdapterProviderModule, BuiltFabric, ComponentDefinition, ComponentResourceBindingManifestEntry,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
-    ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency, Fabric,
-    FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
-    IntoFabricSystem, IntoResourceName, PrimaryResourceContract, PrimarySystemContract, Requires,
-    ResourceDefinition, ResourceManifestEntry, ResourceRealization, ResourceSelection,
+    AdaptableComponentDefinition, AdaptableResourceDefinition, AdaptableSystemDefinition,
+    AdapterDefinition, AdapterProviderModule, BuiltFabric, ComponentDefinition,
+    ComponentRealization, ComponentResourceBindingManifestEntry, ComponentResourceRequirement,
+    ComponentResourceScope, ComponentSpec, ComponentSystemBindingManifestEntry,
+    ComponentSystemScope, ContractDependency, Fabric, FabricBuildError, FabricComponents,
+    FabricInstance, FabricManifest, IntoFabricResource, IntoFabricSystem, IntoResourceName,
+    PrimaryResourceContract, PrimarySystemContract, Requires, ResourceDefinition,
+    ResourceManifestEntry, ResourceRealization, ResourceSelection,
     SelfRealizingComponentDefinition, SystemDefinition, SystemManifestEntry, SystemRealization,
     SystemRequires, SystemSelection,
 };

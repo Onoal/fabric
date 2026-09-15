@@ -68,14 +68,14 @@ where
 impl<R, A> Sealed for ResourceRealization<R, A>
 where
     R: AdaptableResourceDefinition,
-    A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+    A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
 {
 }
 
 impl<R, A> IntoFabricResource for ResourceRealization<R, A>
 where
     R: AdaptableResourceDefinition,
-    A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+    A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
 {
     fn into_fabric_resource(self) -> FabricResourceContribution {
         let (resource, adapter, selection) = self.into_raw_parts();

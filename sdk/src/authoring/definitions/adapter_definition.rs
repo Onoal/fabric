@@ -3,9 +3,9 @@ use fabric_host::HostRequirement;
 
 pub trait AdapterDefinition: Clone + Send + Sync + 'static {
     type Target: Send + Sync + 'static;
-    type SchemaSupport: Clone + Send + Sync + 'static;
+    type Compatibility: Clone + Send + Sync + 'static;
 
-    fn schema_support(&self) -> Self::SchemaSupport;
+    fn compatibility(&self) -> Self::Compatibility;
 
     fn host_requirement(&self) -> HostRequirement {
         HostRequirement::new()

@@ -9,7 +9,7 @@ use super::{
 pub struct ResourceRealization<R, A>
 where
     R: AdaptableResourceDefinition,
-    A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+    A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
 {
     resource: ResourceSelection<R>,
     adapter: AdapterProviderModule<A>,
@@ -19,7 +19,7 @@ where
 impl<R, A> Clone for ResourceRealization<R, A>
 where
     R: AdaptableResourceDefinition,
-    A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+    A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -33,7 +33,7 @@ where
 impl<R, A> ResourceRealization<R, A>
 where
     R: AdaptableResourceDefinition,
-    A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+    A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
 {
     pub(crate) fn new(
         resource: ResourceSelection<R>,

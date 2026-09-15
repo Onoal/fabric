@@ -76,9 +76,9 @@ impl Default for MissingContractCounterAdapter {
 
 impl AdapterDefinition for MissingContractCounterAdapter {
     type Target = crate::AdaptedCounter;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::provisional(crate::AdaptedCounter::resource_id())
     }
 

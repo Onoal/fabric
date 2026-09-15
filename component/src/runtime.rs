@@ -206,7 +206,8 @@ impl ComponentRuntimeDefinition {
         &self.component_id
     }
 
-    pub(crate) fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<Health, ComponentError> {
+    /// Prepares one generation-scoped Component participation.
+    pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<Health, ComponentError> {
         (self.prepare)(scope)
     }
 }

@@ -474,9 +474,9 @@ struct IncompatibleClockSchema;
 
 impl AdapterDefinition for IncompatibleClockSchema {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^2").expect("schema requirement"),
@@ -524,9 +524,9 @@ impl AlternateClockAdapter {
 
 impl AdapterDefinition for AlternateClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("schema requirement"),
@@ -552,9 +552,9 @@ struct WrongVersionClockAdapter;
 
 impl AdapterDefinition for WrongVersionClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("schema requirement"),
@@ -586,9 +586,9 @@ struct MissingContractClockAdapter;
 
 impl AdapterDefinition for MissingContractClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> AdapterResourceSchemaSupport {
+    fn compatibility(&self) -> AdapterResourceSchemaSupport {
         AdapterResourceSchemaSupport::versioned(
             Clock::resource_id(),
             ResourceSchemaRequirement::parse("^1").expect("schema requirement"),

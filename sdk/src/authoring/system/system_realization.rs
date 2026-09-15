@@ -7,7 +7,7 @@ use crate::authoring::definitions::{AdapterDefinition, AdapterProviderModule};
 pub struct SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
 {
     system: SystemSelection<S>,
     adapter: AdapterProviderModule<A>,
@@ -17,7 +17,7 @@ where
 impl<S, A> Clone for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -31,7 +31,7 @@ where
 impl<S, A> SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
 {
     pub(crate) fn new(
         system: SystemSelection<S>,

@@ -10,8 +10,8 @@ using Fabric.
 participants, requirements, selections, and declared structure. Start here to
 understand the difference between what Fabric declares and what it runs.
 
-**Instance** is one live materialization of a Composition. It owns lifecycle,
-generation, and runtime state.
+**[Instance](instance.md)** is one live materialization of a Composition. It
+owns lifecycle, generation, and runtime state.
 
 **Component** expresses semantic behavior as typed operations. A Component can
 require Resources and Systems.

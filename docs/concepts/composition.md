@@ -343,5 +343,5 @@ running operations, mutable runtime service discovery, scheduler or placement
 policy, capacity, a global registry, identity or authority, or deployment
 serialization.
 
-Next, return to the [Concept map](README.md); Instance is the next concept in
-the learning order and explains the live boundary.
+Next: [Instance](instance.md), the live materialization boundary. You can also
+return to the [Concept map](README.md).

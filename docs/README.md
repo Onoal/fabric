@@ -15,7 +15,7 @@ Fabric documentation has three levels.
 1. [Getting Started](getting-started.md)
 2. [Concepts](concepts/README.md)
    - [Composition](concepts/composition.md)
-   - Instance
+   - [Instance](concepts/instance.md)
    - Component
    - Resource
    - System

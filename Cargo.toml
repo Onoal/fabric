@@ -18,6 +18,7 @@ members = [
     "tests/docs-component",
     "tests/docs-resource",
     "tests/docs-system",
+    "tests/docs-adapter",
     "tests/extensions/resource-clock",
     "tests/extensions/resource-counter",
     "tests/extensions/system-operations",

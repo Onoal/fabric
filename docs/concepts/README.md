@@ -22,8 +22,8 @@ contain distinct occurrences of the same Resource type.
 **[System](system.md)** is an instance-wide shared capability used by the
 declared system.
 
-**Adapter** realizes a Resource or adaptable System through an explicit public
-realization interface.
+**[Adapter](adapter.md)** realizes a Resource or adaptable System through an
+explicit public realization interface.
 
 **Host** describes environmental compatibility needed to materialize an Adapter
 realization.

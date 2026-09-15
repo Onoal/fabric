@@ -204,4 +204,5 @@ Composition.
 `SystemCompatibilityError` covers System input, identity, and schema
 compatibility. Typed contract methods own their own domain outcomes.
 
+Next: [Adapter](adapter.md), the realization boundary.
 Return to the [Concept map](README.md) or [Architecture](../architecture.md).

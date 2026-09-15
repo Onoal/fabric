@@ -131,6 +131,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-test-docs-adapter"
+version = "0.1.0"
+dependencies = [
+ "fabric-test-adapter-external",
+ "fabric-test-resource-counter",
+ "fabric-test-system-operations",
+ "onoal-fabric",
+]
+
+[[package]]
 name = "fabric-test-docs-component"
 version = "0.1.0"
 dependencies = [

@@ -87,7 +87,7 @@ not Adapters:
 
 ```text
 Component -> Resource/System
-not Component -> Adapter
+not Component -> [Adapter](adapter.md)
 ```
 
 Requirement names are Component-local roles. In `primary_store` and

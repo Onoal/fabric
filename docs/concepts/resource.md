@@ -85,7 +85,7 @@ version requirements. A definition's `resource_id()` must agree with its schema
 Resource identity.
 
 A Resource may materialize directly, or implement
-`AdaptableResourceDefinition` with a typed `RealizationContract`.
+`AdaptableResourceDefinition` with a typed [RealizationContract](adapter.md).
 
 ```text
 ResourceSelection + compatible Adapter = ResourceRealization
@@ -95,7 +95,7 @@ ResourceSelection + compatible Adapter = ResourceRealization
 let realized = resource_selection.using(adapter)?;
 ```
 
-`.using(adapter)` is declarative: it does not start an Adapter, connect to a
+`.using(adapter)` is declarative: it does not start an [Adapter](adapter.md), connect to a
 service, or mutate an Instance. It records the occurrence, Adapter provider,
 and provider selection for later Composition materialization. A compatible
 Adapter targets the Resource, supports its schema, and implements its explicit

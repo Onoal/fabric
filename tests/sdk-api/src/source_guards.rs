@@ -48,8 +48,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     ] {
         let source = fs::read_to_string(repository.join(manifest)).expect("read public manifest");
         assert!(
-            source.contains("publish = false"),
-            "canonical package must remain guarded from publication: {manifest}"
+            source.contains("publish = [\"crates-io\"]"),
+            "canonical package must explicitly allow crates.io publication: {manifest}"
         );
         assert!(
             source.contains("license.workspace = true")

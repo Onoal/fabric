@@ -34,7 +34,20 @@ runtime state.
 
 ## Getting started
 
-Fabric is currently developed from source.
+Add the normal Rust SDK package to your application:
+
+```toml
+[dependencies]
+fabric-sdk = { package = "onoal-fabric-sdk", version = "0.1.0" }
+```
+
+Then import its stable Rust crate name:
+
+```rust
+use fabric_sdk::prelude::*;
+```
+
+To develop Fabric from source:
 
 ```bash
 git clone https://github.com/Onoal/fabric.git

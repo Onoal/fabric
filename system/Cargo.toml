@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Instance-wide System semantics for Fabric."
-publish = false
+publish = ["crates-io"]
 
 [lib]
 name = "fabric_system"

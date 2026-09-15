@@ -9,8 +9,14 @@ Host, Fabric, Instance, and semantic Manifest work. Use explicit named modules
 such as `fabric_sdk::authoring`, `fabric_sdk::core`, and
 `fabric_sdk::component` for advanced/raw capability.
 
-Fabric is currently developed from source. From a checkout of this workspace,
-normal code imports the SDK through its public Rust crate name:
+Add the SDK package to an application:
+
+```toml
+[dependencies]
+fabric-sdk = { package = "onoal-fabric-sdk", version = "0.1.0" }
+```
+
+Normal code imports the SDK through its public Rust crate name:
 
 ```rust
 use fabric_sdk::prelude::*;

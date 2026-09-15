@@ -1,0 +1,12 @@
+[package]
+name = "fabric-test-docs-component"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric.workspace = true
+futures = "0.3.31"
+fabric-test-component-greeter = { path = "../extensions/component-greeter" }
+fabric-test-resource-counter = { path = "../extensions/resource-counter" }
+fabric-test-system-operations = { path = "../extensions/system-operations" }

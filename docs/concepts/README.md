@@ -13,8 +13,8 @@ understand the difference between what Fabric declares and what it runs.
 **[Instance](instance.md)** is one live materialization of a Composition. It
 owns lifecycle, generation, and runtime state.
 
-**Component** expresses semantic behavior as typed operations. A Component can
-require Resources and Systems.
+**[Component](component.md)** expresses semantic behavior as typed Operations.
+A Component can require Resources and Systems.
 
 **Resource** is an occurrence-based technical capability. A Composition may
 contain distinct occurrences of the same Resource type.

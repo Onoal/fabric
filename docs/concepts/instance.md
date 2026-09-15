@@ -309,5 +309,6 @@ A Host may be evaluated during materialization, but an Instance is what was
 materialized. An implementation may use runtime machinery internally, but
 Fabric's Instance remains the semantic live-materialization boundary.
 
-Return to the [Concept map](README.md), or continue to the precise
+Next: [Component](component.md), Fabric's semantic behavior participant. You
+can also return to the [Concept map](README.md) or continue to the precise
 [Architecture](../architecture.md).

@@ -15,6 +15,7 @@ members = [
     "tests/docs-getting-started",
     "tests/docs-composition",
     "tests/docs-instance",
+    "tests/docs-component",
     "tests/extensions/resource-clock",
     "tests/extensions/resource-counter",
     "tests/extensions/system-operations",

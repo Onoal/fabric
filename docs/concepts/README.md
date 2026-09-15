@@ -19,7 +19,8 @@ A Component can require Resources and Systems.
 **[Resource](resource.md)** is an occurrence-based technical capability. A Composition may
 contain distinct occurrences of the same Resource type.
 
-**System** is an instance-wide shared capability used by the declared system.
+**[System](system.md)** is an instance-wide shared capability used by the
+declared system.
 
 **Adapter** realizes a Resource or adaptable System through an explicit public
 realization interface.

@@ -156,4 +156,5 @@ those are possible capability semantics. Host requirements belong to Adapter/
 Host realization concerns. `ResourceError` covers Resource authoring/model
 errors; individual typed contracts own their own method outcomes.
 
+Next: [System](system.md), the coherent shared-capability boundary.
 Return to the [Concept map](README.md) or [Architecture](../architecture.md).

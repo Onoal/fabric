@@ -234,10 +234,10 @@ assert_eq!(bindings[1].requirement_name().as_str(), "cache_store");
 assert_eq!(bindings[1].resource_name().as_str(), "cache");
 ```
 
-The same law applies to Component-to-System requirements, but Systems are a
-different semantic world: normal typed authoring has one coherent System
-occurrence per `SystemId` in a Composition, rather than Resource-style named
-occurrences.
+The same law applies to Component-to-[System](system.md) requirements, but
+Systems are a different semantic world: normal typed authoring has one
+coherent System occurrence per `SystemId` in a Composition, rather than
+Resource-style named occurrences.
 
 An Adapter, where a Resource or adaptable System needs one, realizes that
 semantic capability through its public realization interface. A Component still

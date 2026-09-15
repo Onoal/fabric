@@ -94,8 +94,8 @@ Requirement names are Component-local roles. In `primary_store` and
 `cache_store`, the names explain what each dependency means to the Component;
 they do not rename selected occurrences such as `NoteStore("primary")` and
 `NoteStore("cache")`. [Composition](composition.md) selects and binds those
-occurrences. Systems remain a distinct semantic world with one coherent normal
-typed occurrence per `SystemId`.
+occurrences. [Systems](system.md) remain a distinct semantic world with one
+coherent normal typed occurrence per `SystemId`.
 
 At runtime the flow is:
 

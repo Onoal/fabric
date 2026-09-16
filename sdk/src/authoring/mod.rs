@@ -20,12 +20,15 @@ pub use definitions::{
 pub use fabric::{
     BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
     Fabric, FabricBuildError, FabricManifest, FabricManifestDiagnostics, IntoFabricResource,
-    IntoFabricResourceAugmentation, IntoFabricSystem, ResourceAugmentationManifestEntry,
-    ResourceManifestEntry, SystemManifestEntry,
+    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
+    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
+    SystemManifestEntry,
 };
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};
 pub use system::{
-    AdaptableSystemDefinition, PrimarySystemContract, SystemDefinition, SystemRealization,
-    SystemRequires, SystemSelection,
+    AdaptableSystemDefinition, PrimarySystemContract, SystemAugmentation,
+    SystemAugmentationDefinition, SystemAugmentationError, SystemAugmentationRealization,
+    SystemAugmentationRequirement, SystemAugmentationSupportDefinition, SystemDefinition,
+    SystemRealization, SystemRequires, SystemSelection,
 };

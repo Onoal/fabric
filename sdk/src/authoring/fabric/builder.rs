@@ -32,10 +32,12 @@ impl Module for StoredTypedModule {
 
 use super::augmentation::IntoFabricResourceAugmentation;
 use super::manifest::{
-    FabricManifest, ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemManifestEntry,
+    FabricManifest, ResourceAugmentationManifestEntry, ResourceManifestEntry,
+    SystemAugmentationManifestEntry, SystemManifestEntry,
 };
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
+use super::system_augmentation::IntoFabricSystemAugmentation;
 use crate::authoring::definitions::ComponentSpecParts;
 use crate::authoring::{
     AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentDefinition,
@@ -172,6 +174,7 @@ pub struct Fabric {
     resources: Vec<ResourceManifestEntry>,
     resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
+    system_augmentations: Vec<SystemAugmentationManifestEntry>,
     components: Vec<ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
@@ -195,6 +198,7 @@ impl Fabric {
             resources: Vec::new(),
             resource_augmentations: Vec::new(),
             systems: Vec::new(),
+            system_augmentations: Vec::new(),
             components: Vec::new(),
             module_declarations: Vec::new(),
             typed_modules: Vec::new(),
@@ -237,6 +241,17 @@ impl Fabric {
         self.provider_selections
             .extend(contribution.provider_selections().iter().cloned());
         self.typed_modules.extend(contribution.modules());
+        self
+    }
+
+    /// Adds externally owned semantic meaning to one selected System occurrence.
+    pub fn system_augmentation(mut self, augmentation: impl IntoFabricSystemAugmentation) -> Self {
+        let contribution = augmentation.into_fabric_system_augmentation();
+        self.system_augmentations.push(contribution.entry().clone());
+        let (modules, declarations, selections) = contribution.into_parts();
+        self.typed_modules.extend(modules);
+        self.module_declarations.extend(declarations);
+        self.provider_selections.extend(selections);
         self
     }
 
@@ -289,6 +304,7 @@ impl Fabric {
             resources,
             resource_augmentations,
             systems,
+            system_augmentations,
             components,
             mut module_declarations,
             typed_modules,
@@ -343,6 +359,7 @@ impl Fabric {
             resources,
             resource_augmentations,
             systems,
+            system_augmentations,
             components,
             module_declarations,
             provider_selections,

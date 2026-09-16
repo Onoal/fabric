@@ -4,13 +4,15 @@ mod manifest;
 mod resource;
 mod sealed;
 mod system;
+mod system_augmentation;
 
 pub use augmentation::IntoFabricResourceAugmentation;
 pub use builder::{BuiltFabric, Fabric, FabricBuildError};
 pub use manifest::{
     ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry, FabricManifest,
     FabricManifestDiagnostics, ResourceAugmentationManifestEntry, ResourceManifestEntry,
-    SystemManifestEntry,
+    SystemAugmentationManifestEntry, SystemManifestEntry,
 };
 pub use resource::IntoFabricResource;
 pub use system::IntoFabricSystem;
+pub use system_augmentation::IntoFabricSystemAugmentation;

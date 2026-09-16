@@ -82,6 +82,38 @@ pub struct SystemManifestEntry {
     schema: fabric_system::SystemSchemaDescriptor,
 }
 
+/// Bounded semantic inspection truth for an external System attachment.
+#[derive(Clone, Debug)]
+pub struct SystemAugmentationManifestEntry {
+    contract_id: ContractId,
+    contract_identity: ContractIdentity,
+    system_id: fabric_system::SystemId,
+}
+
+impl SystemAugmentationManifestEntry {
+    pub(crate) fn new(
+        contract_id: ContractId,
+        contract_identity: ContractIdentity,
+        system_id: fabric_system::SystemId,
+    ) -> Self {
+        Self {
+            contract_id,
+            contract_identity,
+            system_id,
+        }
+    }
+
+    pub fn contract_id(&self) -> &ContractId {
+        &self.contract_id
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        &self.contract_identity
+    }
+    pub fn system_id(&self) -> &fabric_system::SystemId {
+        &self.system_id
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ComponentResourceBindingManifestEntry {
     component_id: ComponentId,
@@ -182,6 +214,7 @@ pub struct FabricManifest {
     resources: Vec<ResourceManifestEntry>,
     resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
+    system_augmentations: Vec<SystemAugmentationManifestEntry>,
     components: Vec<fabric_component::ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
@@ -197,6 +230,7 @@ impl FabricManifest {
         resources: Vec<ResourceManifestEntry>,
         resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
         systems: Vec<SystemManifestEntry>,
+        system_augmentations: Vec<SystemAugmentationManifestEntry>,
         components: Vec<fabric_component::ComponentDeclaration>,
         module_declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
@@ -209,6 +243,7 @@ impl FabricManifest {
             resources,
             resource_augmentations,
             systems,
+            system_augmentations,
             components,
             module_declarations,
             provider_selections,
@@ -229,6 +264,10 @@ impl FabricManifest {
 
     pub fn systems(&self) -> &[SystemManifestEntry] {
         &self.systems
+    }
+
+    pub fn system_augmentations(&self) -> &[SystemAugmentationManifestEntry] {
+        &self.system_augmentations
     }
 
     pub fn components(&self) -> &[fabric_component::ComponentDeclaration] {

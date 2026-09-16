@@ -13,6 +13,8 @@ mod source_guards;
 #[cfg(test)]
 mod support;
 #[cfg(test)]
+mod system_augmentation_witness;
+#[cfg(test)]
 mod system_witness;
 #[cfg(test)]
 mod versioned_contract_witness;

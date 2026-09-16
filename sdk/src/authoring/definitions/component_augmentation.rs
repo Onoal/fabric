@@ -3,7 +3,10 @@ use std::marker::PhantomData;
 use fabric_component::{
     ComponentAugmentationRuntimeDefinition, ComponentError, ComponentRuntimeScope,
 };
-use fabric_core::{ContractKey, Module, ModuleDeclaration, ModuleId, ModuleRuntime};
+use fabric_core::{
+    ContractKey, ContractProviderSelection, ContractRequirement, Module, ModuleDeclaration,
+    ModuleId, ModuleRuntime,
+};
 
 use super::{
     AdaptableComponentDefinition, AdapterDefinition, ComponentDefinition, ComponentRealization,
@@ -62,6 +65,21 @@ where
     pub fn config(&self) -> &X::Config {
         &self.config
     }
+    pub fn requirement(&self) -> fabric_core::ContractRequirement<X::Contract> {
+        let key = X::contract_key();
+        match key.identity() {
+            fabric_core::ContractIdentity::Provisional => {
+                fabric_core::ContractRequirement::provisional(key.id().clone())
+            }
+            fabric_core::ContractIdentity::Versioned(version) => {
+                fabric_core::ContractRequirement::versioned(
+                    key.id().clone(),
+                    fabric_core::ContractVersionRequirement::parse(format!("={version}"))
+                        .expect("exact contract version"),
+                )
+            }
+        }
+    }
     pub fn using<S>(self, support: S) -> ComponentAugmentationRealization<C, X, S>
     where
         S: ComponentAugmentationSupportDefinition<C, X>,
@@ -72,6 +90,24 @@ where
             attachment: self,
             support,
             provider_module_id,
+        }
+    }
+
+    /// Keeps this semantic attachment as declarative truth without claiming a
+    /// concrete provider for `X::Contract` exists.
+    pub fn into_set(self) -> ComponentAugmentationSet<C> {
+        let contract = X::contract_key();
+        let component_id = self.component_id();
+        ComponentAugmentationSet {
+            component: self.component,
+            providers: Vec::new(),
+            manifest: vec![
+                super::super::fabric::ComponentAugmentationManifestEntry::new(
+                    contract.id().clone(),
+                    contract.identity().clone(),
+                    component_id,
+                ),
+            ],
         }
     }
 }
@@ -86,6 +122,77 @@ where
     attachment: ComponentAugmentation<C, X>,
     support: S,
     provider_module_id: ModuleId,
+}
+
+/// A typed consumer requirement for `X` supplied by one augmentation attached
+/// to a specific Component semantic target.
+pub struct ComponentAugmentationRequirement<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    requirement: ContractRequirement<X::Contract>,
+    target_component_id: fabric_component::ComponentId,
+    provider_module_id: ModuleId,
+}
+
+impl<C, X> ComponentAugmentationRequirement<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    pub fn augmentation(&self) -> &ContractRequirement<X::Contract> {
+        &self.requirement
+    }
+
+    pub fn target_component_id(&self) -> &fabric_component::ComponentId {
+        &self.target_component_id
+    }
+
+    /// Pins a consumer's `X` requirement to the support provider for this
+    /// exact Component augmentation attachment.
+    pub fn provider_selection(&self, consumer: ModuleId) -> ContractProviderSelection {
+        ContractProviderSelection::new(
+            consumer,
+            self.requirement.declaration().id().clone(),
+            self.provider_module_id.clone(),
+        )
+    }
+}
+
+/// A configured Component carrying one or more independently owned semantic
+/// augmentation contributions.
+pub struct ComponentAugmentationSet<C>
+where
+    C: ComponentDefinition,
+{
+    pub(crate) component: ComponentSpec<C>,
+    pub(crate) providers: Vec<Box<dyn Module>>,
+    pub(crate) manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+}
+
+/// One more semantic attachment being appended to a Component augmentation
+/// set. It may remain bare or receive an independently authored support.
+pub struct ComponentAugmentationSetAttachment<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    attachment: ComponentAugmentation<C, X>,
+    providers: Vec<Box<dyn Module>>,
+    manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+}
+
+/// A Component augmentation set combined with the ordinary Adapter realization
+/// of its base Component.
+pub struct ComponentAugmentationSetAdapterRealization<C, A>
+where
+    C: AdaptableComponentDefinition,
+    A: AdapterDefinition<Target = C, Compatibility = fabric_component::ComponentId>,
+{
+    pub(crate) component: ComponentRealization<C, A>,
+    pub(crate) providers: Vec<Box<dyn Module>>,
+    pub(crate) manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
 }
 
 /// An augmentation support contribution combined with the ordinary Adapter
@@ -115,6 +222,16 @@ where
     pub fn contract_key(&self) -> ContractKey<X::Contract> {
         X::contract_key()
     }
+
+    /// Creates a typed requirement that remains bound to this supported
+    /// attachment's Component target and provider occurrence.
+    pub fn requirement(&self) -> ComponentAugmentationRequirement<C, X> {
+        ComponentAugmentationRequirement {
+            requirement: self.attachment.requirement(),
+            target_component_id: self.component_id(),
+            provider_module_id: self.provider_module_id.clone(),
+        }
+    }
     pub fn into_parts(self) -> (ComponentSpec<C>, Box<dyn Module>) {
         let component_id = C::component_id();
         let attachment = self.attachment;
@@ -135,6 +252,84 @@ where
                 marker: PhantomData,
             }),
         )
+    }
+
+    /// Converts this supported attachment into a set which can carry more
+    /// independently owned Component augmentations.
+    pub fn into_set(self) -> ComponentAugmentationSet<C> {
+        let contract = self.contract_key();
+        let component_id = self.component_id();
+        let (component, provider) = self.into_parts();
+        ComponentAugmentationSet {
+            component,
+            providers: vec![provider],
+            manifest: vec![
+                super::super::fabric::ComponentAugmentationManifestEntry::new(
+                    contract.id().clone(),
+                    contract.identity().clone(),
+                    component_id,
+                ),
+            ],
+        }
+    }
+}
+
+impl<C> ComponentAugmentationSet<C>
+where
+    C: ComponentDefinition,
+{
+    /// Attaches another independently owned semantic contribution to this
+    /// same configured Component.
+    pub fn augment<X>(
+        self,
+        config: X::Config,
+    ) -> Result<ComponentAugmentationSetAttachment<C, X>, ComponentError>
+    where
+        X: ComponentAugmentationDefinition<C>,
+    {
+        Ok(ComponentAugmentationSetAttachment {
+            attachment: self.component.augment::<X>(config)?,
+            providers: self.providers,
+            manifest: self.manifest,
+        })
+    }
+}
+
+impl<C, X> ComponentAugmentationSetAttachment<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    /// Retains this attachment as semantic truth without support.
+    pub fn without_support(self) -> ComponentAugmentationSet<C> {
+        let mut appended = self.attachment.into_set();
+        let mut providers = self.providers;
+        providers.append(&mut appended.providers);
+        let mut manifest = self.manifest;
+        manifest.append(&mut appended.manifest);
+        ComponentAugmentationSet {
+            component: appended.component,
+            providers,
+            manifest,
+        }
+    }
+
+    /// Adds an independently supplied realization support provider for this
+    /// semantic attachment.
+    pub fn using<S>(self, support: S) -> ComponentAugmentationSet<C>
+    where
+        S: ComponentAugmentationSupportDefinition<C, X>,
+    {
+        let mut appended = self.attachment.using(support).into_set();
+        let mut providers = self.providers;
+        providers.append(&mut appended.providers);
+        let mut manifest = self.manifest;
+        manifest.append(&mut appended.manifest);
+        ComponentAugmentationSet {
+            component: appended.component,
+            providers,
+            manifest,
+        }
     }
 }
 
@@ -158,6 +353,27 @@ where
             provider,
             contract,
             marker: PhantomData,
+        })
+    }
+}
+
+impl<C> ComponentAugmentationSet<C>
+where
+    C: AdaptableComponentDefinition,
+{
+    /// Combines the base Component's ordinary Adapter realization with all
+    /// already attached Component augmentation contributions.
+    pub fn using_adapter<A>(
+        self,
+        adapter: A,
+    ) -> Result<ComponentAugmentationSetAdapterRealization<C, A>, ComponentError>
+    where
+        A: AdapterDefinition<Target = C, Compatibility = fabric_component::ComponentId>,
+    {
+        Ok(ComponentAugmentationSetAdapterRealization {
+            component: self.component.using(adapter)?,
+            providers: self.providers,
+            manifest: self.manifest,
         })
     }
 }
@@ -206,8 +422,14 @@ where
     where
         X: ComponentAugmentationDefinition<C>,
     {
+        let semantic = X::contract_key()
+            .id()
+            .as_str()
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
         let module_id = ModuleId::new(format!(
-            "fabric.component.{}.augmentation",
+            "fabric.component.{}.augmentation.{semantic}",
             C::component_id().as_str()
         ))
         .map_err(|e| ComponentError::InvalidComponentId(e.to_string()))?;

@@ -11,14 +11,15 @@ pub use composition_ext::CompositionExt;
 pub use definitions::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterDefinition,
     AdapterProviderModule, ComponentAugmentation, ComponentAugmentationDefinition,
-    ComponentAugmentationRealization, ComponentAugmentationSupportDefinition,
-    ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
-    ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
-    ComponentSpec, ComponentSystemScope, ContractDependency, IntoResourceName,
-    PrimaryResourceContract, Requires, ResourceAugmentation, ResourceAugmentationDefinition,
-    ResourceAugmentationError, ResourceAugmentationRealization, ResourceAugmentationRequirement,
-    ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
-    ResourceSelection, SelfRealizingComponentDefinition,
+    ComponentAugmentationRealization, ComponentAugmentationRequirement, ComponentAugmentationSet,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
+    ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
+    ComponentDefinition, ComponentRealization, ComponentRealizationContract,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
+    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceAugmentation,
+    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
+    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
+    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,

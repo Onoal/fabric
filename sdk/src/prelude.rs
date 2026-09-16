@@ -8,6 +8,8 @@ pub use crate::authoring::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdaptableSystemDefinition,
     AdapterDefinition, AdapterProviderModule, BuiltFabric, ComponentAugmentation,
     ComponentAugmentationDefinition, ComponentAugmentationRealization,
+    ComponentAugmentationRequirement, ComponentAugmentationSet,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSupportDefinition, ComponentDefinition, ComponentRealization,
     ComponentRealizationContract, ComponentResourceBindingManifestEntry,
     ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,

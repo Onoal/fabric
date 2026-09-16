@@ -40,8 +40,9 @@ use super::system::IntoFabricSystem;
 use super::system_augmentation::IntoFabricSystemAugmentation;
 use crate::authoring::definitions::ComponentSpecParts;
 use crate::authoring::{
-    AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentAugmentationDefinition,
-    ComponentAugmentationRealization, ComponentAugmentationSupportDefinition,
+    AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentAugmentation,
+    ComponentAugmentationDefinition, ComponentAugmentationRealization, ComponentAugmentationSet,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSupportDefinition,
     ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization, ComponentSpec,
     FabricBuilder,
 };
@@ -97,6 +98,27 @@ where
     }
 }
 
+impl<C, X> IntoFabricComponent for ComponentAugmentation<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        let contract = X::contract_key();
+        let component_id = self.component_id();
+        (
+            self.component.into_parts(),
+            Vec::new(),
+            Vec::new(),
+            vec![ComponentAugmentationManifestEntry::new(
+                contract.id().clone(),
+                contract.identity().clone(),
+                component_id,
+            )],
+        )
+    }
+}
+
 impl<C, X, S> IntoFabricComponent for ComponentAugmentationRealization<C, X, S>
 where
     C: ComponentDefinition,
@@ -123,6 +145,20 @@ where
                 contract.identity().clone(),
                 component_id,
             )],
+        )
+    }
+}
+
+impl<C> IntoFabricComponent for ComponentAugmentationSet<C>
+where
+    C: ComponentDefinition,
+{
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        (
+            self.component.into_parts(),
+            self.providers,
+            Vec::new(),
+            self.manifest,
         )
     }
 }
@@ -154,6 +190,24 @@ where
                 contract.identity().clone(),
                 component_id,
             )],
+        )
+    }
+}
+
+impl<C, A> IntoFabricComponent for ComponentAugmentationSetAdapterRealization<C, A>
+where
+    C: AdaptableComponentDefinition,
+    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+{
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        let (component, adapter, bridge, selection) = self.component.into_parts();
+        let mut modules: Vec<Box<dyn Module>> = vec![Box::new(adapter), Box::new(bridge)];
+        modules.extend(self.providers);
+        (
+            component.into_parts(),
+            modules,
+            vec![selection],
+            self.manifest,
         )
     }
 }

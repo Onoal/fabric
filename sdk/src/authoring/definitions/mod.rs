@@ -14,6 +14,8 @@ pub use adapter_definition::AdapterDefinition;
 pub use adapter_provider_module::AdapterProviderModule;
 pub use component_augmentation::{
     ComponentAugmentation, ComponentAugmentationDefinition, ComponentAugmentationRealization,
+    ComponentAugmentationRequirement, ComponentAugmentationSet,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
 };
 pub(crate) use component_definition::ComponentSpecParts;

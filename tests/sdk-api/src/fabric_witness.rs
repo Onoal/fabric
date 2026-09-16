@@ -5,7 +5,7 @@ use fabric::{
     core::{ContractProviderSelection, ContractRequirement},
     ids::module,
 };
-use fabric_component::ComponentMaterializer;
+use fabric_component::{ComponentError, ComponentMaterializer, ComponentRuntimeScope};
 use fabric_core::{
     BlockBuilder, BlockId, CompositionError, ContractId, ContractKey, ContractVersionRequirement,
     Health, InstanceGeneration, InstanceId, LifecycleState, ModuleBindings, ModuleContract,
@@ -252,6 +252,68 @@ impl ModuleRuntime for PingoraRuntime {
     fn stop(&mut self) {}
     fn health(&self) -> Health {
         Health::Healthy
+    }
+}
+
+#[derive(Clone)]
+struct GatewayAudit;
+#[derive(Clone)]
+struct GatewayAuditService;
+
+impl ComponentAugmentationDefinition<Gateway> for GatewayAudit {
+    type Config = ();
+    type Contract = GatewayAuditService;
+
+    fn contract_key() -> ContractKey<Self::Contract> {
+        ContractKey::provisional(ContractId::new("fabric.test.gateway.audit").expect("contract"))
+    }
+}
+
+#[derive(Clone)]
+struct GatewayAuditSupport;
+
+struct GatewayAuditRuntime {
+    module_id: ModuleId,
+}
+
+impl ModuleRuntime for GatewayAuditRuntime {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(vec![ModuleContract::new(
+            &GatewayAudit::contract_key(),
+            Arc::new(GatewayAuditService),
+        )])
+    }
+
+    fn bind(&mut self, _: &ModuleBindings) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn stop(&mut self) {}
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
+impl ComponentAugmentationSupportDefinition<Gateway, GatewayAudit> for GatewayAuditSupport {
+    fn declaration(&self, module_id: ModuleId) -> ModuleDeclaration {
+        ModuleDeclaration::new(module_id)
+    }
+
+    fn materialize(&self, _: &(), module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(GatewayAuditRuntime { module_id }))
+    }
+
+    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+        Ok(())
     }
 }
 
@@ -1274,6 +1336,41 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
     components
         .dematerialize::<Gateway>()
         .expect("dematerialize");
+    instance.stop();
+}
+
+#[test]
+fn adapter_realized_component_prepares_external_augmentation_without_adapter_knowledge() {
+    let gateway = ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+        prefix: "gateway".to_owned(),
+    })
+    .augment::<GatewayAudit>(())
+    .expect("attach external semantic")
+    .using(GatewayAuditSupport)
+    .into_set()
+    .using_adapter(PingoraAdapter {
+        implementation: "pingora".to_owned(),
+    })
+    .expect("adapter realization");
+    let built = Fabric::new("fabric.test.gateway.augmentation")
+        .expect("fabric")
+        .component(gateway)
+        .build()
+        .expect("build");
+    assert_eq!(built.manifest().component_augmentations().len(), 1);
+    let mut instance = built
+        .materialize_named_on("fabric.test.gateway.augmentation.local", &facility_host())
+        .expect("materialize");
+    instance.start().expect("start");
+    let components = instance.components().expect("components");
+    components
+        .materialize::<Gateway>()
+        .expect("adapter realized gateway participation");
+    let output: GatewayOutput = futures::executor::block_on(
+        components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("invoke");
+    assert_eq!(output.value, "gateway:pingora");
     instance.stop();
 }
 

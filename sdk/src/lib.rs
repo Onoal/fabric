@@ -25,6 +25,8 @@ pub use authoring::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdaptableSystemDefinition,
     AdapterDefinition, AdapterProviderModule, BuiltFabric, ComponentAugmentation,
     ComponentAugmentationDefinition, ComponentAugmentationRealization,
+    ComponentAugmentationRequirement, ComponentAugmentationSet,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSupportDefinition, ComponentDefinition, ComponentRealization,
     ComponentResourceBindingManifestEntry, ComponentResourceRequirement, ComponentResourceScope,
     ComponentSpec, ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency,

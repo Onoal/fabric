@@ -59,14 +59,49 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         );
     }
 
+    for (manifest, dependencies) in [
+        ("host/Cargo.toml", &[][..]),
+        ("resource/Cargo.toml", &[]),
+        ("system/Cargo.toml", &[]),
+        ("sdk-macros/Cargo.toml", &[]),
+        ("core/Cargo.toml", &["fabric-host.workspace = true"][..]),
+        (
+            "component/Cargo.toml",
+            &[
+                "fabric-core.workspace = true",
+                "fabric-resource.workspace = true",
+                "fabric-system.workspace = true",
+            ],
+        ),
+        (
+            "sdk/Cargo.toml",
+            &[
+                "fabric-component.workspace = true",
+                "fabric-core.workspace = true",
+                "fabric-host.workspace = true",
+                "fabric-resource.workspace = true",
+                "fabric-system.workspace = true",
+                "fabric-sdk-macros.workspace = true",
+            ],
+        ),
+    ] {
+        let source = fs::read_to_string(repository.join(manifest)).expect("read public manifest");
+        for dependency in dependencies {
+            assert!(
+                source.contains(dependency),
+                "published Fabric dependency must use the lockstep workspace constraint: {manifest}: {dependency}"
+            );
+        }
+    }
+
     for dependency in [
-        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.1.0\", path = \"host\" }",
-        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.1.0\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.1.0\", path = \"resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.1.0\", path = \"system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.2.0\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.2.0\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.1.2\", path = \"sdk\" }",
+        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.3.0\", path = \"host\" }",
+        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.3.0\", path = \"core\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.3.0\", path = \"resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.3.0\", path = \"system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.3.0\", path = \"component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.3.0\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.3.0\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -101,20 +136,25 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         );
     }
 
-    let macros_manifest =
-        fs::read_to_string(repository.join("sdk-macros/Cargo.toml")).expect("read macro manifest");
     assert!(
-        macros_manifest.contains("version = \"0.2.0\"")
-            && !macros_manifest.contains("version.workspace = true"),
-        "the unchanged macro package must retain its explicit 0.2.0 version"
+        workspace_manifest.contains("version = \"0.3.0\""),
+        "the published Fabric family must share the 0.3.0 workspace version"
     );
-    let sdk_manifest =
-        fs::read_to_string(repository.join("sdk/Cargo.toml")).expect("read SDK manifest");
-    assert!(
-        sdk_manifest.contains("version = \"0.1.2\"")
-            && !sdk_manifest.contains("version.workspace = true"),
-        "the active umbrella package must carry its explicit 0.1.2 version"
-    );
+    for manifest in [
+        "host/Cargo.toml",
+        "core/Cargo.toml",
+        "resource/Cargo.toml",
+        "system/Cargo.toml",
+        "component/Cargo.toml",
+        "sdk-macros/Cargo.toml",
+        "sdk/Cargo.toml",
+    ] {
+        let source = fs::read_to_string(repository.join(manifest)).expect("read public manifest");
+        assert!(
+            source.contains("version.workspace = true"),
+            "published Fabric package must inherit the shared release version: {manifest}"
+        );
+    }
 
     for private_package in [
         "fabric-binding",

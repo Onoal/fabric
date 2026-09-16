@@ -14,7 +14,3 @@ name = "fabric_resource"
 semver = "1.0.27"
 sha2 = "0.10.9"
 thiserror = "2.0.20"
-
-[dev-dependencies]
-fabric-binding = { path = "../experimental/binding" }
-fabric-core.workspace = true

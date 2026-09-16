@@ -5,18 +5,6 @@ use crate::{
 };
 
 #[test]
-fn system_schema_version_is_distinct_from_resource_and_contract_versions() {
-    assert_ne!(
-        std::any::TypeId::of::<SystemSchemaVersion>(),
-        std::any::TypeId::of::<fabric_core::ContractVersion>()
-    );
-    assert_ne!(
-        std::any::TypeId::of::<SystemSchemaVersion>(),
-        std::any::TypeId::of::<fabric_resource::ResourceSchemaVersion>()
-    );
-}
-
-#[test]
 fn versioned_system_schema_compatibility_is_explicit() {
     let system = SystemId::new("fabric.test.operations").expect("system id");
     let schema = SystemSchemaDescriptor::versioned(

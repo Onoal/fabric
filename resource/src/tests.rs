@@ -1,5 +1,3 @@
-use fabric_binding::{BindingId, BindingName};
-
 use crate::{
     AdapterResourceSchemaSupport, ResourceBoundaryId, ResourceCompatibilityError,
     ResourceCompatibilityRole, ResourceContext, ResourceId, ResourceInstanceId, ResourceName,
@@ -43,34 +41,6 @@ fn open_resource_instance_identity_is_stable_without_closed_catalog() {
 }
 
 #[test]
-fn resource_binding_identity_stays_open_and_context_sensitive() {
-    let boundary = ResourceBoundaryId::new("apps.notes").expect("boundary");
-    let root = ResourceContext::root(boundary);
-    let child = root.child(ResourceScope::new("child").expect("scope"));
-    let resource = ResourceId::new("database").expect("resource");
-    let name = ResourceName::new("main").expect("name");
-
-    let instance = ResourceInstanceId::canonical(&resource, &root, &name);
-    let root_provenance = resource_context_binding_provenance(&root);
-    let child_provenance = resource_context_binding_provenance(&child);
-    let root_binding = BindingId::resource_instance_import(
-        resource.as_str(),
-        instance.as_str(),
-        root_provenance.identity_material(),
-        &BindingName::new(name.as_str()).expect("binding name"),
-    );
-    let child_binding = BindingId::resource_instance_import(
-        resource.as_str(),
-        instance.as_str(),
-        child_provenance.identity_material(),
-        &BindingName::new(name.as_str()).expect("binding name"),
-    );
-
-    assert_ne!(root_binding, child_binding);
-    assert!(root_binding.as_str().starts_with("fabric-binding-"));
-}
-
-#[test]
 fn structurally_distinct_resource_contexts_do_not_collapse_consumer_provenance() {
     let direct = ResourceContext::root(ResourceBoundaryId::new("apps:notes").expect("boundary"));
     let nested = ResourceContext::root(ResourceBoundaryId::new("apps").expect("boundary"))
@@ -99,14 +69,10 @@ fn resource_requirement_is_open_and_not_enum_backed() {
 }
 
 #[test]
-fn resource_schema_version_is_distinct_from_contract_version() {
+fn resource_schema_version_preserves_its_semantic_revision() {
     let schema = ResourceSchemaVersion::parse("1.2.0").expect("schema version");
 
     assert_eq!(schema.to_string(), "1.2.0");
-    assert_ne!(
-        std::any::TypeId::of::<ResourceSchemaVersion>(),
-        std::any::TypeId::of::<fabric_core::ContractVersion>()
-    );
 }
 
 #[test]
@@ -289,29 +255,18 @@ fn provisional_resource_schema_rules_are_explicit() {
 }
 
 #[test]
-fn adapter_identity_does_not_enter_resource_or_binding_identity() {
+fn adapter_identity_does_not_enter_resource_instance_identity() {
     let boundary = ResourceBoundaryId::new("apps.notes").expect("boundary");
     let context =
         ResourceContext::root(boundary).child(ResourceScope::new("release").expect("scope"));
     let resource = ResourceId::new("queue").expect("resource");
     let name = ResourceName::new("primary").expect("name");
     let instance = ResourceInstanceId::canonical(&resource, &context, &name);
-    let provenance = resource_context_binding_provenance(&context);
-    let binding = BindingId::resource_instance_import(
-        resource.as_str(),
-        instance.as_str(),
-        provenance.identity_material(),
-        &BindingName::new("shared").expect("binding name"),
-    );
 
     for forbidden in ["sqlite", "fjall", "pingora", "deno", "process"] {
         assert!(
             !instance.as_str().contains(forbidden),
             "resource instance identity must not encode concrete adapter {forbidden}"
-        );
-        assert!(
-            !binding.as_str().contains(forbidden),
-            "binding identity must not encode concrete adapter {forbidden}"
         );
     }
 }

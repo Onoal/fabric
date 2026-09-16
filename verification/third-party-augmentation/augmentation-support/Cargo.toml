@@ -1,0 +1,10 @@
+[package]
+name = "third-party-augmentation-support"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fabric = { package = "onoal-fabric", git = "https://github.com/Onoal/fabric.git", rev = "a4607d842a1d8fbf727667fa3a0333da4ac81c84" }
+third-party-base-semantics = { path = "../base-semantics" }
+third-party-augmentation-semantics = { path = "../augmentation-semantics" }

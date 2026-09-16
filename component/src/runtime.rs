@@ -164,6 +164,21 @@ pub struct ComponentRuntimeDefinition {
     prepare: Arc<ComponentRuntimePrepareFn>,
 }
 
+/// One additive preparation contribution for a declared Component.
+///
+/// This is deliberately distinct from [`ComponentRuntimeDefinition`]: a
+/// Component has one base runtime attachment, while zero or more externally
+/// owned contributions may prepare the same participation without changing its
+/// declared operations or intrinsic health.
+#[derive(Clone)]
+pub struct ComponentAugmentationRuntimeDefinition {
+    component_id: ComponentId,
+    prepare: Arc<ComponentAugmentationPrepareFn>,
+}
+
+type ComponentAugmentationPrepareFn =
+    dyn Fn(&ComponentRuntimeScope) -> Result<(), ComponentError> + Send + Sync;
+
 type ComponentRuntimePrepareFn =
     dyn Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError> + Send + Sync;
 
@@ -208,6 +223,27 @@ impl ComponentRuntimeDefinition {
 
     /// Prepares one generation-scoped Component participation.
     pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<Health, ComponentError> {
+        (self.prepare)(scope)
+    }
+}
+
+impl ComponentAugmentationRuntimeDefinition {
+    pub fn new(
+        component_id: ComponentId,
+        prepare: impl Fn(&ComponentRuntimeScope) -> Result<(), ComponentError> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            component_id,
+            prepare: Arc::new(prepare),
+        }
+    }
+
+    pub fn component_id(&self) -> &ComponentId {
+        &self.component_id
+    }
+
+    /// Prepares the same participation already created for the base runtime.
+    pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
         (self.prepare)(scope)
     }
 }

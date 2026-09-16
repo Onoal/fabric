@@ -10,19 +10,22 @@ pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
 pub use definitions::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterDefinition,
-    AdapterProviderModule, ComponentDefinition, ComponentRealization, ComponentRealizationContract,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceAugmentation,
-    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
-    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
-    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
+    AdapterProviderModule, ComponentAugmentation, ComponentAugmentationDefinition,
+    ComponentAugmentationRealization, ComponentAugmentationSupportDefinition,
+    ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
+    ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
+    ComponentSpec, ComponentSystemScope, ContractDependency, IntoResourceName,
+    PrimaryResourceContract, Requires, ResourceAugmentation, ResourceAugmentationDefinition,
+    ResourceAugmentationError, ResourceAugmentationRealization, ResourceAugmentationRequirement,
+    ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
+    ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
-    BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
-    Fabric, FabricBuildError, FabricManifest, FabricManifestDiagnostics, IntoFabricResource,
-    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
-    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
-    SystemManifestEntry,
+    BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
+    ComponentSystemBindingManifestEntry, Fabric, FabricBuildError, FabricManifest,
+    FabricManifestDiagnostics, IntoFabricResource, IntoFabricResourceAugmentation,
+    IntoFabricSystem, IntoFabricSystemAugmentation, ResourceAugmentationManifestEntry,
+    ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
 };
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};

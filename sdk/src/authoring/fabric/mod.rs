@@ -9,9 +9,10 @@ mod system_augmentation;
 pub use augmentation::IntoFabricResourceAugmentation;
 pub use builder::{BuiltFabric, Fabric, FabricBuildError};
 pub use manifest::{
-    ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry, FabricManifest,
-    FabricManifestDiagnostics, ResourceAugmentationManifestEntry, ResourceManifestEntry,
-    SystemAugmentationManifestEntry, SystemManifestEntry,
+    ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
+    ComponentSystemBindingManifestEntry, FabricManifest, FabricManifestDiagnostics,
+    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
+    SystemManifestEntry,
 };
 pub use resource::IntoFabricResource;
 pub use system::IntoFabricSystem;

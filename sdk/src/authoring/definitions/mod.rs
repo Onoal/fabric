@@ -1,5 +1,6 @@
 mod adapter_definition;
 mod adapter_provider_module;
+mod component_augmentation;
 mod component_definition;
 mod contract_dependency;
 mod primary_resource_contract;
@@ -11,6 +12,10 @@ mod resource_selection;
 
 pub use adapter_definition::AdapterDefinition;
 pub use adapter_provider_module::AdapterProviderModule;
+pub use component_augmentation::{
+    ComponentAugmentation, ComponentAugmentationDefinition, ComponentAugmentationRealization,
+    ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
+};
 pub(crate) use component_definition::ComponentSpecParts;
 pub use component_definition::{
     AdaptableComponentDefinition, ComponentDefinition, ComponentRealization,

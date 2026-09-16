@@ -7,10 +7,11 @@ use crate::authoring::{
     PrimarySystemContract, SystemRequires, SystemSelection,
 };
 use fabric_component::{
-    ComponentDeclaration, ComponentError, ComponentId, ComponentResourceDependency,
-    ComponentResourceRequirementDeclaration, ComponentResourceRequirementName,
-    ComponentRuntimeDefinition, ComponentSystemRequirementDeclaration,
-    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
+    ComponentAugmentationRuntimeDefinition, ComponentDeclaration, ComponentError, ComponentId,
+    ComponentResourceDependency, ComponentResourceRequirementDeclaration,
+    ComponentResourceRequirementName, ComponentRuntimeDefinition,
+    ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
+    component_system_dependency_contract_key,
 };
 use fabric_core::{
     ContractProviderSelection, ContractRequirement, Health, Module, ModuleBindings, ModuleContract,
@@ -419,6 +420,7 @@ where
     provider_selections: Vec<ContractProviderSelection>,
     semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
+    pub(crate) augmentation_preparations: Vec<ComponentAugmentationRuntimeDefinition>,
 }
 
 #[doc(hidden)]
@@ -429,6 +431,7 @@ pub struct ComponentSpecParts {
     pub(crate) provider_selections: Vec<ContractProviderSelection>,
     pub(crate) semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     pub(crate) semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
+    pub(crate) augmentation_preparations: Vec<ComponentAugmentationRuntimeDefinition>,
 }
 
 pub trait ComponentDefinition: Sized + Send + Sync + 'static {
@@ -515,7 +518,7 @@ where
     C: AdaptableComponentDefinition,
     A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
 {
-    component: ComponentSpec<C>,
+    pub(crate) component: ComponentSpec<C>,
     adapter: AdapterProviderModule<A>,
     selection: ContractProviderSelection,
     bridge: ComponentRealizationBridge<C>,
@@ -606,6 +609,7 @@ where
             provider_selections: Vec::new(),
             semantic_provider_selections: Vec::new(),
             semantic_system_provider_selections: Vec::new(),
+            augmentation_preparations: Vec::new(),
         }
     }
 
@@ -775,6 +779,7 @@ where
             provider_selections: self.provider_selections,
             semantic_provider_selections: self.semantic_provider_selections,
             semantic_system_provider_selections: self.semantic_system_provider_selections,
+            augmentation_preparations: self.augmentation_preparations,
         }
     }
 }

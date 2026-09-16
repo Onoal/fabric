@@ -90,6 +90,35 @@ pub struct SystemAugmentationManifestEntry {
     system_id: fabric_system::SystemId,
 }
 
+#[derive(Clone, Debug)]
+pub struct ComponentAugmentationManifestEntry {
+    contract_id: ContractId,
+    contract_identity: ContractIdentity,
+    component_id: ComponentId,
+}
+impl ComponentAugmentationManifestEntry {
+    pub(crate) fn new(
+        contract_id: ContractId,
+        contract_identity: ContractIdentity,
+        component_id: ComponentId,
+    ) -> Self {
+        Self {
+            contract_id,
+            contract_identity,
+            component_id,
+        }
+    }
+    pub fn contract_id(&self) -> &ContractId {
+        &self.contract_id
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        &self.contract_identity
+    }
+    pub fn component_id(&self) -> &ComponentId {
+        &self.component_id
+    }
+}
+
 impl SystemAugmentationManifestEntry {
     pub(crate) fn new(
         contract_id: ContractId,
@@ -215,6 +244,7 @@ pub struct FabricManifest {
     resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
     system_augmentations: Vec<SystemAugmentationManifestEntry>,
+    component_augmentations: Vec<ComponentAugmentationManifestEntry>,
     components: Vec<fabric_component::ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
@@ -231,6 +261,7 @@ impl FabricManifest {
         resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
         systems: Vec<SystemManifestEntry>,
         system_augmentations: Vec<SystemAugmentationManifestEntry>,
+        component_augmentations: Vec<ComponentAugmentationManifestEntry>,
         components: Vec<fabric_component::ComponentDeclaration>,
         module_declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
@@ -244,6 +275,7 @@ impl FabricManifest {
             resource_augmentations,
             systems,
             system_augmentations,
+            component_augmentations,
             components,
             module_declarations,
             provider_selections,
@@ -268,6 +300,9 @@ impl FabricManifest {
 
     pub fn system_augmentations(&self) -> &[SystemAugmentationManifestEntry] {
         &self.system_augmentations
+    }
+    pub fn component_augmentations(&self) -> &[ComponentAugmentationManifestEntry] {
+        &self.component_augmentations
     }
 
     pub fn components(&self) -> &[fabric_component::ComponentDeclaration] {

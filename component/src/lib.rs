@@ -101,11 +101,11 @@ pub use requirement::{
     component_requirement_contract_key,
 };
 pub use runtime::{
-    ComponentMaterializer, ComponentMaterializerService, ComponentResourceDependency,
-    ComponentRuntimeDefinition, ComponentRuntimeScope, component_materializer_contract_id,
-    component_materializer_contract_key, component_named_resource_dependency_contract_key,
-    component_resource_dependency_contract_id, component_resource_dependency_contract_key,
-    component_system_dependency_contract_key,
+    ComponentAugmentationRuntimeDefinition, ComponentMaterializer, ComponentMaterializerService,
+    ComponentResourceDependency, ComponentRuntimeDefinition, ComponentRuntimeScope,
+    component_materializer_contract_id, component_materializer_contract_key,
+    component_named_resource_dependency_contract_key, component_resource_dependency_contract_id,
+    component_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 pub use surface::{
     Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_id,

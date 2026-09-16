@@ -32,28 +32,30 @@ impl Module for StoredTypedModule {
 
 use super::augmentation::IntoFabricResourceAugmentation;
 use super::manifest::{
-    FabricManifest, ResourceAugmentationManifestEntry, ResourceManifestEntry,
-    SystemAugmentationManifestEntry, SystemManifestEntry,
+    ComponentAugmentationManifestEntry, FabricManifest, ResourceAugmentationManifestEntry,
+    ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
 };
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
 use super::system_augmentation::IntoFabricSystemAugmentation;
 use crate::authoring::definitions::ComponentSpecParts;
 use crate::authoring::{
-    AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentDefinition,
-    ComponentRealization, ComponentSpec, FabricBuilder,
+    AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentAugmentationDefinition,
+    ComponentAugmentationRealization, ComponentAugmentationSupportDefinition,
+    ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization, ComponentSpec,
+    FabricBuilder,
 };
 use fabric_component::ComponentId;
+type FabricComponentContribution = (
+    ComponentSpecParts,
+    Vec<Box<dyn Module>>,
+    Vec<ContractProviderSelection>,
+    Vec<ComponentAugmentationManifestEntry>,
+);
 
 #[doc(hidden)]
 pub trait IntoFabricComponent {
-    fn into_fabric_component(
-        self,
-    ) -> (
-        ComponentSpecParts,
-        Vec<Box<dyn Module>>,
-        Vec<ContractProviderSelection>,
-    );
+    fn into_fabric_component(self) -> FabricComponentContribution;
 }
 
 impl<C> IntoFabricComponent for ComponentSpec<C>
@@ -66,8 +68,9 @@ where
         ComponentSpecParts,
         Vec<Box<dyn Module>>,
         Vec<ContractProviderSelection>,
+        Vec<ComponentAugmentationManifestEntry>,
     ) {
-        (self.into_parts(), Vec::new(), Vec::new())
+        (self.into_parts(), Vec::new(), Vec::new(), Vec::new())
     }
 }
 
@@ -82,12 +85,75 @@ where
         ComponentSpecParts,
         Vec<Box<dyn Module>>,
         Vec<ContractProviderSelection>,
+        Vec<ComponentAugmentationManifestEntry>,
     ) {
         let (component, adapter, bridge, selection) = self.into_parts();
         (
             component.into_parts(),
             vec![Box::new(adapter), Box::new(bridge)],
             vec![selection],
+            Vec::new(),
+        )
+    }
+}
+
+impl<C, X, S> IntoFabricComponent for ComponentAugmentationRealization<C, X, S>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+    S: ComponentAugmentationSupportDefinition<C, X>,
+{
+    fn into_fabric_component(
+        self,
+    ) -> (
+        ComponentSpecParts,
+        Vec<Box<dyn Module>>,
+        Vec<ContractProviderSelection>,
+        Vec<ComponentAugmentationManifestEntry>,
+    ) {
+        let contract = self.contract_key();
+        let component_id = self.component_id();
+        let (component, provider) = self.into_parts();
+        (
+            component.into_parts(),
+            vec![provider],
+            Vec::new(),
+            vec![ComponentAugmentationManifestEntry::new(
+                contract.id().clone(),
+                contract.identity().clone(),
+                component_id,
+            )],
+        )
+    }
+}
+
+impl<C, X, S, A> IntoFabricComponent for ComponentAugmentedAdapterRealization<C, X, S, A>
+where
+    C: AdaptableComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+    S: ComponentAugmentationSupportDefinition<C, X>,
+    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+{
+    fn into_fabric_component(
+        self,
+    ) -> (
+        ComponentSpecParts,
+        Vec<Box<dyn Module>>,
+        Vec<ContractProviderSelection>,
+        Vec<ComponentAugmentationManifestEntry>,
+    ) {
+        let component_id = C::component_id();
+        let contract = self.contract;
+        let (component, adapter, bridge, selection) = self.component.into_parts();
+        (
+            component.into_parts(),
+            vec![Box::new(adapter), Box::new(bridge), self.provider],
+            vec![selection],
+            vec![ComponentAugmentationManifestEntry::new(
+                contract.id().clone(),
+                contract.identity().clone(),
+                component_id,
+            )],
         )
     }
 }
@@ -175,11 +241,14 @@ pub struct Fabric {
     resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
     system_augmentations: Vec<SystemAugmentationManifestEntry>,
+    component_augmentations: Vec<ComponentAugmentationManifestEntry>,
     components: Vec<ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
     component_declarations: Vec<ComponentDeclaration>,
     component_self_realizations: Vec<ComponentRuntimeDefinition>,
+    component_augmentation_preparations:
+        Vec<fabric_component::ComponentAugmentationRuntimeDefinition>,
 }
 
 impl Fabric {
@@ -199,11 +268,13 @@ impl Fabric {
             resource_augmentations: Vec::new(),
             systems: Vec::new(),
             system_augmentations: Vec::new(),
+            component_augmentations: Vec::new(),
             components: Vec::new(),
             module_declarations: Vec::new(),
             typed_modules: Vec::new(),
             component_declarations: Vec::new(),
             component_self_realizations: Vec::new(),
+            component_augmentation_preparations: Vec::new(),
         }
     }
 
@@ -256,9 +327,12 @@ impl Fabric {
     }
 
     pub fn component(mut self, component: impl IntoFabricComponent) -> Self {
-        let (parts, modules, selections) = component.into_fabric_component();
+        let (parts, modules, selections, augmentations) = component.into_fabric_component();
+        self.component_augmentations.extend(augmentations);
         self.components.push(parts.declaration.clone());
         self.component_declarations.push(parts.declaration);
+        self.component_augmentation_preparations
+            .extend(parts.augmentation_preparations);
         self.typed_modules.extend(parts.carriers);
         self.typed_modules.extend(modules);
         self.provider_selections.extend(selections);
@@ -305,11 +379,13 @@ impl Fabric {
             resource_augmentations,
             systems,
             system_augmentations,
+            component_augmentations,
             components,
             mut module_declarations,
             typed_modules,
             component_declarations,
             component_self_realizations,
+            component_augmentation_preparations,
         } = self;
 
         let mut default_modules = typed_modules;
@@ -317,9 +393,10 @@ impl Fabric {
         // when no local self realization exists. Declaration-only Components are
         // host-known without any fake runtime behavior.
         let component_runtime_export = if !component_declarations.is_empty() {
-            let native_module = ComponentRuntimeModule::with_components(
+            let native_module = ComponentRuntimeModule::with_components_and_augmentations(
                 component_declarations,
                 component_self_realizations,
+                component_augmentation_preparations,
             )?;
             module_declarations.push(native_module.declaration());
             default_modules.push(Box::new(native_module));
@@ -360,6 +437,7 @@ impl Fabric {
             resource_augmentations,
             systems,
             system_augmentations,
+            component_augmentations,
             components,
             module_declarations,
             provider_selections,

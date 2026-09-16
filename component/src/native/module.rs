@@ -47,9 +47,10 @@ use crate::requirement::{
     ResolvedComponentRequirement, component_requirement_contract_key,
 };
 use crate::runtime::{
-    ComponentMaterializer, ComponentMaterializerService, ComponentResourceDependency,
-    ComponentRuntimeDefinition, ComponentRuntimeScope, component_materializer_contract_key,
-    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
+    ComponentAugmentationRuntimeDefinition, ComponentMaterializer, ComponentMaterializerService,
+    ComponentResourceDependency, ComponentRuntimeDefinition, ComponentRuntimeScope,
+    component_materializer_contract_key, component_named_resource_dependency_contract_key,
+    component_system_dependency_contract_key,
 };
 use crate::surface::{
     Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
@@ -99,6 +100,8 @@ struct ComponentModuleState {
     readiness_policy: ComponentReadinessPolicy,
     component_declarations: BTreeMap<crate::ComponentId, ComponentDeclaration>,
     runtime_attachments: BTreeMap<crate::ComponentId, ComponentRuntimeDefinition>,
+    augmentation_preparations:
+        BTreeMap<crate::ComponentId, Vec<crate::ComponentAugmentationRuntimeDefinition>>,
     resource_dependencies: Arc<BTreeMap<fabric_core::ContractId, Arc<ComponentResourceDependency>>>,
     components: BTreeMap<crate::ComponentId, ComponentStatus>,
     control_snapshot: Option<ComponentControlSnapshot>,
@@ -146,12 +149,45 @@ impl ComponentRuntimeModule {
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
         attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
     ) -> Result<Self, ComponentError> {
-        Self::with_optional_control_snapshot(
+        Self::with_components_and_augmentations(declarations, attachments, Vec::new())
+    }
+
+    /// Constructs the native host with one base attachment and zero or more
+    /// additive preparation contributions per declared Component.
+    pub fn with_components_and_augmentations(
+        declarations: impl IntoIterator<Item = ComponentDeclaration>,
+        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+        augmentations: impl IntoIterator<Item = ComponentAugmentationRuntimeDefinition>,
+    ) -> Result<Self, ComponentError> {
+        let augmentations = augmentations
+            .into_iter()
+            .fold(BTreeMap::new(), |mut values, value| {
+                values
+                    .entry(value.component_id().clone())
+                    .or_insert_with(Vec::new)
+                    .push(value);
+                values
+            });
+        let module = Self::with_optional_control_snapshot(
             ComponentReadinessPolicy::empty(),
             declarations,
             attachments,
             None,
-        )
+        )?;
+        {
+            let mut state = module
+                .shared
+                .inner
+                .lock()
+                .expect("component runtime state lock");
+            for component_id in augmentations.keys() {
+                if !state.component_declarations.contains_key(component_id) {
+                    return Err(ComponentError::UnknownComponent(component_id.clone()));
+                }
+            }
+            state.augmentation_preparations = augmentations;
+        }
+        Ok(module)
     }
 
     pub fn with_configuration(
@@ -199,6 +235,7 @@ impl ComponentRuntimeModule {
                     readiness_policy,
                     component_declarations,
                     runtime_attachments,
+                    augmentation_preparations: BTreeMap::new(),
                     resource_dependencies: Arc::new(BTreeMap::new()),
                     components: BTreeMap::new(),
                     control_snapshot,
@@ -514,6 +551,11 @@ impl Module for ComponentRuntimeModule {
             .values()
             .cloned()
             .collect::<Vec<_>>();
+        let augmentations = state
+            .augmentation_preparations
+            .values()
+            .flat_map(|values| values.iter().cloned())
+            .collect::<Vec<_>>();
         let control_snapshot = if state.component_controls.is_empty() {
             state.control_snapshot.clone()
         } else {
@@ -523,15 +565,29 @@ impl Module for ComponentRuntimeModule {
             ))
         };
         drop(state);
-        Some(Box::new(
-            Self::with_optional_control_snapshot(
-                readiness_policy,
-                declarations,
-                attachments,
-                control_snapshot,
-            )
-            .expect("stored component runtime module definition must remain valid"),
-        ))
+        let module = Self::with_optional_control_snapshot(
+            readiness_policy,
+            declarations,
+            attachments,
+            control_snapshot,
+        )
+        .expect("stored component runtime module definition must remain valid");
+        module
+            .shared
+            .inner
+            .lock()
+            .expect("component runtime state lock")
+            .augmentation_preparations =
+            augmentations
+                .into_iter()
+                .fold(BTreeMap::new(), |mut values, value| {
+                    values
+                        .entry(value.component_id().clone())
+                        .or_insert_with(Vec::new)
+                        .push(value);
+                    values
+                });
+        Some(Box::new(module))
     }
 }
 
@@ -716,6 +772,24 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 });
             }
         };
+        let augmentations = self
+            .shared
+            .inner
+            .lock()
+            .expect("component runtime state lock")
+            .augmentation_preparations
+            .get(component_id)
+            .cloned()
+            .unwrap_or_default();
+        for augmentation in augmentations {
+            if augmentation.prepare(&scope).is_err() {
+                self.rollback_materialization(&participation);
+                return Err(ComponentError::ComponentRuntimeMaterializationFailed {
+                    component_id: component_id.clone(),
+                    phase: crate::error::ComponentRuntimeFailurePhase::Prepare,
+                });
+            }
+        }
         if !self.preparation_completes_declaration(component_id, &participation) {
             self.rollback_materialization(&participation);
             return Err(ComponentError::ComponentRuntimeMaterializationFailed {

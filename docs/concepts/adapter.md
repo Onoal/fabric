@@ -79,6 +79,12 @@ Adapter declaration, Host requirement, and optional provider runtime. Its
 derived `ModuleId` is not a universal Adapter identity. Fabric defines no
 `AdapterId`, global Adapter namespace, `all_adapters()`, or Adapter registry.
 
+Compatibility is also not replacement safety. It establishes that a selected
+realization can bind or materialize in one Composition; it does not establish
+safe live replacement, migration, state transfer, cutover, or rollback. A
+realization change is represented by new declarative truth and a fresh Instance
+generation, not by mutating a live Adapter provider.
+
 ## Host and dependencies
 
 An Adapter may declare a `HostRequirement` for allowed operating systems,

@@ -13,9 +13,14 @@ use crate::lifecycle::LifecycleState;
 static NEXT_INSTANCE_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Process-local identity for one materialized Instance runtime incarnation.
+///
+/// Fabric mints a fresh value for every materialization. It is not a software
+/// version, Composition revision, durable epoch, or globally unique sequence.
 pub struct InstanceGeneration(u64);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// Generation-scoped runtime context shared by modules in one Instance.
 pub struct InstanceRuntimeContext {
     instance_id: InstanceId,
     generation: InstanceGeneration,
@@ -43,6 +48,11 @@ impl std::fmt::Debug for Instance {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// A bounded current observation of one materialized Instance.
+///
+/// This report is not an event history, transition journal, or durable
+/// lifecycle record. An operation error remains the evidence of a failed
+/// operation; this value describes the Instance's current state.
 pub struct InstanceReport {
     pub composition_id: CompositionId,
     pub instance_id: InstanceId,

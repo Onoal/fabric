@@ -6,8 +6,8 @@ technical systems through explicit semantic boundaries.
 It separates a system's semantic meaning from the concrete implementations
 that realize it, and separates both from the live state of a running system.
 That makes dependencies explicit, lets compatible implementations be
-replaceable, and gives first-party and third-party extensions the same public
-authoring surface.
+selected interchangeably across declarative Compositions, and gives first-party
+and third-party extensions the same public authoring surface.
 
 ## Why Fabric?
 
@@ -24,6 +24,16 @@ Instance    = one live materialization of that declaration
 
 A Composition can therefore be inspected, reused, and materialized more than
 once without becoming runtime state itself.
+
+```text
+Composition -> materialize -> Instance generation
+new declarative truth -> materialize -> fresh Instance generation
+```
+
+An `InstanceGeneration` is a process-local runtime incarnation, not a version
+or a replacement record. Fabric does not infer migration, state transfer,
+cutover, rollback, or which concurrent generation is authoritative. Read the
+[Instance concept](docs/concepts/instance.md) for the temporal contract.
 
 ## How Fabric fits together
 
@@ -100,7 +110,8 @@ live runtime.
 ## Project status
 
 The latest crates.io release is Fabric 0.1.1. Fabric 0.2 is the completed
-source baseline; the `main` branch is developing the 0.3 line.
+source baseline; `main` is preparing the Fabric 0.3 release candidate. This
+does not mean Fabric 0.3 is published to crates.io yet.
 
 ## License
 

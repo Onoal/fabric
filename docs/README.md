@@ -26,6 +26,8 @@ Fabric documentation has three levels.
 4. [Advanced Raw API](advanced/raw-api.md), when direct Core authoring is
    needed
 
+Release candidates record their contract changes in [release notes](releases/0.3.0-rc.md).
+
 The concept sequence is intentional. Composition comes first because it
 declares the assembled system; Instance then distinguishes that declaration
 from its live materialization. Component introduces behavior, while Resource

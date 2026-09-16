@@ -84,6 +84,9 @@ matches provisional-to-provisional only; `Versioned` schemas use semantic
 version requirements. A definition's `resource_id()` must agree with its schema
 Resource identity.
 
+Schema compatibility establishes that a realization can bind or materialize;
+it does not establish safe replacement, migration, or provider-state transfer.
+
 A Resource may materialize directly, or implement
 `AdaptableResourceDefinition` with a typed [RealizationContract](adapter.md).
 

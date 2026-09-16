@@ -14,6 +14,10 @@ pub struct ComponentParticipationId(u64);
 /// registration receives a new handle, so a departed runtime cannot regain
 /// authority when the same component later rejoins.
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// Generation-scoped authority for one active Component runtime participation.
+///
+/// A participation is a runtime occurrence, not the Component's semantic
+/// definition or a Core-wide lifecycle identity.
 pub struct ComponentParticipation {
     component: Component,
     generation: InstanceGeneration,

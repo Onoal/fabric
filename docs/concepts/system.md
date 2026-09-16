@@ -91,6 +91,9 @@ ResourceName-equivalent in that Manifest entry.
 and version?* Neither is a crate version. `Provisional` matches only
 `Provisional`; `Versioned` schemas use semantic-version requirements.
 
+Schema compatibility establishes that a realization can bind or materialize;
+it does not establish safe replacement, migration, or System-state transfer.
+
 `SystemSelection::new()` verifies that `SystemDefinition::system_id()` equals
 the System identity carried by its schema. A schema for another System cannot
 silently describe this one.

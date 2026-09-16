@@ -18,7 +18,7 @@ Composition != Instance
 Composition owns declarative truth. Instance owns one runtime incarnation of
 that truth.
 
-## The temporal contract
+## Identity, generation, and lifecycle
 
 An Instance is one generation-scoped runtime incarnation of a Composition
 under an `InstanceId`:
@@ -41,67 +41,6 @@ versions, Composition revisions, durable epochs, or globally unique values.
 that generation `Stopped`; failure is not a second durable lifecycle state.
 Cleanup stops already initialized runtime modules, but is not a promise of
 generic rollback for arbitrary external side effects.
-
-### Failure and interruption boundaries
-
-Materialization can fail while constructing, context-binding, exporting, or
-binding runtime modules. In those cases Fabric returns no usable `Instance`:
-there is no `Ready` lifecycle to start and no report to inspect. A generation
-may have been minted internally while materialization was attempted, but it is
-not thereby established as a live observable Instance incarnation.
-
-After an Instance has been returned, initialize or start failure is different:
-the same generation is stopped, the operation returns `InstanceError`, and
-`InstanceReport` shows the current stopped state. Reverse-order `stop()` calls
-are bounded cleanup for initialized modules, not a guarantee that arbitrary
-external side effects were rolled back.
-
-Component materialization is likewise local to a Component participation. A
-failed preparation leaves no active participation or callable registered
-operation; a later caller retry may create a fresh participation when the
-Component runtime permits it. Dematerialization revokes future participation
-and calls, but does not retroactively cancel work already executing.
-
-A process crash is not `stop()`: Fabric does not persist Instance lifecycle,
-generation allocation, Component participation, controls, or reports across a
-process restart. Retrying an operation is a caller action; materializing again
-creates a new generation. Neither is generic Fabric recovery.
-
-### Generational declarative change
-
-Fabric's structural boundary for a realization or declaration change is new
-declarative truth materialized as a fresh Instance generation. It does not
-mutate the module graph, provider selections, exports, or Host validation of a
-running Instance.
-
-For example, two independently authored Compositions may retain the same
-Gateway Component and Component Config while choosing different Adapters. They
-can materialize under the same `InstanceId`, receive different generations,
-and run concurrently. Each generation creates its own runtime modules,
-Adapter provider, resolved contracts, and Component participations. Fabric
-does not reuse those runtime values across generations.
-
-This is not a generic replacement controller. Fabric does not infer that one
-Composition supersedes another, that a new generation is authoritative, or
-that starting a new generation cuts over traffic or work. It also does not
-infer migration, state transfer, rollback, or a safe retirement order. An
-external owner chooses any such policy and may explicitly stop the older
-generation when appropriate.
-
-Compatibility remains a materialization law: a contract, Resource/System
-schema, or Host requirement can establish that a selection can bind or
-materialize. It does not establish that replacing an old realization is safe.
-In particular, Component internal state, Resource/provider data, and System
-runtime state are not generically transferred. Re-declaring the same semantic
-Component Config in a new Composition is declaration continuity, not runtime
-state migration.
-
-For a Component, these are separate declaration changes rather than first-class
-replacement categories:
-
-- The same Component Config with a different Adapter changes realization.
-- A different Component Config with the same Adapter changes declaration.
-- Changing both changes both declaration inputs.
 
 ## Why Instance exists
 
@@ -320,6 +259,68 @@ Health is local runtime inspection. An Instance report aggregates block health:
 `Unavailable` takes precedence, then `Degraded`, otherwise the report is
 `Healthy`. It does not define distributed monitoring, readiness probes, SLA
 state, automatic recovery, or remote health management.
+
+## Failure and interruption boundaries
+
+Materialization can fail while constructing, context-binding, exporting, or
+binding runtime modules. In those cases Fabric returns no usable `Instance`:
+there is no `Ready` lifecycle to start and no report to inspect. A generation
+may have been minted internally while materialization was attempted, but it is
+not thereby established as a live observable Instance incarnation.
+
+After an Instance has been returned, initialize or start failure is different:
+the same generation is stopped, the operation returns `InstanceError`, and
+`InstanceReport` shows the current stopped state. Reverse-order `stop()` calls
+are bounded cleanup for initialized modules, not a guarantee that arbitrary
+external side effects were rolled back.
+
+Component materialization is local to a Component participation. A failed
+preparation leaves no active participation or callable registered operation; a
+later caller retry may create a fresh participation when the Component runtime
+permits it. Dematerialization revokes future participation and calls, but does
+not retroactively cancel work already executing. A Component failure does not
+by itself stop the Instance.
+
+A process crash is not `stop()`: Fabric does not persist Instance lifecycle,
+generation allocation, Component participation, controls, or reports across a
+process restart. Retrying an operation is a caller action; materializing again
+creates a new generation. Neither is generic Fabric recovery.
+
+## Generational declarative change
+
+Fabric's structural boundary for a realization or declaration change is new
+declarative truth materialized as a fresh Instance generation. It does not
+mutate the module graph, provider selections, exports, or Host validation of a
+running Instance.
+
+For example, two independently authored Compositions may retain the same
+Gateway Component and Component Config while choosing different Adapters. They
+can materialize under the same `InstanceId`, receive different generations,
+and run concurrently. Each generation creates its own runtime modules,
+Adapter provider, resolved contracts, and Component participations. Fabric
+does not reuse those runtime values across generations.
+
+This is not a generic replacement controller. Fabric does not infer that one
+Composition supersedes another, that a new generation is authoritative, or
+that starting a new generation cuts over traffic or work. It also does not
+infer migration, state transfer, rollback, or a safe retirement order. An
+external owner chooses any such policy and may explicitly stop the older
+generation when appropriate.
+
+Compatibility remains a materialization law: a contract, Resource/System
+schema, or Host requirement can establish that a selection can bind or
+materialize. It does not establish that replacing an old realization is safe.
+In particular, Component internal state, Resource/provider data, and System
+runtime state are not generically transferred. Re-declaring the same semantic
+Component Config in a new Composition is declaration continuity, not runtime
+state migration.
+
+For a Component, these are separate declaration changes rather than first-class
+replacement categories:
+
+- The same Component Config with a different Adapter changes realization.
+- A different Component Config with the same Adapter changes declaration.
+- Changing both changes both declaration inputs.
 
 ### Example E: inspect declaration and runtime separately
 

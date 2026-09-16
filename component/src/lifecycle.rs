@@ -3,6 +3,7 @@ use fabric_core::{Health, InstanceGeneration, InstanceId};
 use crate::ComponentError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Component-runtime lifecycle, deliberately distinct from Core Instance lifecycle.
 pub enum ComponentRuntimeLifecycle {
     Starting,
     Ready,

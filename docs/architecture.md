@@ -25,6 +25,29 @@ direct Core authoring.
 
 Fabric generalizes machinery rather than package or product vocabulary.
 
+## Time, lifecycle, and declarative change
+
+`InstanceId` is a caller-selected logical runtime name. `InstanceGeneration`
+identifies one Fabric-minted, process-local runtime incarnation under that
+name. It is not a software version, Composition revision, durable epoch, or
+globally unique sequence. A Composition and an Instance are distinct: runtime
+failure, start, stop, and health observation do not mutate declarative
+Composition truth.
+
+Core's Instance lifecycle is deliberately narrow: materialization creates a
+fresh generation in `Ready`; `start()` reaches `Running`; `stop()` reaches
+`Stopped`, which is terminal for that generation. Lifecycle is separate from
+Health, and both are separate from Component runtime lifecycle, readiness, and
+desired Component control.
+
+Structural declaration or realization change is represented by authoring new
+declarative truth and materializing a fresh Instance generation. Fabric does
+not infer supersession, migration, state transfer, cutover, rollback, or a
+replacement authority. Compatible contracts, schemas, and Hosts establish that
+a selection can bind or materialize; they do not establish replacement safety.
+`InstanceReport` is bounded current observation, not event history or a durable
+runtime record.
+
 ## Relations and realization
 
 Typed Contracts make consumption explicit. Resource, System, Adapter, and
@@ -126,7 +149,9 @@ Fabric 0.1 public model.
 
 ## Scope
 
-Fabric's 0.2 baseline does not define a scheduler, placement/capacity engine,
+Fabric's 0.3 release candidate does not define a scheduler, placement/capacity engine,
 global Resource/Adapter/requirement registry, package manager, portable
 deployment language, Manifest reconstruction, dynamic plugin ABI, IDL
-generation, container orchestration, or identity/authority model.
+generation, container orchestration, identity/authority model, lifecycle
+manager, universal lifecycle state machine, replacement API, migration engine,
+recovery controller, rollback engine, event history, or durable runtime state.

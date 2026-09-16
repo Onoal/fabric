@@ -22,8 +22,8 @@ contain distinct occurrences of the same Resource type.
 **[System](system.md)** is an instance-wide shared capability used by the
 declared system.
 
-**[Adapter](adapter.md)** realizes a Resource or adaptable System through an
-explicit public realization interface.
+**[Adapter](adapter.md)** realizes an adaptable Component, Resource, or System
+through an explicit public realization interface.
 
 **Host** describes environmental compatibility needed to materialize an Adapter
 realization.
@@ -37,7 +37,7 @@ view exposes raw/Core backing details when advanced debugging needs them.
 Component --requires--> Resource
 Component --requires--> System
 
-Adapter --realizes--> Resource or System
+Adapter --realizes--> Component, Resource, or System
 Host --constrains compatibility of--> Adapter realization
 
 Composition --declares and selects--> Components, Resources, Systems, Adapters, Host truth

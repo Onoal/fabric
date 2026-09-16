@@ -92,6 +92,11 @@ assert!(built.manifest().resources().is_empty());
 The identifier above is a `CompositionId`: it identifies the declaration, not
 an `InstanceId` or an Instance generation.
 
+`CompositionId` is caller-selected declaration identity, not a content hash or
+revision sequence. Two separately authored Compositions may reuse the same ID
+while containing different declarations. Fabric does not infer content
+equality, version ordering, or supersession from that reuse.
+
 ## What a normal Composition contains
 
 Normal Fabric authoring can contribute Components, Resource occurrences,

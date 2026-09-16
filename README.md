@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.1.2" }
+fabric = { package = "onoal-fabric", version = "0.3.0" }
 ```
 
 ```rust
@@ -114,12 +114,9 @@ live runtime.
 
 ## Project status
 
-The latest crates.io release is `onoal-fabric` 0.1.2. This release closes the
-Fabric 0.3 Time / Lifecycle / Change milestone. Fabric 0.3 is the milestone
-name, not the crates.io package version.
-
-The source documentation also describes the next augmentation contract; that
-does not claim an unreleased package version is installable from crates.io.
+The latest crates.io release is `onoal-fabric` 0.3.0. It establishes open
+semantic augmentation and the root-first public SDK while retaining Fabric's
+existing structural and runtime foundations.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

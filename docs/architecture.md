@@ -126,7 +126,7 @@ Fabric 0.1 public model.
 
 ## Scope
 
-Fabric 0.1 does not define a scheduler, placement/capacity engine, global
-Resource/Adapter/requirement registry, package manager, portable deployment
-language, Manifest reconstruction, dynamic plugin ABI, IDL generation,
-container orchestration, or identity/authority model.
+Fabric's 0.2 baseline does not define a scheduler, placement/capacity engine,
+global Resource/Adapter/requirement registry, package manager, portable
+deployment language, Manifest reconstruction, dynamic plugin ABI, IDL
+generation, container orchestration, or identity/authority model.

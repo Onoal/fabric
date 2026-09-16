@@ -99,8 +99,8 @@ live runtime.
 
 ## Project status
 
-The latest crates.io release is Fabric 0.1.1. The `main` branch is developing
-the 0.2 line.
+The latest crates.io release is Fabric 0.1.1. Fabric 0.2 is the completed
+source baseline; the `main` branch is developing the 0.3 line.
 
 ## License
 

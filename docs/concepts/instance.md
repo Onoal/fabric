@@ -18,6 +18,30 @@ Composition != Instance
 Composition owns declarative truth. Instance owns one runtime incarnation of
 that truth.
 
+## The temporal contract
+
+An Instance is one generation-scoped runtime incarnation of a Composition
+under an `InstanceId`:
+
+```text
+materialize -> fresh InstanceGeneration -> Ready
+start       -> Running
+stop        -> Stopped (terminal for that generation)
+```
+
+`InstanceId` is the logical name selected by the caller. `InstanceGeneration`
+identifies one runtime incarnation under that name. Reusing the same
+`CompositionId` and `InstanceId` in a later materialization always creates a
+fresh generation; it never revives the stopped Instance object. Generations
+are Fabric-minted, process-local runtime identities. They are not software
+versions, Composition revisions, durable epochs, or globally unique values.
+
+`LifecycleState` intentionally remains only `Ready`, `Running`, and
+`Stopped`. A failed initialize or start operation returns its error and leaves
+that generation `Stopped`; failure is not a second durable lifecycle state.
+Cleanup stops already initialized runtime modules, but is not a promise of
+generic rollback for arbitrary external side effects.
+
 ## Why Instance exists
 
 A Composition can be validated, inspected, reused, and materialized more than
@@ -224,6 +248,12 @@ What semantic bindings exist?  What generation is it?
 ```text
 FabricManifest != InstanceReport
 ```
+
+An `InstanceReport` is a current bounded observation, not an event history,
+transition journal, durable lifecycle record, or timestamped monitoring feed.
+Its lifecycle and health fields remain separate: lifecycle says where the
+runtime incarnation is in its bounded execution path, while health aggregates
+the runtime modules' current condition.
 
 Health is local runtime inspection. An Instance report aggregates block health:
 `Unavailable` takes precedence, then `Degraded`, otherwise the report is

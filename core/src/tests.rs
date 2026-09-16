@@ -187,6 +187,11 @@ impl TestProvider {
         self.greeting = greeting.into();
         self
     }
+
+    fn with_health(mut self, health: Health) -> Self {
+        self.health = health;
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -543,6 +548,128 @@ impl Module for FailingConsumer {
             self.inner.requirement.clone(),
             Arc::clone(&self.inner.recorder),
         ))))
+    }
+}
+
+/// A deterministic initialize failure used to prove that startup cleanup is
+/// bounded to modules which completed initialization.
+struct FailingInitializeConsumer {
+    inner: TestConsumer,
+}
+
+impl FailingInitializeConsumer {
+    fn new(inner: TestConsumer) -> Self {
+        Self { inner }
+    }
+}
+
+impl ModuleRuntime for FailingInitializeConsumer {
+    fn id(&self) -> &ModuleId {
+        self.inner.id()
+    }
+
+    fn provided_contract_declarations(&self) -> Vec<crate::ProvidedContractDeclaration> {
+        self.inner.provided_contract_declarations()
+    }
+
+    fn required_contract_declarations(&self) -> Vec<crate::ContractRequirementDeclaration> {
+        self.inner.required_contract_declarations()
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        self.inner.export_contracts()
+    }
+
+    fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        self.inner.bind(bindings)
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        self.inner.initialize()?;
+        Err(ModuleError::new("forced initialize failure"))
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        self.inner.start()
+    }
+
+    fn stop(&mut self) {
+        self.inner.stop();
+    }
+
+    fn health(&self) -> Health {
+        self.inner.health()
+    }
+}
+
+impl Module for FailingInitializeConsumer {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        crate::ModuleDeclaration::from_runtime(self)
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(Self::new(TestConsumer::new(
+            self.inner.module_id.as_str(),
+            self.inner.requirement.clone(),
+            Arc::clone(&self.inner.recorder),
+        ))))
+    }
+}
+
+#[derive(Clone)]
+struct ContextObserver {
+    module_id: ModuleId,
+    observed: Arc<Mutex<Vec<(InstanceId, crate::InstanceGeneration)>>>,
+}
+
+impl ContextObserver {
+    fn new(
+        module_id: &str,
+        observed: Arc<Mutex<Vec<(InstanceId, crate::InstanceGeneration)>>>,
+    ) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id.to_owned()).expect("module id"),
+            observed,
+        }
+    }
+}
+
+impl ModuleRuntime for ContextObserver {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+
+    fn bind(&mut self, _bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn bind_instance_context(
+        &mut self,
+        context: &crate::InstanceRuntimeContext,
+    ) -> Result<(), ModuleError> {
+        self.observed
+            .lock()
+            .expect("context lock")
+            .push((context.instance_id().clone(), context.generation()));
+        Ok(())
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn stop(&mut self) {}
+
+    fn health(&self) -> Health {
+        Health::Healthy
     }
 }
 
@@ -1010,6 +1137,97 @@ fn startup_failure_unwinds_started_dependencies() {
 }
 
 #[test]
+fn initialize_failure_stops_initialized_modules_and_reports_the_stopped_generation() {
+    let recorder = Recorder::new();
+    let key = ContractKey::provisional(
+        ContractId::new("test.initialize.failure".to_owned()).expect("contract"),
+    );
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.initialize.failure".to_owned()).expect("block"))
+            .register_module(TestProvider::new(
+                "provider",
+                key.clone(),
+                Arc::clone(&recorder),
+            ))
+            .register_module(FailingInitializeConsumer::new(TestConsumer::new(
+                "consumer",
+                ContractRequirement::provisional(key.id().clone()),
+                Arc::clone(&recorder),
+            )))
+            .build(),
+    )
+    .expect("composition");
+    let mut instance =
+        materialize_test_instance(&composition, "test.initialize.failure").expect("materialize");
+    let composition_id = instance.composition_id().clone();
+    let instance_id = instance.instance_id().clone();
+    let generation = instance.generation();
+
+    assert!(matches!(
+        instance.start(),
+        Err(InstanceError::ModuleFailure {
+            phase: "initialize",
+            ..
+        })
+    ));
+    assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
+    assert_eq!(
+        recorder.snapshot(),
+        vec![
+            "initialize:provider",
+            "initialize:consumer",
+            "stop:provider",
+        ]
+    );
+
+    let report = instance.report();
+    assert_eq!(report.composition_id, composition_id);
+    assert_eq!(report.instance_id, instance_id);
+    assert_eq!(report.generation, generation);
+    assert_eq!(report.lifecycle, LifecycleState::Stopped);
+    assert_eq!(report.health, Health::Degraded);
+}
+
+#[test]
+fn instance_lifecycle_is_terminal_for_one_generation() {
+    let recorder = Recorder::new();
+    let key = ContractKey::provisional(
+        ContractId::new("test.terminal.generation".to_owned()).expect("contract"),
+    );
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.terminal.generation".to_owned()).expect("block"))
+            .register_module(TestProvider::new("provider", key, recorder))
+            .build(),
+    )
+    .expect("composition");
+    let mut instance =
+        materialize_test_instance(&composition, "test.terminal.generation").expect("materialize");
+
+    assert_eq!(instance.lifecycle(), LifecycleState::Ready);
+    instance.start().expect("ready instance starts");
+    assert_eq!(instance.lifecycle(), LifecycleState::Running);
+    assert!(matches!(
+        instance.start(),
+        Err(InstanceError::InvalidLifecycleTransition {
+            action: "start",
+            ..
+        })
+    ));
+
+    instance.stop();
+    assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
+    instance.stop();
+    assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
+    assert!(matches!(
+        instance.start(),
+        Err(InstanceError::InvalidLifecycleTransition {
+            action: "start",
+            ..
+        })
+    ));
+}
+
+#[test]
 fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_generation() {
     let recorder = Recorder::new();
     let key = ContractKey::provisional(
@@ -1045,7 +1263,14 @@ fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_
 
     assert_eq!(instance_one.instance_id(), &instance_id);
     assert_eq!(instance_two.instance_id(), &instance_id);
+    assert_eq!(instance_one.composition_id(), composition.id());
+    assert_eq!(instance_two.composition_id(), composition.id());
     assert_ne!(instance_one.generation(), instance_two.generation());
+    assert_eq!(first_report.generation, instance_one.generation());
+    assert_eq!(
+        second_report_before_start.generation,
+        instance_two.generation()
+    );
     assert_eq!(first_report.lifecycle, LifecycleState::Stopped);
     assert_eq!(second_report_before_start.lifecycle, LifecycleState::Ready);
     assert_eq!(second_report_before_start.health, Health::Degraded);
@@ -1068,6 +1293,66 @@ fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_
             "stop:provider",
         ]
     );
+}
+
+#[test]
+fn every_runtime_module_receives_its_materialization_context() {
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.context".to_owned()).expect("block"))
+            .register_module(ContextObserver::new("first", Arc::clone(&observed)))
+            .register_module(ContextObserver::new("second", Arc::clone(&observed)))
+            .build(),
+    )
+    .expect("composition");
+    let instance_id = InstanceId::new("test.context.instance".to_owned()).expect("instance id");
+
+    let first = composition
+        .materialize(instance_id.clone())
+        .expect("first materialization");
+    let second = composition
+        .materialize(instance_id.clone())
+        .expect("second materialization");
+    let contexts = observed.lock().expect("context lock");
+
+    assert_eq!(contexts.len(), 4);
+    assert_eq!(contexts[0], contexts[1]);
+    assert_eq!(contexts[2], contexts[3]);
+    assert_eq!(contexts[0].0, instance_id);
+    assert_eq!(contexts[2].0, instance_id);
+    assert_eq!(contexts[0].1, first.generation());
+    assert_eq!(contexts[2].1, second.generation());
+    assert_ne!(contexts[0].1, contexts[2].1);
+}
+
+#[test]
+fn lifecycle_and_health_are_independent_current_observations() {
+    let recorder = Recorder::new();
+    let unavailable = ContractKey::provisional(
+        ContractId::new("test.health.unavailable".to_owned()).expect("contract"),
+    );
+    let degraded = ContractKey::provisional(
+        ContractId::new("test.health.degraded".to_owned()).expect("contract"),
+    );
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.health".to_owned()).expect("block"))
+            .register_module(
+                TestProvider::new("unavailable", unavailable, Arc::clone(&recorder))
+                    .with_health(Health::Unavailable),
+            )
+            .register_module(
+                TestProvider::new("degraded", degraded, recorder).with_health(Health::Degraded),
+            )
+            .build(),
+    )
+    .expect("composition");
+    let mut instance = materialize_test_instance(&composition, "test.health").expect("instance");
+
+    assert_eq!(instance.lifecycle(), LifecycleState::Ready);
+    assert_eq!(instance.report().health, Health::Unavailable);
+    instance.start().expect("start");
+    assert_eq!(instance.lifecycle(), LifecycleState::Running);
+    assert_eq!(instance.report().health, Health::Unavailable);
 }
 
 struct UndeclaredResolver {

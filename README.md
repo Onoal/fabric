@@ -109,9 +109,9 @@ live runtime.
 
 ## Project status
 
-The latest crates.io release is Fabric 0.1.1. Fabric 0.2 is the completed
-source baseline; `main` is preparing the Fabric 0.3 release candidate. This
-does not mean Fabric 0.3 is published to crates.io yet.
+The latest crates.io release is Fabric 0.1.1. The `main` branch has completed
+the Fabric 0.3 Time / Lifecycle / Change milestone and is preparing
+`onoal-fabric` 0.1.2 for publication. It is not yet published to crates.io.
 
 ## License
 

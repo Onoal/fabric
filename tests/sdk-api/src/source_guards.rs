@@ -66,7 +66,7 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "fabric-system = { package = \"onoal-fabric-system\", version = \"0.1.0\", path = \"system\" }",
         "fabric-component = { package = \"onoal-fabric-component\", version = \"0.2.0\", path = \"component\" }",
         "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.2.0\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.3.0\", path = \"sdk\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.1.2\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -111,9 +111,9 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     let sdk_manifest =
         fs::read_to_string(repository.join("sdk/Cargo.toml")).expect("read SDK manifest");
     assert!(
-        sdk_manifest.contains("version = \"0.3.0\"")
+        sdk_manifest.contains("version = \"0.1.2\"")
             && !sdk_manifest.contains("version.workspace = true"),
-        "the active umbrella package must carry its explicit 0.3.0 version"
+        "the active umbrella package must carry its explicit 0.1.2 version"
     );
 
     for private_package in [

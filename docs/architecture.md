@@ -149,7 +149,7 @@ Fabric 0.1 public model.
 
 ## Scope
 
-Fabric's 0.3 release candidate does not define a scheduler, placement/capacity engine,
+Fabric's completed 0.3 Time / Lifecycle / Change milestone does not define a scheduler, placement/capacity engine,
 global Resource/Adapter/requirement registry, package manager, portable
 deployment language, Manifest reconstruction, dynamic plugin ABI, IDL
 generation, container orchestration, identity/authority model, lifecycle

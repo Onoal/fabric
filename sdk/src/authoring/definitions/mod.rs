@@ -4,6 +4,7 @@ mod component_definition;
 mod contract_dependency;
 mod primary_resource_contract;
 mod requires;
+mod resource_augmentation;
 mod resource_definition;
 mod resource_realization;
 mod resource_selection;
@@ -19,6 +20,10 @@ pub use component_definition::{
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;
 pub use requires::Requires;
+pub use resource_augmentation::{
+    ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
+    ResourceAugmentationRequirement,
+};
 pub use resource_definition::{AdaptableResourceDefinition, IntoResourceName, ResourceDefinition};
 pub use resource_realization::ResourceRealization;
 pub use resource_selection::ResourceSelection;

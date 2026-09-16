@@ -7,6 +7,8 @@ mod host_witness;
 #[cfg(test)]
 mod public_surface_witness;
 #[cfg(test)]
+mod resource_augmentation_witness;
+#[cfg(test)]
 mod source_guards;
 #[cfg(test)]
 mod support;

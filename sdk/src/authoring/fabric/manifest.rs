@@ -1,6 +1,7 @@
 use fabric_component::{ComponentId, ComponentResourceRequirementName};
 use fabric_core::{
-    BlockId, CompositionExportDeclaration, ContractProviderSelection, ModuleDeclaration,
+    BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
+    ModuleDeclaration,
 };
 use fabric_resource::{ResourceId, ResourceName, ResourceSchemaDescriptor};
 
@@ -9,6 +10,44 @@ pub struct ResourceManifestEntry {
     resource_id: ResourceId,
     name: ResourceName,
     schema: ResourceSchemaDescriptor,
+}
+
+/// Bounded semantic inspection truth for an external Resource attachment.
+#[derive(Clone, Debug)]
+pub struct ResourceAugmentationManifestEntry {
+    contract_id: ContractId,
+    contract_identity: ContractIdentity,
+    resource_id: ResourceId,
+    resource_name: ResourceName,
+}
+
+impl ResourceAugmentationManifestEntry {
+    pub(crate) fn new(
+        contract_id: ContractId,
+        contract_identity: ContractIdentity,
+        resource_id: ResourceId,
+        resource_name: ResourceName,
+    ) -> Self {
+        Self {
+            contract_id,
+            contract_identity,
+            resource_id,
+            resource_name,
+        }
+    }
+
+    pub fn contract_id(&self) -> &ContractId {
+        &self.contract_id
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        &self.contract_identity
+    }
+    pub fn resource_id(&self) -> &ResourceId {
+        &self.resource_id
+    }
+    pub fn resource_name(&self) -> &ResourceName {
+        &self.resource_name
+    }
 }
 
 impl ResourceManifestEntry {
@@ -141,6 +180,7 @@ impl<'a> FabricManifestDiagnostics<'a> {
 #[derive(Clone, Debug, Default)]
 pub struct FabricManifest {
     resources: Vec<ResourceManifestEntry>,
+    resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
     components: Vec<fabric_component::ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
@@ -155,6 +195,7 @@ impl FabricManifest {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         resources: Vec<ResourceManifestEntry>,
+        resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
         systems: Vec<SystemManifestEntry>,
         components: Vec<fabric_component::ComponentDeclaration>,
         module_declarations: Vec<ModuleDeclaration>,
@@ -166,6 +207,7 @@ impl FabricManifest {
     ) -> Self {
         Self {
             resources,
+            resource_augmentations,
             systems,
             components,
             module_declarations,
@@ -179,6 +221,10 @@ impl FabricManifest {
 
     pub fn resources(&self) -> &[ResourceManifestEntry] {
         &self.resources
+    }
+
+    pub fn resource_augmentations(&self) -> &[ResourceAugmentationManifestEntry] {
+        &self.resource_augmentations
     }
 
     pub fn systems(&self) -> &[SystemManifestEntry] {

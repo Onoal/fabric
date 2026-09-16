@@ -30,7 +30,10 @@ impl Module for StoredTypedModule {
     }
 }
 
-use super::manifest::{FabricManifest, ResourceManifestEntry, SystemManifestEntry};
+use super::augmentation::IntoFabricResourceAugmentation;
+use super::manifest::{
+    FabricManifest, ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemManifestEntry,
+};
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
 use crate::authoring::definitions::ComponentSpecParts;
@@ -167,6 +170,7 @@ pub struct Fabric {
         Vec<super::manifest::ComponentResourceBindingManifestEntry>,
     component_system_provider_selections: Vec<super::manifest::ComponentSystemBindingManifestEntry>,
     resources: Vec<ResourceManifestEntry>,
+    resource_augmentations: Vec<ResourceAugmentationManifestEntry>,
     systems: Vec<SystemManifestEntry>,
     components: Vec<ComponentDeclaration>,
     module_declarations: Vec<ModuleDeclaration>,
@@ -189,6 +193,7 @@ impl Fabric {
             component_resource_provider_selections: Vec::new(),
             component_system_provider_selections: Vec::new(),
             resources: Vec::new(),
+            resource_augmentations: Vec::new(),
             systems: Vec::new(),
             components: Vec::new(),
             module_declarations: Vec::new(),
@@ -206,6 +211,21 @@ impl Fabric {
         self.provider_selections
             .extend(contribution.provider_selections().iter().cloned());
         self.typed_modules.extend(contribution.modules());
+        self
+    }
+
+    /// Adds externally owned semantic meaning to one selected Resource occurrence.
+    pub fn resource_augmentation(
+        mut self,
+        augmentation: impl IntoFabricResourceAugmentation,
+    ) -> Self {
+        let contribution = augmentation.into_fabric_resource_augmentation();
+        self.resource_augmentations
+            .push(contribution.entry().clone());
+        let (module, declaration, selection) = contribution.into_parts();
+        self.typed_modules.push(module);
+        self.module_declarations.push(declaration);
+        self.provider_selections.push(selection);
         self
     }
 
@@ -267,6 +287,7 @@ impl Fabric {
             component_resource_provider_selections,
             component_system_provider_selections,
             resources,
+            resource_augmentations,
             systems,
             components,
             mut module_declarations,
@@ -320,6 +341,7 @@ impl Fabric {
 
         let manifest = FabricManifest::new(
             resources,
+            resource_augmentations,
             systems,
             components,
             module_declarations,

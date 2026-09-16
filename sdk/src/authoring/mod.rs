@@ -12,13 +12,15 @@ pub use definitions::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterDefinition,
     AdapterProviderModule, ComponentDefinition, ComponentRealization, ComponentRealizationContract,
     ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceDefinition,
-    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
+    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceAugmentation,
+    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRequirement,
+    ResourceDefinition, ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
     Fabric, FabricBuildError, FabricManifest, FabricManifestDiagnostics, IntoFabricResource,
-    IntoFabricSystem, ResourceManifestEntry, SystemManifestEntry,
+    IntoFabricResourceAugmentation, IntoFabricSystem, ResourceAugmentationManifestEntry,
+    ResourceManifestEntry, SystemManifestEntry,
 };
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};

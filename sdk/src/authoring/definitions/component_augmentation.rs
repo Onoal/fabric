@@ -4,8 +4,8 @@ use fabric_component::{
     ComponentAugmentationRuntimeDefinition, ComponentError, ComponentRuntimeScope,
 };
 use fabric_core::{
-    ContractKey, ContractProviderSelection, ContractRequirement, Module, ModuleDeclaration,
-    ModuleId, ModuleRuntime,
+    ContractKey, ContractProviderSelection, ContractRequirement, HostMaterializationRequirement,
+    Module, ModuleDeclaration, ModuleId, ModuleRuntime,
 };
 
 use super::{
@@ -438,10 +438,19 @@ where
         let d = self.support.declaration(self.module_id.clone());
         let mut provided = d.provided_contracts().to_vec();
         provided.push(X::contract_key().declaration());
-        ModuleDeclaration::new(d.module_id().clone())
+        let declaration = ModuleDeclaration::new(self.module_id.clone())
             .with_required_contracts(d.required_contracts().to_vec())
             .with_optional_contracts(d.optional_contracts().to_vec())
-            .with_provided_contracts(provided)
+            .with_provided_contracts(provided);
+        match d.host_requirement() {
+            Some(requirement) => {
+                declaration.with_host_requirement(HostMaterializationRequirement::new(
+                    self.module_id.clone(),
+                    requirement.requirement().clone(),
+                ))
+            }
+            None => declaration,
+        }
     }
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
         self.support

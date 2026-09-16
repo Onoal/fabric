@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 
 use fabric_core::{
     ContractIdentity, ContractKey, ContractProviderSelection, ContractRequirement,
-    ContractVersionRequirement, Module, ModuleDeclaration, ModuleId, ModuleRuntime,
+    ContractVersionRequirement, HostMaterializationRequirement, Module, ModuleDeclaration,
+    ModuleId, ModuleRuntime,
 };
 use fabric_system::SystemId;
 
@@ -272,12 +273,17 @@ where
         let mut provided_contracts = support_declaration.provided_contracts().to_vec();
         provided_contracts.push(X::contract_key().declaration());
 
-        let declaration = ModuleDeclaration::new(support_declaration.module_id().clone())
+        let declaration = ModuleDeclaration::new(self.provider_module_id.clone())
             .with_required_contracts(required_contracts)
             .with_provided_contracts(provided_contracts)
             .with_optional_contracts(support_declaration.optional_contracts().to_vec());
         match support_declaration.host_requirement() {
-            Some(requirement) => declaration.with_host_requirement(requirement.clone()),
+            Some(requirement) => {
+                declaration.with_host_requirement(HostMaterializationRequirement::new(
+                    self.provider_module_id.clone(),
+                    requirement.requirement().clone(),
+                ))
+            }
             None => declaration,
         }
     }

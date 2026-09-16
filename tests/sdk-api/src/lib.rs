@@ -15,6 +15,8 @@ mod source_guards;
 #[cfg(test)]
 mod support;
 #[cfg(test)]
+mod support_declaration_integrity;
+#[cfg(test)]
 mod system_augmentation_witness;
 #[cfg(test)]
 mod system_witness;

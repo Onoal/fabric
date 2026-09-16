@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 
 use fabric_core::{
     ContractIdentity, ContractKey, ContractProviderSelection, ContractRequirement,
-    ContractVersionRequirement, Module, ModuleDeclaration, ModuleId, ModuleRuntime,
+    ContractVersionRequirement, HostMaterializationRequirement, Module, ModuleDeclaration,
+    ModuleId, ModuleRuntime,
 };
 use fabric_resource::{ResourceId, ResourceName};
 
@@ -302,12 +303,24 @@ where
     S: ResourceAugmentationSupportDefinition<R, X>,
 {
     fn declaration(&self) -> ModuleDeclaration {
-        self.support
-            .declaration(self.provider_module_id.clone())
-            .with_required_contracts(vec![
-                self.attachment.base_requirement().declaration().clone(),
-            ])
-            .with_provided_contracts(vec![X::contract_key().declaration()])
+        let support = self.support.declaration(self.provider_module_id.clone());
+        let mut required = support.required_contracts().to_vec();
+        required.push(self.attachment.base_requirement().declaration().clone());
+        let mut provided = support.provided_contracts().to_vec();
+        provided.push(X::contract_key().declaration());
+        let declaration = ModuleDeclaration::new(self.provider_module_id.clone())
+            .with_required_contracts(required)
+            .with_optional_contracts(support.optional_contracts().to_vec())
+            .with_provided_contracts(provided);
+        match support.host_requirement() {
+            Some(requirement) => {
+                declaration.with_host_requirement(HostMaterializationRequirement::new(
+                    self.provider_module_id.clone(),
+                    requirement.requirement().clone(),
+                ))
+            }
+            None => declaration,
+        }
     }
 
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {

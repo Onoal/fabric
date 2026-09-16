@@ -13,8 +13,8 @@ pub use adapter_provider_module::AdapterProviderModule;
 pub(crate) use component_definition::ComponentSpecParts;
 pub use component_definition::{
     AdaptableComponentDefinition, ComponentDefinition, ComponentRealization,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    SelfRealizingComponentDefinition,
+    ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
+    ComponentSpec, ComponentSystemScope, SelfRealizingComponentDefinition,
 };
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;

@@ -447,9 +447,66 @@ pub trait SelfRealizingComponentDefinition: ComponentDefinition {
     fn self_realization(config: &Self::Config) -> ComponentRuntimeDefinition;
 }
 
+/// The typed behavior capability supplied by an Adapter for one Component target.
+///
+/// Fabric retains the configured Component occurrence and supplies it when a
+/// participation is prepared. The Adapter therefore owns only its concrete
+/// realization state and configuration.
+type ComponentRealizationPrepareFn<C> = dyn Fn(
+        &<C as ComponentDefinition>::Config,
+        &fabric_component::ComponentRuntimeScope,
+    ) -> Result<Health, ComponentError>
+    + Send
+    + Sync;
+
+pub struct ComponentRealizationContract<C>
+where
+    C: ComponentDefinition,
+{
+    prepare: Arc<ComponentRealizationPrepareFn<C>>,
+}
+
+impl<C> Clone for ComponentRealizationContract<C>
+where
+    C: ComponentDefinition,
+{
+    fn clone(&self) -> Self {
+        Self {
+            prepare: Arc::clone(&self.prepare),
+        }
+    }
+}
+
+impl<C> ComponentRealizationContract<C>
+where
+    C: ComponentDefinition,
+{
+    pub fn new(
+        prepare: impl Fn(
+            &C::Config,
+            &fabric_component::ComponentRuntimeScope,
+        ) -> Result<Health, ComponentError>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
+            prepare: Arc::new(prepare),
+        }
+    }
+
+    pub fn prepare(
+        &self,
+        config: &C::Config,
+        scope: &fabric_component::ComponentRuntimeScope,
+    ) -> Result<Health, ComponentError> {
+        (self.prepare)(config, scope)
+    }
+}
+
 /// Declares the typed external realization capability for a Component.
 pub trait AdaptableComponentDefinition: ComponentDefinition {
-    fn realization_requirement() -> ContractRequirement<ComponentRuntimeDefinition>;
+    fn realization_requirement() -> ContractRequirement<ComponentRealizationContract<Self>>;
 }
 
 /// A selected external Adapter realization for one Component specification.
@@ -461,16 +518,22 @@ where
     component: ComponentSpec<C>,
     adapter: AdapterProviderModule<A>,
     selection: ContractProviderSelection,
-    bridge: ComponentRealizationBridge,
+    bridge: ComponentRealizationBridge<C>,
 }
 
-pub(crate) struct ComponentRealizationBridge {
+pub(crate) struct ComponentRealizationBridge<C>
+where
+    C: AdaptableComponentDefinition,
+{
     module_id: ModuleId,
-    requirement: ContractRequirement<ComponentRuntimeDefinition>,
-    definition: Arc<Mutex<Option<ComponentRuntimeDefinition>>>,
+    requirement: ContractRequirement<ComponentRealizationContract<C>>,
+    realization: Arc<Mutex<Option<ComponentRealizationContract<C>>>>,
 }
 
-impl Module for ComponentRealizationBridge {
+impl<C> Module for ComponentRealizationBridge<C>
+where
+    C: AdaptableComponentDefinition,
+{
     fn declaration(&self) -> ModuleDeclaration {
         ModuleDeclaration::new(self.module_id.clone())
             .with_required_contracts(vec![self.requirement.declaration().clone()])
@@ -480,18 +543,24 @@ impl Module for ComponentRealizationBridge {
         Some(Box::new(ComponentRealizationBridgeRuntime {
             module_id: self.module_id.clone(),
             requirement: self.requirement.clone(),
-            definition: Arc::clone(&self.definition),
+            realization: Arc::clone(&self.realization),
         }))
     }
 }
 
-struct ComponentRealizationBridgeRuntime {
+struct ComponentRealizationBridgeRuntime<C>
+where
+    C: AdaptableComponentDefinition,
+{
     module_id: ModuleId,
-    requirement: ContractRequirement<ComponentRuntimeDefinition>,
-    definition: Arc<Mutex<Option<ComponentRuntimeDefinition>>>,
+    requirement: ContractRequirement<ComponentRealizationContract<C>>,
+    realization: Arc<Mutex<Option<ComponentRealizationContract<C>>>>,
 }
 
-impl ModuleRuntime for ComponentRealizationBridgeRuntime {
+impl<C> ModuleRuntime for ComponentRealizationBridgeRuntime<C>
+where
+    C: AdaptableComponentDefinition,
+{
     fn id(&self) -> &ModuleId {
         &self.module_id
     }
@@ -502,13 +571,13 @@ impl ModuleRuntime for ComponentRealizationBridgeRuntime {
         Ok(Vec::new())
     }
     fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
-        let definition = bindings
+        let realization = bindings
             .resolve(&self.requirement)
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self
-            .definition
+            .realization
             .lock()
-            .expect("component realization bridge lock") = Some((*definition).clone());
+            .expect("component realization bridge lock") = Some((*realization).clone());
         Ok(())
     }
     fn initialize(&mut self) -> Result<(), ModuleError> {
@@ -735,18 +804,19 @@ where
             requirement.id().clone(),
             provider_module_id.clone(),
         );
-        let definition = Arc::new(Mutex::new(None::<ComponentRuntimeDefinition>));
-        let forwarded = Arc::clone(&definition);
+        if self.self_realization.is_some() {
+            return Err(ComponentError::Unavailable);
+        }
+        let config = self.config.clone();
+        let realization_contract = Arc::new(Mutex::new(None::<ComponentRealizationContract<C>>));
+        let forwarded = Arc::clone(&realization_contract);
         let realization = ComponentRuntimeDefinition::new(C::component_id(), move |scope| {
-            let definition = forwarded
+            let realization = forwarded
                 .lock()
                 .expect("component realization bridge lock")
                 .clone()
                 .ok_or(ComponentError::Unavailable)?;
-            if definition.component_id() != scope.component().component_id() {
-                return Err(ComponentError::Unavailable);
-            }
-            definition.prepare(scope)
+            realization.prepare(&config, scope)
         });
         let component = ComponentSpec {
             self_realization: Some(realization),
@@ -759,7 +829,7 @@ where
             bridge: ComponentRealizationBridge {
                 module_id: bridge_module_id,
                 requirement,
-                definition,
+                realization: realization_contract,
             },
         })
     }
@@ -784,7 +854,7 @@ where
     ) -> (
         ComponentSpec<C>,
         AdapterProviderModule<A>,
-        ComponentRealizationBridge,
+        ComponentRealizationBridge<C>,
         ContractProviderSelection,
     ) {
         (self.component, self.adapter, self.bridge, self.selection)

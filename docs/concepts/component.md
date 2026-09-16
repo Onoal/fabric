@@ -37,6 +37,11 @@ Adapter-realized. These are realization choices for one declared behavior;
 they do not change the Component's identity, Operations, or semantic
 Resource/System requirements.
 
+Component Config remains configuration of the semantic Component occurrence.
+When an Adapter realizes that occurrence, Fabric supplies the configured
+Component Config to the typed realization boundary; Adapter Config remains
+configuration of the concrete implementation.
+
 ```text
 ComponentDefinition
       | define(config)

@@ -7,12 +7,12 @@ pub use crate::SdkAuthoringError;
 pub use crate::authoring::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdaptableSystemDefinition,
     AdapterDefinition, AdapterProviderModule, BuiltFabric, ComponentDefinition,
-    ComponentRealization, ComponentResourceBindingManifestEntry, ComponentResourceRequirement,
-    ComponentResourceScope, ComponentSpec, ComponentSystemBindingManifestEntry,
-    ComponentSystemScope, ContractDependency, Fabric, FabricBuildError, FabricComponents,
-    FabricInstance, FabricManifest, IntoFabricResource, IntoFabricSystem, IntoResourceName,
-    PrimaryResourceContract, PrimarySystemContract, Requires, ResourceDefinition,
-    ResourceManifestEntry, ResourceRealization, ResourceSelection,
+    ComponentRealization, ComponentRealizationContract, ComponentResourceBindingManifestEntry,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
+    ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency, Fabric,
+    FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
+    IntoFabricSystem, IntoResourceName, PrimaryResourceContract, PrimarySystemContract, Requires,
+    ResourceDefinition, ResourceManifestEntry, ResourceRealization, ResourceSelection,
     SelfRealizingComponentDefinition, SystemDefinition, SystemManifestEntry, SystemRealization,
     SystemRequires, SystemSelection,
 };

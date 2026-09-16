@@ -10,10 +10,10 @@ pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
 pub use definitions::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterDefinition,
-    AdapterProviderModule, ComponentDefinition, ComponentRealization, ComponentResourceRequirement,
-    ComponentResourceScope, ComponentSpec, ComponentSystemScope, ContractDependency,
-    IntoResourceName, PrimaryResourceContract, Requires, ResourceDefinition, ResourceRealization,
-    ResourceSelection, SelfRealizingComponentDefinition,
+    AdapterProviderModule, ComponentDefinition, ComponentRealization, ComponentRealizationContract,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
+    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceDefinition,
+    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,

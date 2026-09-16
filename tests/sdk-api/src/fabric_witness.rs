@@ -5,7 +5,7 @@ use fabric::{
     core::{ContractProviderSelection, ContractRequirement},
     ids::module,
 };
-use fabric_component::{ComponentMaterializer, ComponentRuntimeDefinition};
+use fabric_component::ComponentMaterializer;
 use fabric_core::{
     BlockBuilder, BlockId, CompositionError, ContractId, ContractKey, ContractVersionRequirement,
     Health, InstanceGeneration, InstanceId, LifecycleState, ModuleBindings, ModuleContract,
@@ -133,12 +133,11 @@ fabric::component! {
 
 #[derive(Clone)]
 struct PingoraAdapter {
-    gateway: GatewayConfig,
     implementation: String,
 }
 
 impl AdaptableComponentDefinition for Gateway {
-    fn realization_requirement() -> ContractRequirement<ComponentRuntimeDefinition> {
+    fn realization_requirement() -> ContractRequirement<ComponentRealizationContract<Self>> {
         ContractRequirement::provisional(
             ContractId::new("fabric.test.gateway.realization").expect("contract"),
         )
@@ -151,9 +150,12 @@ impl AdapterDefinition for PingoraAdapter {
     fn compatibility(&self) -> ComponentId {
         Gateway::component_id()
     }
+    fn host_requirement(&self) -> HostRequirement {
+        HostRequirement::new().require_facility(host_bound_clock_facility())
+    }
     fn declaration(&self, module_id: ModuleId) -> ModuleDeclaration {
         ModuleDeclaration::new(module_id).with_provided_contracts(vec![
-            ContractKey::<ComponentRuntimeDefinition>::provisional(
+            ContractKey::<ComponentRealizationContract<Gateway>>::provisional(
                 Gateway::realization_requirement().id().clone(),
             )
             .declaration(),
@@ -162,14 +164,12 @@ impl AdapterDefinition for PingoraAdapter {
     fn materialize_provider(&self, module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(PingoraRuntime {
             module_id,
-            gateway: self.gateway.clone(),
             implementation: self.implementation.clone(),
         }))
     }
 }
 struct PingoraRuntime {
     module_id: ModuleId,
-    gateway: GatewayConfig,
     implementation: String,
 }
 impl ModuleRuntime for PingoraRuntime {
@@ -178,19 +178,36 @@ impl ModuleRuntime for PingoraRuntime {
     }
     fn provided_contract_declarations(&self) -> Vec<fabric_core::ProvidedContractDeclaration> {
         vec![
-            ContractKey::<ComponentRuntimeDefinition>::provisional(
+            ContractKey::<ComponentRealizationContract<Gateway>>::provisional(
                 Gateway::realization_requirement().id().clone(),
             )
             .declaration(),
         ]
     }
     fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
-        let _ = &self.implementation;
+        let implementation = self.implementation.clone();
         Ok(vec![ModuleContract::new(
             &ContractKey::provisional(Gateway::realization_requirement().id().clone()),
-            Arc::new(
-                <Gateway as SelfRealizingComponentDefinition>::self_realization(&self.gateway),
-            ),
+            Arc::new(ComponentRealizationContract::<Gateway>::new(
+                move |config, scope| {
+                    let prefix = config.prefix.clone();
+                    let implementation = implementation.clone();
+                    scope.operation(
+                        gateway::operations::handle(),
+                        move |input: GatewayInput| {
+                            let _ = input;
+                            let prefix = prefix.clone();
+                            let implementation = implementation.clone();
+                            async move {
+                                Ok(GatewayOutput {
+                                    value: format!("{prefix}:{implementation}"),
+                                })
+                            }
+                        },
+                    )?;
+                    Ok(Health::Healthy)
+                },
+            )),
         )])
     }
     fn bind(&mut self, _: &ModuleBindings) -> Result<(), ModuleError> {
@@ -1159,9 +1176,6 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
         prefix: "gateway".to_owned(),
     })
     .using(PingoraAdapter {
-        gateway: GatewayConfig {
-            prefix: "gateway".to_owned(),
-        },
         implementation: "pingora".to_owned(),
     })
     .expect("typed Gateway adapter realization");
@@ -1171,7 +1185,7 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on("fabric.test.gateway.local", &test_host())
+        .materialize_named_on("fabric.test.gateway.local", &facility_host())
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -1182,11 +1196,75 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
         components.invoke_external(&gateway::operations::handle(), GatewayInput),
     )
     .expect("invoke");
-    assert_eq!(output.value, "gateway:native");
+    assert_eq!(output.value, "gateway:pingora");
     components
         .dematerialize::<Gateway>()
         .expect("dematerialize");
     instance.stop();
+}
+
+#[test]
+fn gateway_adapter_realization_keeps_component_config_per_composition() {
+    let build = |composition_id: &str, prefix: &str| {
+        Fabric::new(composition_id)
+            .expect("fabric")
+            .component(
+                ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+                    prefix: prefix.to_owned(),
+                })
+                .using(PingoraAdapter {
+                    implementation: "pingora".to_owned(),
+                })
+                .expect("typed gateway realization"),
+            )
+            .build()
+            .expect("build")
+    };
+
+    for (composition_id, prefix) in [
+        ("fabric.test.gateway.a", "a"),
+        ("fabric.test.gateway.b", "b"),
+    ] {
+        let built = build(composition_id, prefix);
+        let mut instance = built
+            .materialize_named_on(format!("{composition_id}.local"), &facility_host())
+            .expect("materialize");
+        instance.start().expect("start");
+        let components = instance.components().expect("components");
+        components
+            .materialize::<Gateway>()
+            .expect("materialize gateway");
+        let output: GatewayOutput = futures::executor::block_on(
+            components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        )
+        .expect("invoke");
+        assert_eq!(output.value, format!("{prefix}:pingora"));
+        components
+            .dematerialize::<Gateway>()
+            .expect("dematerialize");
+        instance.stop();
+    }
+}
+
+#[test]
+fn gateway_adapter_realization_rejects_an_incompatible_host() {
+    let gateway = ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+        prefix: "gateway".to_owned(),
+    })
+    .using(PingoraAdapter {
+        implementation: "pingora".to_owned(),
+    })
+    .expect("typed gateway realization");
+    let built = Fabric::new("fabric.test.gateway.host")
+        .expect("fabric")
+        .component(gateway)
+        .build()
+        .expect("build");
+    assert!(
+        built
+            .materialize_named_on("fabric.test.gateway.host.local", &test_host())
+            .is_err()
+    );
 }
 
 #[test]

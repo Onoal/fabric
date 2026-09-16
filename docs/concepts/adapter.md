@@ -37,7 +37,9 @@ realize its semantics.
 
 Adapter Config configures the implementation—for example, a directory or
 endpoint—not Resource/System semantic Config, Component Config, or a Host
-description. `AdapterDefinition::materialize_provider()` may return `None`, so
+description. For an Adapter-realized Component, Fabric retains the configured
+Component occurrence and supplies its Component Config to the typed realization
+contract separately from Adapter Config. `AdapterDefinition::materialize_provider()` may return `None`, so
 an Adapter declaration is not necessarily a native provider runtime; macro
 Adapters normally supply one.
 

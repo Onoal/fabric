@@ -317,8 +317,8 @@ fn component_definition_owns_canonical_component_identity() {
         "ComponentSpec must own typed Resource requirement authoring"
     );
     assert!(
-        !source.contains("fn prepare("),
-        "ComponentDefinition must not require runtime preparation to define a Component"
+        source.contains("pub struct ComponentRealizationContract<C>"),
+        "external realization preparation must remain a separate typed contract"
     );
     assert!(
         source.contains("fn define(config: Self::Config) -> ComponentSpec<Self>"),

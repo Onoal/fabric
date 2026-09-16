@@ -78,15 +78,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fabric-projection"
-version = "0.1.0"
-dependencies = [
- "fabric-binding",
- "onoal-fabric-core",
- "thiserror",
-]
-
-[[package]]
 name = "fabric-resource-registry"
 version = "0.1.0"
 dependencies = [
@@ -190,6 +181,15 @@ name = "fabric-test-docs-resource"
 version = "0.1.0"
 dependencies = [
  "fabric-test-resource-counter",
+ "onoal-fabric",
+]
+
+[[package]]
+name = "fabric-test-docs-root-surface"
+version = "0.1.0"
+dependencies = [
+ "fabric-test-adapter-clock-memory",
+ "fabric-test-resource-clock",
  "onoal-fabric",
 ]
 
@@ -447,6 +447,7 @@ dependencies = [
  "onoal-fabric-resource",
  "onoal-fabric-sdk-macros",
  "onoal-fabric-system",
+ "thiserror",
 ]
 
 [[package]]

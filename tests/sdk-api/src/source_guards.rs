@@ -118,7 +118,6 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
 
     for private_package in [
         "fabric-binding",
-        "fabric-projection",
         "fabric-resource-registry",
         "fabric-test-sdk-api",
         "fabric-test-raw-api",
@@ -127,7 +126,6 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
     for manifest in [
         "experimental/binding/Cargo.toml",
-        "experimental/projection/Cargo.toml",
         "experimental/resource-registry/Cargo.toml",
         "tests/raw-api/Cargo.toml",
         "tests/sdk-api/Cargo.toml",

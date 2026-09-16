@@ -27,6 +27,10 @@ Fabric documentation has three levels.
 4. [Advanced Raw API](advanced/raw-api.md), when direct Core authoring is
    needed
 
+Normal examples use `fabric::*`; `fabric::prelude::*` is an optional
+compatibility convenience. Explicit experiments, when needed, live under
+`fabric::experimental` and are not part of the normal learning path.
+
 Release notes record their contract changes in [release notes](releases/0.1.2.md).
 
 The concept sequence is intentional. Composition comes first because it

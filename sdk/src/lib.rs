@@ -5,6 +5,7 @@ pub mod authoring;
 pub mod component;
 pub mod contracts;
 pub mod core;
+pub mod experimental;
 pub mod host;
 pub mod ids;
 pub mod prelude;
@@ -28,10 +29,10 @@ pub use authoring::{
     ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
-    ComponentDefinition, ComponentRealization, ComponentResourceBindingManifestEntry,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
-    ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency, Fabric,
-    FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
+    ComponentDefinition, ComponentRealization, ComponentRealizationContract,
+    ComponentResourceBindingManifestEntry, ComponentResourceRequirement, ComponentResourceScope,
+    ComponentSpec, ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency,
+    Fabric, FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
     IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
     IntoResourceName, PrimaryResourceContract, PrimarySystemContract, Requires,
     ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
@@ -43,4 +44,29 @@ pub use authoring::{
     SystemAugmentationRequirement, SystemAugmentationSupportDefinition, SystemDefinition,
     SystemManifestEntry, SystemRealization, SystemRequires, SystemSelection,
 };
+pub use component::{
+    ComponentError, ComponentId, ComponentRequirementKind, ComponentResourceRequirementName,
+    ComponentStatus, InvocationContext, InvocationOrigin, OperationId, OperationKey,
+    OperationTypeId, ParticipationState,
+};
+pub use core::{
+    CompositionError, CompositionId, ContractId, ContractIdentity, ContractKey, ContractVersion,
+    ContractVersionRequirement, Health, InstanceError, InstanceGeneration, InstanceId,
+    LifecycleState,
+};
 pub use error::SdkAuthoringError;
+pub use host::{
+    HostArchitecture, HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem,
+    HostRequirement,
+};
+pub use resource::{
+    AdapterResourceSchemaSupport, ResourceCompatibilityError, ResourceId, ResourceName,
+    ResourceSchemaDescriptor, ResourceSchemaVersion,
+};
+pub use system::{
+    AdapterSystemSchemaSupport, SystemCompatibilityError, SystemId, SystemSchemaDescriptor,
+    SystemSchemaVersion,
+};
+pub use versions::{
+    IntoContractVersion, IntoContractVersionRequirement, contract_requirement, contract_version,
+};

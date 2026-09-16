@@ -48,7 +48,7 @@ Normal Rust authoring begins with [`Fabric`](../../sdk/README.md), the
 high-level authoring surface:
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let fabric = Fabric::new("example.composition")
     .expect("valid CompositionId")
@@ -78,7 +78,7 @@ This complete example builds a declaration only. It does not create or start
 an Instance.
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let built = Fabric::new("example.minimal")
     .expect("valid CompositionId")
@@ -141,7 +141,7 @@ named Resource requirements. The requirement names express the Component's
 local roles; they are not Resource occurrence names.
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoreObservation {

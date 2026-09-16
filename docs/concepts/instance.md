@@ -67,7 +67,7 @@ The normal high-level path begins with `Fabric`, builds a `BuiltFabric`, and
 then materializes a `FabricInstance`:
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let built = Fabric::new("example.instance")
     .expect("valid CompositionId")

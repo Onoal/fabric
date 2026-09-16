@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::ProjectionError;
+use super::ProjectionError;
 
 pub trait ProjectionService<Request, Policy, Prepared>: Send + Sync {
     fn prepare(

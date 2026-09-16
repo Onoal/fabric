@@ -17,3 +17,4 @@ fabric-host.workspace = true
 fabric-resource.workspace = true
 fabric-system.workspace = true
 fabric-sdk-macros.workspace = true
+thiserror = "2.0.20"

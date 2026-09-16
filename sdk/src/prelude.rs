@@ -1,53 +1,39 @@
-//! The normal Fabric 0.1 authoring surface.
+//! Optional convenience imports for Fabric's normal high-level authoring API.
 //!
-//! Advanced Core, Component runtime, Block, and Module machinery remains
-//! available through its explicit named SDK modules rather than this prelude.
+//! `use fabric::*` is the canonical root-first style. This prelude mirrors
+//! that normal surface for existing users; it neither contains raw Core rails
+//! nor [`crate::experimental`] APIs.
 
-pub use crate::SdkAuthoringError;
-pub use crate::authoring::{
+pub use crate::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdaptableSystemDefinition,
-    AdapterDefinition, AdapterProviderModule, BuiltFabric, ComponentAugmentation,
+    AdapterDefinition, AdapterProviderModule, AdapterResourceSchemaSupport,
+    AdapterSystemSchemaSupport, BuiltFabric, ComponentAugmentation,
     ComponentAugmentationDefinition, ComponentAugmentationRealization,
     ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
-    ComponentDefinition, ComponentRealization, ComponentRealizationContract,
-    ComponentResourceBindingManifestEntry, ComponentResourceRequirement, ComponentResourceScope,
-    ComponentSpec, ComponentSystemBindingManifestEntry, ComponentSystemScope, ContractDependency,
-    Fabric, FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
-    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
-    IntoResourceName, PrimaryResourceContract, PrimarySystemContract, Requires,
-    ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
-    ResourceAugmentationManifestEntry, ResourceAugmentationRealization,
-    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
-    ResourceManifestEntry, ResourceRealization, ResourceSelection,
-    SelfRealizingComponentDefinition, SystemAugmentation, SystemAugmentationDefinition,
-    SystemAugmentationError, SystemAugmentationManifestEntry, SystemAugmentationRealization,
-    SystemAugmentationRequirement, SystemAugmentationSupportDefinition, SystemDefinition,
-    SystemManifestEntry, SystemRealization, SystemRequires, SystemSelection,
+    ComponentDefinition, ComponentError, ComponentId, ComponentRealization,
+    ComponentRealizationContract, ComponentRequirementKind, ComponentResourceBindingManifestEntry,
+    ComponentResourceRequirement, ComponentResourceRequirementName, ComponentResourceScope,
+    ComponentSpec, ComponentStatus, ComponentSystemBindingManifestEntry, ComponentSystemScope,
+    CompositionError, CompositionId, ContractDependency, ContractId, ContractIdentity, ContractKey,
+    ContractVersion, ContractVersionRequirement, Fabric, FabricBuildError, FabricComponents,
+    FabricInstance, FabricManifest, Health, HostArchitecture, HostCompatibilityError,
+    HostDescriptor, HostFacilityId, HostOperatingSystem, HostRequirement, InstanceError,
+    InstanceGeneration, InstanceId, IntoContractVersion, IntoContractVersionRequirement,
+    IntoFabricResource, IntoFabricResourceAugmentation, IntoFabricSystem,
+    IntoFabricSystemAugmentation, IntoResourceName, InvocationContext, InvocationOrigin,
+    LifecycleState, OperationId, OperationKey, OperationTypeId, ParticipationState,
+    PrimaryResourceContract, PrimarySystemContract, Requires, ResourceAugmentation,
+    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationManifestEntry,
+    ResourceAugmentationRealization, ResourceAugmentationRequirement,
+    ResourceAugmentationSupportDefinition, ResourceCompatibilityError, ResourceDefinition,
+    ResourceId, ResourceManifestEntry, ResourceName, ResourceRealization, ResourceSchemaDescriptor,
+    ResourceSchemaVersion, ResourceSelection, SdkAuthoringError, SelfRealizingComponentDefinition,
+    SystemAugmentation, SystemAugmentationDefinition, SystemAugmentationError,
+    SystemAugmentationManifestEntry, SystemAugmentationRealization, SystemAugmentationRequirement,
+    SystemAugmentationSupportDefinition, SystemCompatibilityError, SystemDefinition, SystemId,
+    SystemManifestEntry, SystemRealization, SystemRequires, SystemSchemaDescriptor,
+    SystemSchemaVersion, SystemSelection, adapter, component, contract_requirement,
+    contract_version, resource, system,
 };
-pub use crate::component::{
-    ComponentError, ComponentId, ComponentRequirementKind, ComponentResourceRequirementName,
-    ComponentStatus, InvocationContext, InvocationOrigin, OperationId, OperationKey,
-    OperationTypeId, ParticipationState,
-};
-pub use crate::core::{
-    CompositionError, ContractVersion, ContractVersionRequirement, Health, InstanceError,
-    InstanceGeneration, InstanceId, LifecycleState,
-};
-pub use crate::host::{
-    HostArchitecture, HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem,
-    HostRequirement,
-};
-pub use crate::resource::{
-    AdapterResourceSchemaSupport, ResourceCompatibilityError, ResourceId, ResourceName,
-    ResourceSchemaDescriptor, ResourceSchemaVersion,
-};
-pub use crate::system::{
-    AdapterSystemSchemaSupport, SystemCompatibilityError, SystemId, SystemSchemaDescriptor,
-    SystemSchemaVersion,
-};
-pub use crate::versions::{
-    IntoContractVersion, IntoContractVersionRequirement, contract_requirement, contract_version,
-};
-pub use crate::{adapter, component, resource, system};

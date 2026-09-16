@@ -170,8 +170,8 @@ world. `Block` is advanced grouping and reporting machinery, not dependency
 topology. Core graph truth—not Block order—determines dependency and lifecycle
 ordering.
 
-The normal authoring path is `fabric` and `fabric::prelude`. Advanced
-capability remains public through named modules including
+The normal authoring path is `fabric::*`; `fabric::prelude::*` remains an
+optional compatibility convenience. Advanced capability remains public through named modules including
 `fabric::authoring`, `fabric::core`, and `fabric::component`.
 Handwritten third-party definitions and typed realization interfaces use the
 same public machinery as macro-generated definitions.
@@ -188,9 +188,11 @@ Callers can extend the returned `Fabric` before `build()`.
 
 ## Experimental modules
 
-The repository contains experimental implementation research under
-`experimental/`. These modules are not part of the normal Fabric SDK or the
-Fabric 0.1 public model.
+`fabric::experimental::projection` is explicitly shipped for exploration and
+use, but is not canonical Core ontology, a Composition participant, or a
+Manifest semantic category. Experimental APIs may change or disappear at a
+future minor release while remaining compatibility-sensitive in a `0.2.x`
+patch line. Binding and Resource Registry research remain repository-only.
 
 ## Scope
 

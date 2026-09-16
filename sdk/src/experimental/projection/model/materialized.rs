@@ -1,4 +1,4 @@
-use crate::ProjectionLeases;
+use super::ProjectionLeases;
 
 pub struct MaterializedProjection<Material> {
     material: Material,

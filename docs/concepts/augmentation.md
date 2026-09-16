@@ -48,7 +48,7 @@ Resource attachments are occurrence-specific. Their target is
 also attach it to `Store("secondary")`.
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let store = Store::select("primary", StoreConfig {})?;
 let attachment = ResourceAugmentation::<Store, Readback>::attach(&store, ())?;
@@ -77,7 +77,7 @@ coherent System occurrence for an identity in a Composition; there is no
 `SystemName`.
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let clock = SharedClock::select(SharedClockConfig {})?;
 let attachment = SystemAugmentation::<SharedClock, DriftObservation>::attach(&clock, ())?;
@@ -108,7 +108,7 @@ same generation-scoped Component participation; they do not create a second
 base Component realization.
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let audit = Gateway::define(GatewayConfig {})
     .augment::<Audit>(())?

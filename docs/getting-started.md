@@ -12,7 +12,7 @@ futures = "0.3"
 ```
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 ```
 
 The tutorial uses `futures::executor::block_on` only to drive the asynchronous

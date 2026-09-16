@@ -4,10 +4,11 @@
 high-level Rust authoring surface over the same public typed machinery
 available to handwritten third-party extensions.
 
-Use `fabric::prelude::*` for normal Resource, System, Adapter, Component,
-Host, Fabric, Instance, and semantic Manifest work. Use explicit named modules
-such as `fabric::authoring`, `fabric::core`, and
-`fabric::component` for advanced/raw capability.
+Use `fabric::*` for normal Resource, System, Adapter, Component, Host, Fabric,
+Instance, and semantic Manifest work. `fabric::prelude::*` remains an optional
+compatibility convenience. Use explicit named modules such as
+`fabric::authoring`, `fabric::core`, and `fabric::component` for advanced/raw
+capability.
 
 Add the SDK package to an application:
 
@@ -19,7 +20,7 @@ fabric = { package = "onoal-fabric", version = "0.1.2" }
 Normal code imports the SDK through its public Rust crate name:
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 ```
 
 For the normal learning path, read [Getting Started](../docs/getting-started.md),
@@ -33,7 +34,7 @@ Normal authoring is define, select, compose, build, inspect, materialize,
 start, operate Components, then stop:
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let built = Fabric::new("example")
     .expect("valid composition id")
@@ -213,7 +214,10 @@ likewise available through named modules, for example `fabric::core` and
 `fabric::component`. They remain useful advanced capability, but normal
 packages should not need them.
 
-The repository's `experimental/` modules are not forwarded through the SDK.
-Fabric 0.1 also does not define Component-to-Component declarative dependencies,
-global registries, scheduler/placement, deployment/reconstruction formats,
-dynamic plugins, or IDL generation.
+`fabric::experimental::projection` is shipped for explicit experimentation. It
+is not canonical Core ontology, is never prelude-imported, and may change or be
+removed in a future minor release while remaining compatibility-sensitive in a
+`0.2.x` patch line. Binding and Resource Registry research remain
+repository-only. Fabric does not define Component-to-Component declarative
+dependencies, global registries, scheduler/placement, deployment/reconstruction
+formats, dynamic plugins, or IDL generation.

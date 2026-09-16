@@ -1,4 +1,4 @@
-use crate::{MaterializedProjection, ProjectionError};
+use super::{MaterializedProjection, ProjectionError};
 
 pub trait Projector<Request, Projection, Material>: Send + Sync {
     fn project(

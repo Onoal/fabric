@@ -75,13 +75,13 @@ fabric = { package = "onoal-fabric", version = "0.1.2" }
 ```
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 ```
 
 ## A first look
 
 ```rust
-use fabric::prelude::*;
+use fabric::*;
 
 let built = Fabric::new("example")
     .expect("valid composition")
@@ -120,6 +120,10 @@ name, not the crates.io package version.
 
 The source documentation also describes the next augmentation contract; that
 does not claim an unreleased package version is installable from crates.io.
+
+Normal high-level authoring is available from `fabric::*`; the optional
+`fabric::prelude::*` remains a compatibility convenience. Experimental APIs,
+when present, stay explicit under `fabric::experimental`.
 
 ## License
 

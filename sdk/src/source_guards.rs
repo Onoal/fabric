@@ -21,7 +21,11 @@ fn sdk_manifest_depends_only_on_generic_fabric_layers() {
             "sdk manifest must depend on {required}"
         );
     }
-    for experimental in ["fabric-binding", "fabric-projection"] {
+    for experimental in [
+        "fabric-binding",
+        "fabric-projection",
+        "fabric-resource-registry",
+    ] {
         assert!(
             !manifest.contains(experimental),
             "sdk manifest must not depend on experimental {experimental}"
@@ -60,6 +64,12 @@ fn sdk_source_stays_generic_and_curated() {
         "src/ids.rs",
         "src/system.rs",
         "src/versions.rs",
+        "src/experimental/mod.rs",
+        "src/experimental/projection/contract.rs",
+        "src/experimental/projection/error.rs",
+        "src/experimental/projection/handler.rs",
+        "src/experimental/projection/model/lease.rs",
+        "src/experimental/projection/model/materialized.rs",
         "src/authoring/block_author.rs",
         "src/authoring/fabric_builder.rs",
         "src/authoring/composition_ext.rs",
@@ -565,7 +575,9 @@ fn sdk_reexports_the_current_package_macro_frontends_only() {
         "fabric should re-export adapter!, component!, resource!, and system!"
     );
     assert!(
-        prelude.contains("pub use crate::{adapter, component, resource, system};"),
+        ["adapter", "component", "resource", "system"]
+            .iter()
+            .all(|macro_name| prelude.contains(macro_name)),
         "sdk prelude should expose the supported package macro frontends"
     );
     let forbidden = "fabric_sdk_macros::host";
@@ -598,10 +610,23 @@ fn normal_prelude_quarantines_legacy_and_raw_machinery() {
             "normal prelude must not expose {forbidden}"
         );
     }
-    assert!(
-        !lib.contains("pub mod binding;") && !lib.contains("pub mod projection;"),
-        "sdk must not forward experimental binding or projection crates"
-    );
+    assert!(lib.contains("pub mod experimental;"));
+    assert!(!lib.contains("pub use experimental::projection"));
+    assert!(!lib.contains("pub mod binding;") && !lib.contains("pub mod resource_registry;"));
+    for raw in [
+        "ModuleRuntime",
+        "ModuleDeclaration",
+        "ModuleBindings",
+        "ContractProviderSelection",
+        "ComponentRuntimeDefinition",
+        "ComponentRuntimeScope",
+    ] {
+        let root_export = format!("pub use core::{{{raw}");
+        assert!(
+            !lib.contains(&root_export),
+            "root surface must keep {raw} under its named module"
+        );
+    }
 }
 
 #[test]
@@ -826,7 +851,6 @@ fn generic_fabric_crates_do_not_depend_back_on_sdk() {
         repo_root.join("host/Cargo.toml"),
         repo_root.join("resource/Cargo.toml"),
         repo_root.join("experimental/binding/Cargo.toml"),
-        repo_root.join("experimental/projection/Cargo.toml"),
         repo_root.join("component/Cargo.toml"),
     ] {
         let source = fs::read_to_string(&manifest).expect("read manifest");

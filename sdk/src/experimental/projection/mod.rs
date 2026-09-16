@@ -1,4 +1,8 @@
-#![forbid(unsafe_code)]
+//! Experimental projection helpers shipped with `onoal-fabric`.
+//!
+//! Projection is not a Core primitive, a Composition participant, or a
+//! Manifest semantic category. Its API may change or disappear in a future
+//! minor release, while remaining compatibility-sensitive within `0.2.x`.
 
 mod contract;
 mod error;

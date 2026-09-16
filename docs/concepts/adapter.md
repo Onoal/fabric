@@ -115,6 +115,17 @@ Provider runtimes participate in ordinary Core bind, initialize, start, stop,
 and health phases. Adapter does not introduce a separate lifecycle, scheduler,
 or control plane.
 
+## Augmentation boundary
+
+Adapter openness does not require Adapter augmentation. An Adapter is an
+interchangeable realization relation, not a globally identified semantic
+subject: Fabric defines no `AdapterAugmentation`, `AdapterId`, or Adapter
+registry. An external semantic instead augments a selected Resource, System,
+or Component target, and independently authored support can compose around
+that target's chosen realization when appropriate. Semantic-target
+augmentation is not Adapter-definition augmentation. See
+[Augmentation](augmentation.md).
+
 ## Boundaries
 
 Multiple Adapter types may realize one target, and the same Adapter type may

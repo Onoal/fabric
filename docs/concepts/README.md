@@ -25,6 +25,10 @@ declared system.
 **[Adapter](adapter.md)** realizes an adaptable Component, Resource, or System
 through an explicit public realization interface.
 
+**[Augmentation](augmentation.md)** is independently owned semantic meaning
+attached to a selected Resource, System, or Component without changing the
+base definition.
+
 **Host** describes environmental compatibility needed to materialize an Adapter
 realization.
 
@@ -39,6 +43,9 @@ Component --requires--> System
 
 Adapter --realizes--> Component, Resource, or System
 Host --constrains compatibility of--> Adapter realization
+
+External semantic X --augments--> Resource, System, or Component target
+Support --realizes--> X for that target
 
 Composition --declares and selects--> Components, Resources, Systems, Adapters, Host truth
 Instance --materializes--> Composition

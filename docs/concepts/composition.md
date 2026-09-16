@@ -350,5 +350,14 @@ running operations, mutable runtime service discovery, scheduler or placement
 policy, capacity, a global registry, identity or authority, or deployment
 serialization.
 
+External augmentation attachments are also declarative Composition truth. A
+Resource, System, or Component attachment records additional semantic meaning
+for its existing target; an optional support provider is ordinary backing
+provider truth resolved through Core selections. `FabricManifest` exposes
+explicit semantic augmentation entries, while `manifest.diagnostics()` exposes
+the lower-level Modules and provider selections used to implement them. The
+semantic entry is not a provider identity, support dependency list, Host
+requirement, or runtime record. See [Augmentation](augmentation.md).
+
 Next: [Instance](instance.md), the live materialization boundary. You can also
 return to the [Concept map](README.md).

@@ -61,6 +61,9 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 - **System** is an instance-wide shared capability.
 - **Adapter** realizes a Component, Resource, or System for a concrete
   environment.
+- **Augmentation** lets independently owned semantic meaning attach to a
+  selected Resource, System, or Component without modifying its base
+  definition.
 - **Host** describes environmental compatibility for a realization.
 - **Manifest** inspects the semantic declarations in a Composition.
 
@@ -104,6 +107,8 @@ live runtime.
 - New to Fabric? Start with [Getting Started](docs/getting-started.md).
 - Want the conceptual map? Read [Concepts](docs/concepts/README.md).
 - Need the precise model? Read the [Architecture](docs/architecture.md).
+- Need open semantic augmentation? Read the
+  [Augmentation concept](docs/concepts/augmentation.md).
 - Building directly on Core? See the [Advanced Raw API](docs/advanced/raw-api.md).
 - Contributing from source? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -112,6 +117,9 @@ live runtime.
 The latest crates.io release is `onoal-fabric` 0.1.2. This release closes the
 Fabric 0.3 Time / Lifecycle / Change milestone. Fabric 0.3 is the milestone
 name, not the crates.io package version.
+
+The source documentation also describes the next augmentation contract; that
+does not claim an unreleased package version is installable from crates.io.
 
 ## License
 

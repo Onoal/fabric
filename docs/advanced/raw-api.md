@@ -38,6 +38,11 @@ runtime materializer returns `MissingRuntimeMaterializer`.
   which compatible provider a Composition chooses for one consumer.
 - A raw `Composition` remains reusable declaration and materializes distinct,
   generation-scoped Instances.
+- High-level Resource, System, and Component augmentation lowers to these
+  ordinary Core Contracts, requirements, Modules, and provider selections.
+  Core has no augmentation object or resolver; normal users should use the
+  typed [Augmentation](../concepts/augmentation.md) API rather than hand-write
+  its lowering.
 
 Raw Core consumers can declare bounded `CompositionExport`s intentionally.
 This does not make Instance a general service locator: only declared exports

@@ -135,6 +135,34 @@ Component requires Resource contract
 -> Component receives typed contract
 ```
 
+## External augmentation
+
+An external semantic may attach to one selected Resource occurrence without
+changing `ResourceDefinition`, its schema, or its primary contract. The target
+is the actual `ResourceId + ResourceName` occurrence: `Store("primary") + X`
+does not make `Store("secondary") + X` true.
+
+```rust
+let attachment = ResourceAugmentation::<NoteStore, Readback>::attach(&primary, ())?;
+let supported = attachment.using(ReadbackSupport);
+let readback = supported.require_from(&primary)?;
+
+let built = Fabric::new("example.resource-augmentation")?
+    .resource(primary)
+    .resource_augmentation(supported)
+    .build()?;
+# let _ = (readback, built);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`ResourceAugmentationDefinition` owns the typed semantic contract and Config
+for `X`; `ResourceAugmentationSupportDefinition` independently supplies its
+implementation. `attach(...)` records bare semantic truth. Only `.using(...)`
+adds a provider for `X`, and `require_from(...)` creates a target-bound typed
+requirement rather than a free-floating contract lookup. Support may own its
+own dependencies, additional implementation contracts, and Host requirement.
+See [Augmentation](augmentation.md) for the shared law and Manifest boundary.
+
 ## Low-level identity nuance
 
 `fabric-resource` also exposes `ResourceContext`, `ResourceBoundaryId`,

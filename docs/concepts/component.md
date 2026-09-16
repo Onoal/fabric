@@ -209,6 +209,46 @@ that is not the lifecycle of one semantic Component declaration.
 | `ComponentParticipation` | absent | generation-scoped |
 | `InvocationContext` | absent | per invocation |
 
+## External augmentation
+
+An external semantic may attach to a configured `ComponentSpec` without
+changing the `ComponentDefinition`. The Component continues to own its base
+Config, identity, and `ComponentDeclaration.operations`: an augmentation may
+not append an undeclared base operation.
+
+```rust
+let audit = Greeter::define(GreeterConfig {})
+    .augment::<Audit>(())?
+    .using(AuditSupport);
+let audit_requirement = audit.requirement();
+
+let traced = audit.into_set()
+    .augment::<Trace>(())?
+    .using(TraceSupport);
+let trace_requirement = traced.requirement();
+
+let built = Fabric::new("example.component-augmentation")?
+    .component(traced)
+    .build()?;
+# let _ = (audit_requirement, trace_requirement, built);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`ComponentAugmentationDefinition` owns only the added semantic `X` and its
+typed contract. `ComponentAugmentationSupportDefinition` independently
+provides that contract and may prepare the same Component participation. A
+Component has one base runtime attachment and zero or more augmentation
+preparation contributions; neither a second Component participation nor a
+second base realization is created. This applies to zero-operation Components
+and to ordinary self-realizing or Adapter-realized Components.
+
+`ComponentAugmentationSet` keeps one configured Component while multiple
+distinct semantics are attached. Each supported attachment has a typed,
+target-bound `ComponentAugmentationRequirement`; `without_support()` preserves
+a bare attachment but deliberately offers no provider-bound requirement. This
+does not create a primary Component semantic contract or a
+Component-to-Component dependency. See [Augmentation](augmentation.md).
+
 ## Boundaries
 
 ```text

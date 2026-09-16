@@ -25,6 +25,50 @@ direct Core authoring.
 
 Fabric generalizes machinery rather than package or product vocabulary.
 
+## Open semantic augmentation
+
+An external semantic augmentation is a typed addition to a selected Resource,
+System, or Component. The base subject, augmentation semantic, attachment,
+support implementation, and realization are distinct truths. The base does not
+need to know an augmentation; an augmentation may know its base; independently
+authored support may know both.
+
+```text
+base subject != X != attachment != support implementation != realization
+```
+
+Resource attachment targets `ResourceId + ResourceName`. System attachment
+targets the selected `SystemId` occurrence; normal typed authoring has one
+coherent occurrence per identity and no `SystemName`. Component attachment
+targets a configured `ComponentSpec` under its `ComponentId`. Component keeps
+its own special runtime rule: one base `ComponentRuntimeDefinition` plus zero
+or more augmentation preparation contributions operating on the same
+generation-scoped participation. Augmentation never alters the base Component
+operation declaration.
+
+Support implementation truth—its dependencies, extra provided contracts, and
+Host compatibility—remains implementation truth. Fabric combines it with the
+target relationship and augmentation provision in one ordinary Core provider
+occurrence. Consumer requirements name the typed semantic contract owned by
+`X`, not the support implementation. A target plus augmentation Contract
+identity is one attachment identity: `X + Y` is distinct, while repeating `X`
+on the same target is rejected rather than creating a second semantic subject.
+
+The Manifest records those semantic attachments with explicit Resource,
+System, and Component entry types. It does not treat provider module IDs,
+support dependencies, Host requirements, or runtime history as semantic
+attachment fields. `manifest.diagnostics()` exposes the separate raw/Core
+graph when that implementation detail is needed.
+
+This is open-world authoring, not inheritance, metadata, a global semantic
+registry, or a second resolver. All paths lower through existing Core Modules,
+Contracts, requirements, provider selections, dependency ordering, and
+materialization. Adapter remains realization machinery rather than an
+augmentation target; Host remains environmental compatibility truth. The
+independent `verification/third-party-augmentation` workspace proves the
+public ownership direction across base, semantic, support, consumer, and app
+crates.
+
 ## Time, lifecycle, and declarative change
 
 `InstanceId` is a caller-selected logical runtime name. `InstanceGeneration`
@@ -112,8 +156,9 @@ and generation. A Resource/System-only Composition has no Component host.
 ## Inspection and advanced APIs
 
 `FabricManifest` is immutable semantic Composition inspection. It exposes
-Resources, Systems, Components, and Component Resource/System bindings. A
-Resource binding identifies the selected `ResourceId + ResourceName`.
+Resources, Systems, Components, Component Resource/System bindings, and
+explicit semantic augmentation attachments. A Resource binding identifies the
+selected `ResourceId + ResourceName`.
 
 `manifest.diagnostics()` is the explicit raw/Core view for backing Module
 declarations, provider selections, Blocks, and Composition exports. Manifest

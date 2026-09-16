@@ -182,6 +182,33 @@ materialized Instance -> live typed System contract
 | Adapter selection | Composition truth | materialized provider |
 | primary contract | declared | live typed value |
 
+## External augmentation
+
+An independently owned semantic `X` may attach to a selected System without
+changing `SystemDefinition`, its schema, or its primary contract. The target is
+the selected System occurrence under its `SystemId`; augmentation does not add
+a `SystemName` or permit a second normal typed System occurrence.
+
+```rust
+let attachment = SystemAugmentation::<Operations, DriftObservation>::attach(&operations, ())?;
+let supported = attachment.using(DriftSupport);
+let drift = supported.require_from(&operations)?;
+
+let built = Fabric::new("example.system-augmentation")?
+    .system(operations)
+    .system_augmentation(supported)
+    .build()?;
+# let _ = (drift, built);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+`SystemAugmentationDefinition` owns only `X`'s typed semantic contract and
+Config. `SystemAugmentationSupportDefinition` independently supplies a
+provider; support is not part of the base System or an Adapter identity. A
+bare attachment is inspectable semantic truth but does not satisfy a consumer
+of `X`. `require_from(...)` ties a typed requirement to this selected System
+and its support provider. See [Augmentation](augmentation.md).
+
 ## Boundaries
 
 ```text

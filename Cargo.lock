@@ -141,6 +141,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-test-docs-augmentation"
+version = "0.1.0"
+dependencies = [
+ "fabric-test-adapter-clock-memory",
+ "fabric-test-component-greeter",
+ "fabric-test-resource-clock",
+ "fabric-test-system-operations",
+ "onoal-fabric",
+]
+
+[[package]]
 name = "fabric-test-docs-component"
 version = "0.1.0"
 dependencies = [

@@ -7,6 +7,8 @@ use fabric_core::{
 };
 use fabric_system::SystemId;
 
+use crate::authoring::requirement_for_key;
+
 use super::{PrimarySystemContract, SystemRequires, SystemSelection};
 
 /// Externally owned semantic meaning that may attach to one selected System.
@@ -359,20 +361,6 @@ where
     match key.identity() {
         ContractIdentity::Provisional => SystemRequires::provisional(),
         ContractIdentity::Versioned(version) => SystemRequires::versioned(
-            ContractVersionRequirement::parse(format!("={version}"))
-                .expect("a ContractVersion always forms an exact requirement"),
-        ),
-    }
-}
-
-fn requirement_for_key<T>(key: &ContractKey<T>) -> ContractRequirement<T>
-where
-    T: Send + Sync + 'static,
-{
-    match key.identity() {
-        ContractIdentity::Provisional => ContractRequirement::provisional(key.id().clone()),
-        ContractIdentity::Versioned(version) => ContractRequirement::versioned(
-            key.id().clone(),
             ContractVersionRequirement::parse(format!("={version}"))
                 .expect("a ContractVersion always forms an exact requirement"),
         ),

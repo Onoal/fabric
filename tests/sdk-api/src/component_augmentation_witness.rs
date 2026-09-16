@@ -78,6 +78,104 @@ struct MissingAudit {
     id: ModuleId,
     requirement: ContractRequirement<AuditService>,
 }
+
+#[derive(Clone)]
+struct AuditConsumer {
+    id: ModuleId,
+    requirement: ComponentAugmentationRequirement<Greeter, Audit>,
+    bound: Arc<AtomicUsize>,
+}
+
+impl AuditConsumer {
+    fn new(
+        requirement: ComponentAugmentationRequirement<Greeter, Audit>,
+        bound: Arc<AtomicUsize>,
+    ) -> Self {
+        Self {
+            id: ModuleId::new("fabric.test.component.audit.consumer").expect("module id"),
+            requirement,
+            bound,
+        }
+    }
+}
+
+impl ModuleRuntime for AuditConsumer {
+    fn id(&self) -> &ModuleId {
+        &self.id
+    }
+    fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
+        vec![self.requirement.augmentation().declaration().clone()]
+    }
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+    fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        bindings
+            .resolve(self.requirement.augmentation())
+            .map_err(|error| ModuleError::new(error.to_string()))?;
+        self.bound.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn stop(&mut self) {}
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
+#[derive(Clone)]
+struct TraceConsumer {
+    id: ModuleId,
+    requirement: ComponentAugmentationRequirement<Greeter, Trace>,
+    bound: Arc<AtomicUsize>,
+}
+
+impl TraceConsumer {
+    fn new(
+        requirement: ComponentAugmentationRequirement<Greeter, Trace>,
+        bound: Arc<AtomicUsize>,
+    ) -> Self {
+        Self {
+            id: ModuleId::new("fabric.test.component.trace.consumer").expect("module id"),
+            requirement,
+            bound,
+        }
+    }
+}
+
+impl ModuleRuntime for TraceConsumer {
+    fn id(&self) -> &ModuleId {
+        &self.id
+    }
+    fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
+        vec![self.requirement.augmentation().declaration().clone()]
+    }
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+    fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        bindings
+            .resolve(self.requirement.augmentation())
+            .map_err(|error| ModuleError::new(error.to_string()))?;
+        self.bound.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn stop(&mut self) {}
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
 impl ModuleRuntime for MissingAudit {
     fn id(&self) -> &ModuleId {
         &self.id
@@ -516,4 +614,102 @@ fn alternate_supports_preserve_the_same_semantic_contract() {
         .expect("second participation");
     assert_eq!(first.load(Ordering::SeqCst), 1);
     assert_eq!(second.lock().expect("second participations").len(), 1);
+}
+
+#[test]
+fn multi_augmentation_authoring_retains_typed_requirements_for_each_semantic() {
+    let audit_prepared = Arc::new(AtomicUsize::new(0));
+    let trace_prepared = Arc::new(Mutex::new(Vec::new()));
+    let audit = Greeter::define(GreeterConfig {})
+        .augment::<Audit>(())
+        .expect("attach audit")
+        .using(AuditSupport(Arc::clone(&audit_prepared)));
+    let audit_requirement = audit.requirement();
+    let trace = audit
+        .into_set()
+        .augment::<Trace>(())
+        .expect("attach trace")
+        .using(TraceSupport(Arc::clone(&trace_prepared)));
+    let trace_requirement = trace.requirement();
+    assert_eq!(
+        audit_requirement.target_component_id(),
+        &Greeter::component_id()
+    );
+    assert_eq!(
+        trace_requirement.target_component_id(),
+        &Greeter::component_id()
+    );
+    assert_ne!(
+        audit_requirement.augmentation().declaration().id(),
+        trace_requirement.augmentation().declaration().id(),
+    );
+
+    let audit_bound = Arc::new(AtomicUsize::new(0));
+    let trace_bound = Arc::new(AtomicUsize::new(0));
+    let audit_consumer = AuditConsumer::new(audit_requirement.clone(), Arc::clone(&audit_bound));
+    let trace_consumer = TraceConsumer::new(trace_requirement.clone(), Arc::clone(&trace_bound));
+    let audit_selection = audit_requirement.provider_selection(audit_consumer.id.clone());
+    let trace_selection = trace_requirement.provider_selection(trace_consumer.id.clone());
+    let built = Fabric::new("fabric.test.component.augmentation.requirements")
+        .expect("fabric")
+        .component(trace)
+        .block("audit-consumer", |block| block.module(audit_consumer))
+        .expect("audit block")
+        .block("trace-consumer", |block| block.module(trace_consumer))
+        .expect("trace block")
+        .select_provider(audit_selection)
+        .select_provider(trace_selection)
+        .build()
+        .expect("build");
+    assert_eq!(built.manifest().component_augmentations().len(), 2);
+    let mut instance = built
+        .materialize_named("component-augmentation-requirements")
+        .expect("materialize");
+    instance.start().expect("start");
+    assert_eq!(audit_bound.load(Ordering::SeqCst), 1);
+    assert_eq!(trace_bound.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn bare_attachment_has_no_supported_requirement_while_later_support_remains_usable() {
+    let trace_prepared = Arc::new(Mutex::new(Vec::new()));
+    let supported_trace = Greeter::define(GreeterConfig {})
+        .augment::<Audit>(())
+        .expect("attach bare audit")
+        .into_set()
+        .augment::<Trace>(())
+        .expect("attach trace")
+        .using(TraceSupport(Arc::clone(&trace_prepared)));
+    let trace_requirement = supported_trace.requirement();
+    let trace_bound = Arc::new(AtomicUsize::new(0));
+    let trace_consumer = TraceConsumer::new(trace_requirement.clone(), Arc::clone(&trace_bound));
+    let trace_selection = trace_requirement.provider_selection(trace_consumer.id.clone());
+    let built = Fabric::new("fabric.test.component.augmentation.bare-and-supported")
+        .expect("fabric")
+        .component(supported_trace)
+        .block("trace-consumer", |block| block.module(trace_consumer))
+        .expect("trace block")
+        .select_provider(trace_selection)
+        .build()
+        .expect("build");
+    assert_eq!(built.manifest().component_augmentations().len(), 2);
+    assert!(
+        built
+            .manifest()
+            .component_augmentations()
+            .iter()
+            .any(|entry| entry.contract_id() == Audit::contract_key().id())
+    );
+    assert!(
+        built
+            .manifest()
+            .component_augmentations()
+            .iter()
+            .any(|entry| entry.contract_id() == Trace::contract_key().id())
+    );
+    let mut instance = built
+        .materialize_named("component-augmentation-bare-and-supported")
+        .expect("materialize");
+    instance.start().expect("start");
+    assert_eq!(trace_bound.load(Ordering::SeqCst), 1);
 }

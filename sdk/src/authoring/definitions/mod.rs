@@ -16,7 +16,8 @@ pub use component_augmentation::{
     ComponentAugmentation, ComponentAugmentationDefinition, ComponentAugmentationRealization,
     ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
-    ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
+    ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
+    ComponentAugmentedAdapterRealization,
 };
 pub(crate) use component_definition::ComponentSpecParts;
 pub use component_definition::{

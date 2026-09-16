@@ -12,6 +12,7 @@ use super::{
     AdaptableComponentDefinition, AdapterDefinition, ComponentDefinition, ComponentRealization,
     ComponentSpec,
 };
+use crate::authoring::requirement_for_key;
 
 /// Externally owned semantic meaning attached to one configured Component.
 pub trait ComponentAugmentationDefinition<C>: Sized + Send + Sync + 'static
@@ -66,19 +67,7 @@ where
         &self.config
     }
     pub fn requirement(&self) -> fabric_core::ContractRequirement<X::Contract> {
-        let key = X::contract_key();
-        match key.identity() {
-            fabric_core::ContractIdentity::Provisional => {
-                fabric_core::ContractRequirement::provisional(key.id().clone())
-            }
-            fabric_core::ContractIdentity::Versioned(version) => {
-                fabric_core::ContractRequirement::versioned(
-                    key.id().clone(),
-                    fabric_core::ContractVersionRequirement::parse(format!("={version}"))
-                        .expect("exact contract version"),
-                )
-            }
-        }
+        requirement_for_key(&X::contract_key())
     }
     pub fn using<S>(self, support: S) -> ComponentAugmentationRealization<C, X, S>
     where
@@ -136,6 +125,20 @@ where
     provider_module_id: ModuleId,
 }
 
+impl<C, X> Clone for ComponentAugmentationRequirement<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            requirement: self.requirement.clone(),
+            target_component_id: self.target_component_id.clone(),
+            provider_module_id: self.provider_module_id.clone(),
+        }
+    }
+}
+
 impl<C, X> ComponentAugmentationRequirement<C, X>
 where
     C: ComponentDefinition,
@@ -181,6 +184,18 @@ where
     attachment: ComponentAugmentation<C, X>,
     providers: Vec<Box<dyn Module>>,
     manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+}
+
+/// A supported augmentation appended to an existing Component augmentation
+/// set. It retains the typed target-bound requirement until the caller either
+/// uses it as the Component contribution or continues chaining.
+pub struct ComponentAugmentationSetRealization<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    set: ComponentAugmentationSet<C>,
+    requirement: ComponentAugmentationRequirement<C, X>,
 }
 
 /// A Component augmentation set combined with the ordinary Adapter realization
@@ -316,20 +331,43 @@ where
 
     /// Adds an independently supplied realization support provider for this
     /// semantic attachment.
-    pub fn using<S>(self, support: S) -> ComponentAugmentationSet<C>
+    pub fn using<S>(self, support: S) -> ComponentAugmentationSetRealization<C, X>
     where
         S: ComponentAugmentationSupportDefinition<C, X>,
     {
-        let mut appended = self.attachment.using(support).into_set();
+        let requirement = self.attachment.using(support);
+        let typed_requirement = requirement.requirement();
+        let mut appended = requirement.into_set();
         let mut providers = self.providers;
         providers.append(&mut appended.providers);
         let mut manifest = self.manifest;
         manifest.append(&mut appended.manifest);
-        ComponentAugmentationSet {
-            component: appended.component,
-            providers,
-            manifest,
+        ComponentAugmentationSetRealization {
+            set: ComponentAugmentationSet {
+                component: appended.component,
+                providers,
+                manifest,
+            },
+            requirement: typed_requirement,
         }
+    }
+}
+
+impl<C, X> ComponentAugmentationSetRealization<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    /// Returns the typed requirement pinned to this supported augmentation's
+    /// target Component and provider occurrence.
+    pub fn requirement(&self) -> ComponentAugmentationRequirement<C, X> {
+        self.requirement.clone()
+    }
+
+    /// Continues Component augmentation authoring while retaining any copied
+    /// typed requirement handles obtained from this value.
+    pub fn into_set(self) -> ComponentAugmentationSet<C> {
+        self.set
     }
 }
 

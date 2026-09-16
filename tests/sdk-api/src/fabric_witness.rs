@@ -270,10 +270,55 @@ impl ComponentAugmentationDefinition<Gateway> for GatewayAudit {
 }
 
 #[derive(Clone)]
+struct GatewayTrace;
+#[derive(Clone)]
+struct GatewayTraceService;
+
+impl ComponentAugmentationDefinition<Gateway> for GatewayTrace {
+    type Config = ();
+    type Contract = GatewayTraceService;
+
+    fn contract_key() -> ContractKey<Self::Contract> {
+        ContractKey::provisional(ContractId::new("fabric.test.gateway.trace").expect("contract"))
+    }
+}
+
+#[derive(Clone)]
 struct GatewayAuditSupport;
 
 struct GatewayAuditRuntime {
     module_id: ModuleId,
+}
+
+struct GatewayTraceRuntime {
+    module_id: ModuleId,
+}
+
+impl ModuleRuntime for GatewayTraceRuntime {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(vec![ModuleContract::new(
+            &GatewayTrace::contract_key(),
+            Arc::new(GatewayTraceService),
+        )])
+    }
+
+    fn bind(&mut self, _: &ModuleBindings) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn stop(&mut self) {}
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
 }
 
 impl ModuleRuntime for GatewayAuditRuntime {
@@ -310,6 +355,23 @@ impl ComponentAugmentationSupportDefinition<Gateway, GatewayAudit> for GatewayAu
 
     fn materialize(&self, _: &(), module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(GatewayAuditRuntime { module_id }))
+    }
+
+    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct GatewayTraceSupport;
+
+impl ComponentAugmentationSupportDefinition<Gateway, GatewayTrace> for GatewayTraceSupport {
+    fn declaration(&self, module_id: ModuleId) -> ModuleDeclaration {
+        ModuleDeclaration::new(module_id)
+    }
+
+    fn materialize(&self, _: &(), module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(GatewayTraceRuntime { module_id }))
     }
 
     fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
@@ -1341,23 +1403,39 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
 
 #[test]
 fn adapter_realized_component_prepares_external_augmentation_without_adapter_knowledge() {
-    let gateway = ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+    let audit = ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
         prefix: "gateway".to_owned(),
     })
     .augment::<GatewayAudit>(())
-    .expect("attach external semantic")
-    .using(GatewayAuditSupport)
-    .into_set()
-    .using_adapter(PingoraAdapter {
-        implementation: "pingora".to_owned(),
-    })
-    .expect("adapter realization");
+    .expect("attach external audit")
+    .using(GatewayAuditSupport);
+    let audit_requirement = audit.requirement();
+    let trace = audit
+        .into_set()
+        .augment::<GatewayTrace>(())
+        .expect("attach external trace")
+        .using(GatewayTraceSupport);
+    let trace_requirement = trace.requirement();
+    assert_eq!(
+        audit_requirement.target_component_id(),
+        &Gateway::component_id()
+    );
+    assert_eq!(
+        trace_requirement.target_component_id(),
+        &Gateway::component_id()
+    );
+    let gateway = trace
+        .into_set()
+        .using_adapter(PingoraAdapter {
+            implementation: "pingora".to_owned(),
+        })
+        .expect("adapter realization");
     let built = Fabric::new("fabric.test.gateway.augmentation")
         .expect("fabric")
         .component(gateway)
         .build()
         .expect("build");
-    assert_eq!(built.manifest().component_augmentations().len(), 1);
+    assert_eq!(built.manifest().component_augmentations().len(), 2);
     let mut instance = built
         .materialize_named_on("fabric.test.gateway.augmentation.local", &facility_host())
         .expect("materialize");

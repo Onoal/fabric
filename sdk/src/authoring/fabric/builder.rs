@@ -42,9 +42,9 @@ use crate::authoring::definitions::ComponentSpecParts;
 use crate::authoring::{
     AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentAugmentation,
     ComponentAugmentationDefinition, ComponentAugmentationRealization, ComponentAugmentationSet,
-    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSupportDefinition,
-    ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization, ComponentSpec,
-    FabricBuilder,
+    ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetRealization,
+    ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
+    ComponentDefinition, ComponentRealization, ComponentSpec, FabricBuilder,
 };
 use fabric_component::ComponentId;
 type FabricComponentContribution = (
@@ -160,6 +160,16 @@ where
             Vec::new(),
             self.manifest,
         )
+    }
+}
+
+impl<C, X> IntoFabricComponent for ComponentAugmentationSetRealization<C, X>
+where
+    C: ComponentDefinition,
+    X: ComponentAugmentationDefinition<C>,
+{
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        self.into_set().into_fabric_component()
     }
 }
 

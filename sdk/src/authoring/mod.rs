@@ -1,3 +1,4 @@
+mod augmentation_requirement;
 mod block_author;
 mod composition_ext;
 mod definitions;
@@ -6,6 +7,7 @@ mod fabric_builder;
 mod fabric_instance;
 mod system;
 
+pub(crate) use augmentation_requirement::requirement_for_key;
 pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
 pub use definitions::{
@@ -13,13 +15,14 @@ pub use definitions::{
     AdapterProviderModule, ComponentAugmentation, ComponentAugmentationDefinition,
     ComponentAugmentationRealization, ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
-    ComponentAugmentationSupportDefinition, ComponentAugmentedAdapterRealization,
-    ComponentDefinition, ComponentRealization, ComponentRealizationContract,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceAugmentation,
-    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
-    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
-    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
+    ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
+    ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
+    ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
+    ComponentSpec, ComponentSystemScope, ContractDependency, IntoResourceName,
+    PrimaryResourceContract, Requires, ResourceAugmentation, ResourceAugmentationDefinition,
+    ResourceAugmentationError, ResourceAugmentationRealization, ResourceAugmentationRequirement,
+    ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
+    ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,

@@ -22,7 +22,8 @@ pub use primary_resource_contract::PrimaryResourceContract;
 pub use requires::Requires;
 pub use resource_augmentation::{
     ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
-    ResourceAugmentationRequirement,
+    ResourceAugmentationRealization, ResourceAugmentationRequirement,
+    ResourceAugmentationSupportDefinition,
 };
 pub use resource_definition::{AdaptableResourceDefinition, IntoResourceName, ResourceDefinition};
 pub use resource_realization::ResourceRealization;

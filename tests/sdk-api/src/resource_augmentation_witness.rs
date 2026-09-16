@@ -5,24 +5,27 @@ use fabric_core::{
     ContractId, ContractKey, ContractRequirement, ModuleBindings, ModuleContract, ModuleError,
     ModuleId, ModuleRuntime,
 };
-use fabric_test_resource_counter::{DirectCounter, DirectCounterConfig};
+use fabric_test_adapter_clock_memory::MemoryClock;
+use fabric_test_resource_clock::{Clock, ClockConfig};
 
+/// An externally owned semantic. It deliberately has no runtime hook and does
+/// not name either support implementation below.
 #[derive(Clone)]
 struct AdditionalReadback;
 
 #[derive(Clone)]
 struct AdditionalReadbackService {
-    target: String,
+    implementation: String,
 }
 
 impl AdditionalReadbackService {
-    fn target(&self) -> &str {
-        &self.target
+    fn implementation(&self) -> &str {
+        &self.implementation
     }
 }
 
-impl ResourceAugmentationDefinition<DirectCounter> for AdditionalReadback {
-    type Config = String;
+impl ResourceAugmentationDefinition<Clock> for AdditionalReadback {
+    type Config = ();
     type Contract = AdditionalReadbackService;
 
     fn contract_key() -> ContractKey<Self::Contract> {
@@ -30,22 +33,60 @@ impl ResourceAugmentationDefinition<DirectCounter> for AdditionalReadback {
             ContractId::new("fabric.test.additional-readback").expect("contract id"),
         )
     }
+}
+
+/// Independently authored support. The original `MemoryClock` Adapter and the
+/// `AdditionalReadback` semantic both remain unaware of this type.
+#[derive(Clone)]
+struct FirstReadbackSupport;
+
+#[derive(Clone)]
+struct SecondReadbackSupport;
+
+impl ResourceAugmentationSupportDefinition<Clock, AdditionalReadback> for FirstReadbackSupport {
+    fn declaration(&self, provider_module_id: ModuleId) -> fabric_core::ModuleDeclaration {
+        fabric_core::ModuleDeclaration::new(provider_module_id)
+    }
 
     fn materialize(
-        attachment: &ResourceAugmentation<DirectCounter, Self>,
+        &self,
+        attachment: &ResourceAugmentation<Clock, AdditionalReadback>,
+        provider_module_id: ModuleId,
     ) -> Option<Box<dyn ModuleRuntime>> {
-        Some(Box::new(AdditionalReadbackRuntime {
-            module_id: attachment.module_id().clone(),
-            target: attachment.config().clone(),
-            base: Requires::provisional(),
-        }))
+        readback_runtime(attachment, provider_module_id, "support-one")
     }
+}
+
+impl ResourceAugmentationSupportDefinition<Clock, AdditionalReadback> for SecondReadbackSupport {
+    fn declaration(&self, provider_module_id: ModuleId) -> fabric_core::ModuleDeclaration {
+        fabric_core::ModuleDeclaration::new(provider_module_id)
+    }
+
+    fn materialize(
+        &self,
+        attachment: &ResourceAugmentation<Clock, AdditionalReadback>,
+        provider_module_id: ModuleId,
+    ) -> Option<Box<dyn ModuleRuntime>> {
+        readback_runtime(attachment, provider_module_id, "support-two")
+    }
+}
+
+fn readback_runtime(
+    attachment: &ResourceAugmentation<Clock, AdditionalReadback>,
+    provider_module_id: ModuleId,
+    implementation: &str,
+) -> Option<Box<dyn ModuleRuntime>> {
+    Some(Box::new(AdditionalReadbackRuntime {
+        module_id: provider_module_id,
+        implementation: implementation.to_owned(),
+        base: attachment.base_requirement(),
+    }))
 }
 
 struct AdditionalReadbackRuntime {
     module_id: ModuleId,
-    target: String,
-    base: Requires<DirectCounter>,
+    implementation: String,
+    base: Requires<Clock>,
 }
 
 impl ModuleRuntime for AdditionalReadbackRuntime {
@@ -61,7 +102,7 @@ impl ModuleRuntime for AdditionalReadbackRuntime {
         Ok(vec![ModuleContract::new(
             &AdditionalReadback::contract_key(),
             Arc::new(AdditionalReadbackService {
-                target: self.target.clone(),
+                implementation: self.implementation.clone(),
             }),
         )])
     }
@@ -91,19 +132,19 @@ impl ModuleRuntime for AdditionalReadbackRuntime {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct RichObservation {
     base_provider: ModuleId,
-    additional_target: String,
+    implementation: String,
 }
 
 #[derive(Clone)]
 struct RichConsumer {
     module_id: ModuleId,
-    requirement: Arc<ResourceAugmentationRequirement<DirectCounter, AdditionalReadback>>,
+    requirement: Arc<ResourceAugmentationRequirement<Clock, AdditionalReadback>>,
     capture: Arc<Mutex<Option<RichObservation>>>,
 }
 
 impl RichConsumer {
     fn new(
-        requirement: ResourceAugmentationRequirement<DirectCounter, AdditionalReadback>,
+        requirement: ResourceAugmentationRequirement<Clock, AdditionalReadback>,
         capture: Arc<Mutex<Option<RichObservation>>>,
     ) -> Self {
         Self {
@@ -142,7 +183,7 @@ impl ModuleRuntime for RichConsumer {
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture lock") = Some(RichObservation {
             base_provider: base.provider().clone(),
-            additional_target: additional.target().to_owned(),
+            implementation: additional.implementation().to_owned(),
         });
         Ok(())
     }
@@ -165,7 +206,7 @@ impl ModuleRuntime for RichConsumer {
 #[derive(Clone)]
 struct MissingAdditionalConsumer {
     module_id: ModuleId,
-    requirement: fabric_core::ContractRequirement<AdditionalReadbackService>,
+    requirement: ContractRequirement<AdditionalReadbackService>,
 }
 
 impl MissingAdditionalConsumer {
@@ -212,14 +253,23 @@ impl ModuleRuntime for MissingAdditionalConsumer {
     }
 }
 
-#[test]
-fn external_semantic_attachment_is_occurrence_scoped_and_manifest_truthful() {
-    let one = DirectCounter::select("one", DirectCounterConfig { value: 1 }).expect("one");
-    let two = DirectCounter::select("two", DirectCounterConfig { value: 2 }).expect("two");
+fn selected_clock(name: &str) -> ResourceSelection<Clock> {
+    Clock::select(name, ClockConfig::default()).expect("clock selection")
+}
+
+fn build_supported_clock<S>(
+    composition_id: &str,
+    support: S,
+) -> (BuiltFabric, ModuleId, Arc<Mutex<Option<RichObservation>>>)
+where
+    S: ResourceAugmentationSupportDefinition<Clock, AdditionalReadback>,
+{
+    let one = selected_clock("one");
+    let two = selected_clock("two");
     let attachment =
-        ResourceAugmentation::<DirectCounter, AdditionalReadback>::attach(&two, "two".to_owned())
-            .expect("attachment");
-    let requirement = attachment.require_from(&two).expect("same occurrence");
+        ResourceAugmentation::<Clock, AdditionalReadback>::attach(&two, ()).expect("attachment");
+    let supported = attachment.using(support);
+    let requirement = supported.require_from(&two).expect("same occurrence");
     let consumer = RichConsumer::new(requirement, Arc::new(Mutex::new(None)));
     let selections = consumer
         .requirement
@@ -227,35 +277,45 @@ fn external_semantic_attachment_is_occurrence_scoped_and_manifest_truthful() {
     let capture = Arc::clone(&consumer.capture);
     let expected_base_provider = two.module_id().clone();
 
-    let built = Fabric::new("fabric.test.resource-augmentation")
+    let built = Fabric::new(composition_id)
         .expect("fabric")
-        .resource(one)
-        .resource(two)
-        .resource_augmentation(attachment)
+        .resource(one.using(MemoryClock::new(1)).expect("one adapter"))
+        .resource(two.using(MemoryClock::new(2)).expect("two adapter"))
+        .resource_augmentation(supported)
         .block("consumer", |block| block.module(consumer))
         .expect("consumer block")
         .select_provider(selections[0].clone())
         .select_provider(selections[1].clone())
         .build()
         .expect("build");
+    (built, expected_base_provider, capture)
+}
+
+#[test]
+fn external_support_for_an_adapted_resource_is_occurrence_scoped_and_manifest_truthful() {
+    let (built, expected_base_provider, capture) =
+        build_supported_clock("fabric.test.resource-augmentation", FirstReadbackSupport);
 
     let manifest = built.manifest();
     assert_eq!(manifest.resources().len(), 2);
     assert_eq!(manifest.resource_augmentations().len(), 1);
     let entry = &manifest.resource_augmentations()[0];
     assert_eq!(entry.contract_id(), AdditionalReadback::contract_key().id());
-    assert_eq!(entry.resource_id(), &DirectCounter::resource_id());
+    assert_eq!(entry.resource_id(), &Clock::resource_id());
     assert_eq!(entry.resource_name().as_str(), "two");
 
     let mut instance = built
-        .materialize_named("fabric.test.resource-augmentation.instance")
+        .materialize_named_on(
+            "fabric.test.resource-augmentation.instance",
+            &HostDescriptor::native(),
+        )
         .expect("materialize");
     instance.start().expect("start");
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
         Some(RichObservation {
             base_provider: expected_base_provider,
-            additional_target: "two".to_owned(),
+            implementation: "support-one".to_owned(),
         })
     );
     instance.stop();
@@ -263,13 +323,13 @@ fn external_semantic_attachment_is_occurrence_scoped_and_manifest_truthful() {
 
 #[test]
 fn attachment_rejects_a_requirement_for_another_resource_occurrence() {
-    let one = DirectCounter::select("one", DirectCounterConfig { value: 1 }).expect("one");
-    let two = DirectCounter::select("two", DirectCounterConfig { value: 2 }).expect("two");
-    let attachment =
-        ResourceAugmentation::<DirectCounter, AdditionalReadback>::attach(&two, "two".to_owned())
-            .expect("attachment");
+    let one = selected_clock("one");
+    let two = selected_clock("two");
+    let supported = ResourceAugmentation::<Clock, AdditionalReadback>::attach(&two, ())
+        .expect("attachment")
+        .using(FirstReadbackSupport);
 
-    let error = match attachment.require_from(&one) {
+    let error = match supported.require_from(&one) {
         Ok(_) => panic!("wrong occurrence must not form a requirement"),
         Err(error) => error,
     };
@@ -284,29 +344,20 @@ fn attachment_rejects_a_requirement_for_another_resource_occurrence() {
 }
 
 #[test]
-fn base_only_resource_authoring_and_missing_additional_contract_remain_distinct() {
-    let base_only = Fabric::new("fabric.test.resource-augmentation.base-only")
-        .expect("fabric")
-        .resource(DirectCounter::select("one", DirectCounterConfig { value: 1 }).expect("one"))
-        .resource(DirectCounter::select("two", DirectCounterConfig { value: 2 }).expect("two"))
-        .build()
-        .expect("base-only build");
-    assert!(base_only.manifest().resource_augmentations().is_empty());
-    let mut instance = base_only
-        .materialize_named("fabric.test.resource-augmentation.base-only.instance")
-        .expect("base-only materializes");
-    instance.start().expect("base-only starts");
-    instance.stop();
-
+fn semantic_attachment_without_support_cannot_satisfy_the_additional_contract() {
+    let two = selected_clock("two");
+    let attachment =
+        ResourceAugmentation::<Clock, AdditionalReadback>::attach(&two, ()).expect("attachment");
     let error = Fabric::new("fabric.test.resource-augmentation.missing")
         .expect("fabric")
-        .resource(DirectCounter::select("two", DirectCounterConfig { value: 2 }).expect("two"))
+        .resource(two.using(MemoryClock::new(2)).expect("adapter"))
+        .resource_augmentation(attachment)
         .block("missing", |block| {
             block.module(MissingAdditionalConsumer::new())
         })
         .expect("missing block")
         .build()
-        .expect_err("base does not provide external semantic");
+        .expect_err("semantic attachment alone does not provide X");
     assert!(matches!(
         error,
         FabricBuildError::Composition(CompositionError::MissingProvider { .. })
@@ -314,28 +365,63 @@ fn base_only_resource_authoring_and_missing_additional_contract_remain_distinct(
 }
 
 #[test]
-fn duplicate_attachment_contract_for_one_occurrence_is_rejected_by_existing_core_rules() {
-    let target = DirectCounter::select("two", DirectCounterConfig { value: 2 }).expect("target");
-    let first = ResourceAugmentation::<DirectCounter, AdditionalReadback>::attach(
-        &target,
-        "first".to_owned(),
-    )
-    .expect("first");
-    let second = ResourceAugmentation::<DirectCounter, AdditionalReadback>::attach(
-        &target,
-        "second".to_owned(),
-    )
-    .expect("second");
+fn alternate_supports_preserve_x_identity_and_change_only_implementation() {
+    let (first, first_provider, first_capture) = build_supported_clock(
+        "fabric.test.resource-augmentation.first",
+        FirstReadbackSupport,
+    );
+    let (second, second_provider, second_capture) = build_supported_clock(
+        "fabric.test.resource-augmentation.second",
+        SecondReadbackSupport,
+    );
+    assert_eq!(
+        first.manifest().resource_augmentations()[0].contract_id(),
+        second.manifest().resource_augmentations()[0].contract_id()
+    );
 
-    let error = Fabric::new("fabric.test.resource-augmentation.duplicate")
+    let host = HostDescriptor::native();
+    let mut first_instance = first
+        .materialize_named_on("first", &host)
+        .expect("first materialize");
+    let mut second_instance = second
+        .materialize_named_on("second", &host)
+        .expect("second materialize");
+    first_instance.start().expect("first start");
+    second_instance.start().expect("second start");
+
+    assert_eq!(
+        first_capture.lock().expect("first capture").clone(),
+        Some(RichObservation {
+            base_provider: first_provider,
+            implementation: "support-one".to_owned(),
+        })
+    );
+    assert_eq!(
+        second_capture.lock().expect("second capture").clone(),
+        Some(RichObservation {
+            base_provider: second_provider,
+            implementation: "support-two".to_owned(),
+        })
+    );
+    first_instance.stop();
+    second_instance.stop();
+}
+
+#[test]
+fn base_only_adapted_resource_authoring_remains_valid() {
+    let built = Fabric::new("fabric.test.resource-augmentation.base-only")
         .expect("fabric")
-        .resource(target)
-        .resource_augmentation(first)
-        .resource_augmentation(second)
+        .resource(
+            selected_clock("one")
+                .using(MemoryClock::new(1))
+                .expect("adapter"),
+        )
         .build()
-        .expect_err("duplicate attachment must remain structurally invalid");
-    assert!(matches!(
-        error,
-        FabricBuildError::Composition(CompositionError::DuplicateModuleId { .. })
-    ));
+        .expect("base-only build");
+    assert!(built.manifest().resource_augmentations().is_empty());
+    let mut instance = built
+        .materialize_named_on("base-only", &HostDescriptor::native())
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop();
 }

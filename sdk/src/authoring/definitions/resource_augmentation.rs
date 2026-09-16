@@ -2,18 +2,18 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use fabric_core::{
-    ContractKey, ContractProviderSelection, ContractRequirement, Module, ModuleDeclaration,
-    ModuleId, ModuleRuntime,
+    ContractIdentity, ContractKey, ContractProviderSelection, ContractRequirement,
+    ContractVersionRequirement, Module, ModuleDeclaration, ModuleId, ModuleRuntime,
 };
 use fabric_resource::{ResourceId, ResourceName};
 
 use super::{PrimaryResourceContract, Requires, ResourceSelection};
 
-/// An externally owned semantic contribution attached to one selected Resource occurrence.
+/// An externally owned semantic contribution that may be attached to one
+/// selected Resource occurrence.
 ///
-/// The base Resource definition does not know this contribution exists. The
-/// attachment lowers to a normal Core module that requires the target
-/// occurrence's primary contract and provides the contribution's typed contract.
+/// This trait owns only `X`'s semantic contract. Runtime support is supplied
+/// separately through [`ResourceAugmentationSupportDefinition`].
 pub trait ResourceAugmentationDefinition<R>: Sized + Send + Sync + 'static
 where
     R: PrimaryResourceContract,
@@ -23,9 +23,30 @@ where
 
     /// Identifies the additional semantic contract owned by this contribution.
     fn contract_key() -> ContractKey<Self::Contract>;
+}
 
-    /// Creates any local runtime support for this attachment.
-    fn materialize(attachment: &ResourceAugmentation<R, Self>) -> Option<Box<dyn ModuleRuntime>>;
+/// An independently authored runtime implementation for a Resource
+/// augmentation semantic.
+///
+/// Implementors may depend on both `R` and `X`, but neither the base Resource
+/// nor `X` needs to know that this support implementation exists.
+pub trait ResourceAugmentationSupportDefinition<R, X>: Clone + Send + Sync + 'static
+where
+    R: PrimaryResourceContract,
+    X: ResourceAugmentationDefinition<R>,
+{
+    /// Declares implementation-owned dependencies for this support provider.
+    ///
+    /// Fabric adds the targeted base requirement and `X` contract provision to
+    /// the returned declaration.
+    fn declaration(&self, provider_module_id: ModuleId) -> ModuleDeclaration;
+
+    /// Materializes implementation-owned runtime support for the attachment.
+    fn materialize(
+        &self,
+        attachment: &ResourceAugmentation<R, X>,
+        provider_module_id: ModuleId,
+    ) -> Option<Box<dyn ModuleRuntime>>;
 }
 
 /// One occurrence-specific attachment of externally owned Resource meaning.
@@ -102,31 +123,22 @@ where
     }
 
     pub fn requirement(&self) -> ContractRequirement<X::Contract> {
-        ContractRequirement::provisional(X::contract_key().id().clone())
+        requirement_for_key(&X::contract_key())
     }
 
-    /// Creates a paired base-plus-augmentation requirement for this exact
-    /// target occurrence. Passing another occurrence is rejected before Core
-    /// composition validation.
-    pub fn require_from(
-        &self,
-        target: &ResourceSelection<R>,
-    ) -> Result<ResourceAugmentationRequirement<R, X>, ResourceAugmentationError> {
-        if target.module_id() != &self.target_module_id {
-            return Err(ResourceAugmentationError::TargetMismatch {
-                expected_resource_id: self.resource_id.clone(),
-                expected_resource_name: self.resource_name.clone(),
-                actual_resource_id: R::resource_id(),
-                actual_resource_name: target.name().clone(),
-            });
-        }
-        Ok(ResourceAugmentationRequirement {
-            base: Requires::provisional(),
-            augmentation: self.requirement(),
-            target_module_id: self.target_module_id.clone(),
-            augmentation_module_id: self.module_id.clone(),
-            marker: PhantomData,
-        })
+    /// Returns the exact primary-contract requirement for this attachment's
+    /// Resource definition.
+    pub fn base_requirement(&self) -> Requires<R> {
+        base_requirement()
+    }
+
+    /// Binds this semantic attachment to an independently authored support
+    /// implementation.
+    pub fn using<S>(self, support: S) -> ResourceAugmentationRealization<R, X, S>
+    where
+        S: ResourceAugmentationSupportDefinition<R, X>,
+    {
+        ResourceAugmentationRealization::new(self, support)
     }
 }
 
@@ -137,12 +149,168 @@ where
 {
     fn declaration(&self) -> ModuleDeclaration {
         ModuleDeclaration::new(self.module_id.clone())
-            .with_required_contracts(vec![Requires::<R>::provisional().declaration().clone()])
+            .with_required_contracts(vec![self.base_requirement().declaration().clone()])
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(ResourceAugmentationAttachmentRuntime::<R> {
+            module_id: self.module_id.clone(),
+            base: self.base_requirement(),
+            marker: PhantomData,
+        }))
+    }
+}
+
+struct ResourceAugmentationAttachmentRuntime<R>
+where
+    R: PrimaryResourceContract,
+{
+    module_id: ModuleId,
+    base: Requires<R>,
+    marker: PhantomData<R>,
+}
+
+impl<R> ModuleRuntime for ResourceAugmentationAttachmentRuntime<R>
+where
+    R: PrimaryResourceContract,
+{
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
+        vec![self.base.declaration().clone()]
+    }
+
+    fn export_contracts(
+        &self,
+    ) -> Result<Vec<fabric_core::ModuleContract>, fabric_core::ModuleError> {
+        Ok(Vec::new())
+    }
+
+    fn bind(
+        &mut self,
+        bindings: &fabric_core::ModuleBindings,
+    ) -> Result<(), fabric_core::ModuleError> {
+        self.base
+            .resolve(bindings)
+            .map(|_| ())
+            .map_err(|error| fabric_core::ModuleError::new(error.to_string()))
+    }
+
+    fn initialize(&mut self) -> Result<(), fabric_core::ModuleError> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<(), fabric_core::ModuleError> {
+        Ok(())
+    }
+
+    fn stop(&mut self) {}
+
+    fn health(&self) -> fabric_core::Health {
+        fabric_core::Health::Healthy
+    }
+}
+
+/// One externally supported realization of a Resource augmentation attachment.
+pub struct ResourceAugmentationRealization<R, X, S>
+where
+    R: PrimaryResourceContract,
+    X: ResourceAugmentationDefinition<R>,
+    S: ResourceAugmentationSupportDefinition<R, X>,
+{
+    attachment: ResourceAugmentation<R, X>,
+    support: S,
+    provider_module_id: ModuleId,
+}
+
+impl<R, X, S> Clone for ResourceAugmentationRealization<R, X, S>
+where
+    R: PrimaryResourceContract,
+    X: ResourceAugmentationDefinition<R>,
+    S: ResourceAugmentationSupportDefinition<R, X>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            attachment: self.attachment.clone(),
+            support: self.support.clone(),
+            provider_module_id: self.provider_module_id.clone(),
+        }
+    }
+}
+
+impl<R, X, S> ResourceAugmentationRealization<R, X, S>
+where
+    R: PrimaryResourceContract,
+    X: ResourceAugmentationDefinition<R>,
+    S: ResourceAugmentationSupportDefinition<R, X>,
+{
+    fn new(attachment: ResourceAugmentation<R, X>, support: S) -> Self {
+        let provider_module_id = derive_support_module_id(attachment.module_id())
+            .expect("static augmentation support suffix must preserve module id validity");
+        Self {
+            attachment,
+            support,
+            provider_module_id,
+        }
+    }
+
+    pub fn attachment(&self) -> &ResourceAugmentation<R, X> {
+        &self.attachment
+    }
+
+    pub fn support(&self) -> &S {
+        &self.support
+    }
+
+    pub fn provider_module_id(&self) -> &ModuleId {
+        &self.provider_module_id
+    }
+
+    /// Creates a paired base-plus-augmentation requirement for this exact
+    /// supported attachment. Passing another occurrence is rejected before
+    /// Core composition validation.
+    pub fn require_from(
+        &self,
+        target: &ResourceSelection<R>,
+    ) -> Result<ResourceAugmentationRequirement<R, X>, ResourceAugmentationError> {
+        if target.module_id() != self.attachment.target_module_id() {
+            return Err(ResourceAugmentationError::TargetMismatch {
+                expected_resource_id: self.attachment.resource_id().clone(),
+                expected_resource_name: self.attachment.resource_name().clone(),
+                actual_resource_id: R::resource_id(),
+                actual_resource_name: target.name().clone(),
+            });
+        }
+        Ok(ResourceAugmentationRequirement {
+            base: base_requirement(),
+            augmentation: self.attachment.requirement(),
+            target_module_id: self.attachment.target_module_id().clone(),
+            augmentation_module_id: self.provider_module_id.clone(),
+            marker: PhantomData,
+        })
+    }
+}
+
+impl<R, X, S> Module for ResourceAugmentationRealization<R, X, S>
+where
+    R: PrimaryResourceContract,
+    X: ResourceAugmentationDefinition<R>,
+    S: ResourceAugmentationSupportDefinition<R, X>,
+{
+    fn declaration(&self) -> ModuleDeclaration {
+        self.support
+            .declaration(self.provider_module_id.clone())
+            .with_required_contracts(vec![
+                self.attachment.base_requirement().declaration().clone(),
+            ])
             .with_provided_contracts(vec![X::contract_key().declaration()])
     }
 
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
-        X::materialize(self)
+        self.support
+            .materialize(&self.attachment, self.provider_module_id.clone())
     }
 }
 
@@ -232,6 +400,41 @@ fn derive_module_id(
         target_module_id.as_str()
     ))
     .map_err(|_| ResourceAugmentationError::InvalidModuleId)
+}
+
+fn base_requirement<R>() -> Requires<R>
+where
+    R: PrimaryResourceContract,
+{
+    let key = R::primary_contract_key();
+    match key.identity() {
+        ContractIdentity::Provisional => Requires::provisional(),
+        ContractIdentity::Versioned(version) => Requires::versioned(
+            ContractVersionRequirement::parse(format!("={version}"))
+                .expect("a ContractVersion always forms an exact requirement"),
+        ),
+    }
+}
+
+fn requirement_for_key<T>(key: &ContractKey<T>) -> ContractRequirement<T>
+where
+    T: Send + Sync + 'static,
+{
+    match key.identity() {
+        ContractIdentity::Provisional => ContractRequirement::provisional(key.id().clone()),
+        ContractIdentity::Versioned(version) => ContractRequirement::versioned(
+            key.id().clone(),
+            ContractVersionRequirement::parse(format!("={version}"))
+                .expect("a ContractVersion always forms an exact requirement"),
+        ),
+    }
+}
+
+fn derive_support_module_id(
+    attachment_module_id: &ModuleId,
+) -> Result<ModuleId, ResourceAugmentationError> {
+    ModuleId::new(format!("{}.support", attachment_module_id.as_str()))
+        .map_err(|_| ResourceAugmentationError::InvalidModuleId)
 }
 
 fn nibble(value: u8) -> char {

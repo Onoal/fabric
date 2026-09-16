@@ -13,8 +13,9 @@ pub use definitions::{
     AdapterProviderModule, ComponentDefinition, ComponentRealization, ComponentRealizationContract,
     ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
     ContractDependency, IntoResourceName, PrimaryResourceContract, Requires, ResourceAugmentation,
-    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRequirement,
-    ResourceDefinition, ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
+    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
+    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
+    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,

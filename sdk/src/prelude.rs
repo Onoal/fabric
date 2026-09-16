@@ -13,8 +13,9 @@ pub use crate::authoring::{
     FabricBuildError, FabricComponents, FabricInstance, FabricManifest, IntoFabricResource,
     IntoFabricResourceAugmentation, IntoFabricSystem, IntoResourceName, PrimaryResourceContract,
     PrimarySystemContract, Requires, ResourceAugmentation, ResourceAugmentationDefinition,
-    ResourceAugmentationError, ResourceAugmentationManifestEntry, ResourceAugmentationRequirement,
-    ResourceDefinition, ResourceManifestEntry, ResourceRealization, ResourceSelection,
+    ResourceAugmentationError, ResourceAugmentationManifestEntry, ResourceAugmentationRealization,
+    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
+    ResourceManifestEntry, ResourceRealization, ResourceSelection,
     SelfRealizingComponentDefinition, SystemDefinition, SystemManifestEntry, SystemRealization,
     SystemRequires, SystemSelection,
 };

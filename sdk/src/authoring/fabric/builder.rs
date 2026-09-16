@@ -222,10 +222,10 @@ impl Fabric {
         let contribution = augmentation.into_fabric_resource_augmentation();
         self.resource_augmentations
             .push(contribution.entry().clone());
-        let (module, declaration, selection) = contribution.into_parts();
-        self.typed_modules.push(module);
-        self.module_declarations.push(declaration);
-        self.provider_selections.push(selection);
+        let (modules, declarations, selections) = contribution.into_parts();
+        self.typed_modules.extend(modules);
+        self.module_declarations.extend(declarations);
+        self.provider_selections.extend(selections);
         self
     }
 

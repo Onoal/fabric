@@ -67,6 +67,42 @@ generation allocation, Component participation, controls, or reports across a
 process restart. Retrying an operation is a caller action; materializing again
 creates a new generation. Neither is generic Fabric recovery.
 
+### Generational declarative change
+
+Fabric's structural boundary for a realization or declaration change is new
+declarative truth materialized as a fresh Instance generation. It does not
+mutate the module graph, provider selections, exports, or Host validation of a
+running Instance.
+
+For example, two independently authored Compositions may retain the same
+Gateway Component and Component Config while choosing different Adapters. They
+can materialize under the same `InstanceId`, receive different generations,
+and run concurrently. Each generation creates its own runtime modules,
+Adapter provider, resolved contracts, and Component participations. Fabric
+does not reuse those runtime values across generations.
+
+This is not a generic replacement controller. Fabric does not infer that one
+Composition supersedes another, that a new generation is authoritative, or
+that starting a new generation cuts over traffic or work. It also does not
+infer migration, state transfer, rollback, or a safe retirement order. An
+external owner chooses any such policy and may explicitly stop the older
+generation when appropriate.
+
+Compatibility remains a materialization law: a contract, Resource/System
+schema, or Host requirement can establish that a selection can bind or
+materialize. It does not establish that replacing an old realization is safe.
+In particular, Component internal state, Resource/provider data, and System
+runtime state are not generically transferred. Re-declaring the same semantic
+Component Config in a new Composition is declaration continuity, not runtime
+state migration.
+
+For a Component, these are separate declaration changes rather than first-class
+replacement categories:
+
+- The same Component Config with a different Adapter changes realization.
+- A different Component Config with the same Adapter changes declaration.
+- Changing both changes both declaration inputs.
+
 ## Why Instance exists
 
 A Composition can be validated, inspected, reused, and materialized more than

@@ -255,6 +255,50 @@ impl ModuleRuntime for PingoraRuntime {
     }
 }
 
+/// A deliberately failing runtime used to prove that a failed new generation
+/// does not affect an already-running generation. It is an ordinary module,
+/// not replacement machinery.
+#[derive(Clone)]
+struct FailingGenerationStart {
+    module_id: ModuleId,
+}
+
+impl FailingGenerationStart {
+    fn new() -> Self {
+        Self {
+            module_id: module("fabric.test.generational-change.failing-start").expect("module id"),
+        }
+    }
+}
+
+impl ModuleRuntime for FailingGenerationStart {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+
+    fn bind(&mut self, _: &ModuleBindings) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        Err(ModuleError::new("forced new-generation startup failure"))
+    }
+
+    fn stop(&mut self) {}
+
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
 fabric::component! {
     ContextProbe {
         id: "fabric.test.component.context-probe";
@@ -1328,6 +1372,245 @@ fn gateway_semantics_support_an_alternate_adapter_realization() {
         .dematerialize::<Gateway>()
         .expect("dematerialize");
     instance.stop();
+}
+
+#[test]
+fn generational_component_realization_change_keeps_live_instances_independent() {
+    // Equal CompositionIds are author-selected logical labels, not declaration
+    // revisions. These are independently authored declarations that retain the
+    // same Gateway semantics and config while selecting different realizations.
+    let first_built = Fabric::new("fabric.test.generational.gateway")
+        .expect("fabric")
+        .component(
+            ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+                prefix: "edge".to_owned(),
+            })
+            .using(PingoraAdapter {
+                implementation: "pingora".to_owned(),
+            })
+            .expect("Pingora realization"),
+        )
+        .build()
+        .expect("first declaration");
+    let second_built = Fabric::new("fabric.test.generational.gateway")
+        .expect("fabric")
+        .component(
+            ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+                prefix: "edge".to_owned(),
+            })
+            .using(AlternateGatewayAdapter {
+                implementation: "alternate".to_owned(),
+            })
+            .expect("alternate realization"),
+        )
+        .build()
+        .expect("second declaration");
+
+    assert_eq!(
+        first_built.composition().id(),
+        second_built.composition().id(),
+        "CompositionId does not establish declaration revision equality"
+    );
+    assert_eq!(
+        first_built.manifest().components()[0].component_id(),
+        second_built.manifest().components()[0].component_id()
+    );
+
+    let instance_id = "fabric.test.generational.gateway.local";
+    let mut first = first_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("first instance");
+    first.start().expect("first starts");
+    let first_generation = first.generation();
+    let first_components = first.components().expect("first components");
+    let first_participation = first_components
+        .materialize::<Gateway>()
+        .expect("first Gateway participation")
+        .participation()
+        .clone();
+
+    let mut second = second_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("second instance");
+    second.start().expect("second starts");
+    let second_generation = second.generation();
+    let second_components = second.components().expect("second components");
+    let second_participation = second_components
+        .materialize::<Gateway>()
+        .expect("second Gateway participation")
+        .participation()
+        .clone();
+
+    assert_eq!(first.instance_id(), second.instance_id());
+    assert_ne!(first_generation, second_generation);
+    assert_eq!(first.lifecycle(), LifecycleState::Running);
+    assert_eq!(second.lifecycle(), LifecycleState::Running);
+    assert_eq!(first_participation.generation(), first_generation);
+    assert_eq!(second_participation.generation(), second_generation);
+    assert_ne!(first_participation, second_participation);
+    assert_eq!(
+        first_participation.component().component_id(),
+        &Gateway::component_id()
+    );
+    assert_eq!(
+        second_participation.component().component_id(),
+        &Gateway::component_id()
+    );
+
+    let first_output: GatewayOutput = futures::executor::block_on(
+        first_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("first invocation");
+    let second_output: GatewayOutput = futures::executor::block_on(
+        second_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("second invocation");
+    assert_eq!(first_output.value, "edge:pingora");
+    assert_eq!(second_output.value, "edge:alternate");
+
+    // Fabric has no primary-generation or cutover concept: the caller stops
+    // the old generation explicitly, and that leaves the new one untouched.
+    first.stop();
+    assert_eq!(first.lifecycle(), LifecycleState::Stopped);
+    assert_eq!(second.lifecycle(), LifecycleState::Running);
+    let second_output: GatewayOutput = futures::executor::block_on(
+        second_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("second remains usable after first stops");
+    assert_eq!(second_output.value, "edge:alternate");
+    second.stop();
+}
+
+#[test]
+fn failed_new_generation_is_isolated_from_a_running_generation() {
+    let running_built = Fabric::new("fabric.test.generational.failure.running")
+        .expect("fabric")
+        .component(
+            ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+                prefix: "stable".to_owned(),
+            })
+            .using(PingoraAdapter {
+                implementation: "pingora".to_owned(),
+            })
+            .expect("realization"),
+        )
+        .build()
+        .expect("running declaration");
+    let failing_built = Fabric::new("fabric.test.generational.failure.new")
+        .expect("fabric")
+        .component(
+            ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+                prefix: "new".to_owned(),
+            })
+            .using(AlternateGatewayAdapter {
+                implementation: "alternate".to_owned(),
+            })
+            .expect("realization"),
+        )
+        .block("failing-start", |block| {
+            block.module(FailingGenerationStart::new())
+        })
+        .expect("failure block")
+        .build()
+        .expect("failing declaration");
+
+    let instance_id = "fabric.test.generational.failure.local";
+    let mut running = running_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("running instance");
+    running.start().expect("running start");
+    let running_generation = running.generation();
+    let running_components = running.components().expect("components");
+    running_components
+        .materialize::<Gateway>()
+        .expect("running Gateway participation");
+
+    let mut failed = failing_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("failed generation is still returned Ready");
+    assert_ne!(running_generation, failed.generation());
+    assert!(failed.start().is_err());
+    assert_eq!(failed.lifecycle(), LifecycleState::Stopped);
+    assert_eq!(running.lifecycle(), LifecycleState::Running);
+    assert_eq!(running.generation(), running_generation);
+    let output: GatewayOutput = futures::executor::block_on(
+        running_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("running generation remains usable");
+    assert_eq!(output.value, "stable:pingora");
+
+    // A pre-Instance failure is isolated in the same way: the incompatible
+    // Host prevents a usable new Instance from being returned at all.
+    assert!(
+        failing_built
+            .materialize_named_on(instance_id, &test_host())
+            .is_err()
+    );
+    assert_eq!(running.lifecycle(), LifecycleState::Running);
+    running.stop();
+}
+
+#[test]
+fn generational_resource_realization_change_is_fresh_and_has_no_state_transfer() {
+    let first_capture = Arc::new(Mutex::new(None));
+    let second_capture = Arc::new(Mutex::new(None));
+    let first_built = Fabric::new("fabric.test.generational.clock")
+        .expect("fabric")
+        .resource(
+            Clock::select("primary", ClockConfig::default())
+                .expect("selection")
+                .using(MemoryClock::new(11))
+                .expect("memory realization"),
+        )
+        .block("consumer", |block| {
+            block.module(ClockConsumer::new(Arc::clone(&first_capture)))
+        })
+        .expect("consumer block")
+        .build()
+        .expect("first declaration");
+    let second_built = Fabric::new("fabric.test.generational.clock")
+        .expect("fabric")
+        .resource(
+            Clock::select("primary", ClockConfig::default())
+                .expect("selection")
+                .using(HostBoundClockAdapter::new(29))
+                .expect("host-bound realization"),
+        )
+        .block("consumer", |block| {
+            block.module(ClockConsumer::new(Arc::clone(&second_capture)))
+        })
+        .expect("consumer block")
+        .build()
+        .expect("second declaration");
+
+    assert_eq!(
+        first_built.composition().id(),
+        second_built.composition().id()
+    );
+    assert_eq!(
+        first_built.manifest().resources()[0].resource_id(),
+        second_built.manifest().resources()[0].resource_id()
+    );
+    assert_eq!(
+        first_built.manifest().resources()[0].name(),
+        second_built.manifest().resources()[0].name()
+    );
+
+    let instance_id = "fabric.test.generational.clock.local";
+    let mut first = first_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("first instance");
+    let mut second = second_built
+        .materialize_named_on(instance_id, &facility_host())
+        .expect("second instance");
+    assert_eq!(first.instance_id(), second.instance_id());
+    assert_ne!(first.generation(), second.generation());
+    first.start().expect("first starts");
+    second.start().expect("second starts");
+    assert_eq!(*first_capture.lock().expect("capture"), Some(11));
+    assert_eq!(*second_capture.lock().expect("capture"), Some(29));
+    first.stop();
+    second.stop();
 }
 
 #[test]

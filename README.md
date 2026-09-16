@@ -49,7 +49,8 @@ once without becoming runtime state itself.
 - **Component** expresses typed behavior and can require Resources and Systems.
 - **Resource** is an occurrence-based technical capability.
 - **System** is an instance-wide shared capability.
-- **Adapter** realizes a Resource or System for a concrete environment.
+- **Adapter** realizes a Component, Resource, or System for a concrete
+  environment.
 - **Host** describes environmental compatibility for a realization.
 - **Manifest** inspects the semantic declarations in a Composition.
 

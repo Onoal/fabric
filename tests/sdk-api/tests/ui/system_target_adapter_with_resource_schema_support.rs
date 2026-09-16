@@ -9,9 +9,9 @@ struct WrongSchemaSupportSystemAdapter;
 
 impl AdapterDefinition for WrongSchemaSupportSystemAdapter {
     type Target = AdaptedOperations;
-    type SchemaSupport = AdapterResourceSchemaSupport;
+    type Compatibility = AdapterResourceSchemaSupport;
 
-    fn schema_support(&self) -> Self::SchemaSupport {
+    fn compatibility(&self) -> Self::Compatibility {
         AdapterResourceSchemaSupport::provisional(
             ResourceId::new("fabric.test.resource.foreign").expect("resource id"),
         )

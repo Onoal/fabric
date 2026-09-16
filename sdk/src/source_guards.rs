@@ -212,8 +212,8 @@ fn resource_selection_owns_total_module_id_derivation() {
         "AdapterDefinition must own an explicit target type"
     );
     assert!(
-        adapter_definition.contains("type SchemaSupport: Clone + Send + Sync + 'static;"),
-        "AdapterDefinition must own an explicit target-scoped schema support type"
+        adapter_definition.contains("type Compatibility: Clone + Send + Sync + 'static;"),
+        "AdapterDefinition must own an explicit target-scoped compatibility type"
     );
     assert!(
         !adapter_definition.contains("adapter_handle"),
@@ -292,7 +292,7 @@ fn resource_selection_owns_total_module_id_derivation() {
     );
     assert!(
         resource_realization.contains(
-            "A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>"
+            "A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>"
         ),
         "resource realizations must bind adapters through explicit resource-target schema support"
     );
@@ -480,7 +480,7 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
     assert!(
         builder.contains("pub fn resource(")
             && builder.contains("pub fn system(")
-            && builder.contains("pub fn component<")
+            && builder.contains("pub fn component(")
             && builder.contains("pub fn select_provider(")
             && builder.contains("pub fn with_block(")
             && builder.contains("pub fn block")
@@ -672,7 +672,7 @@ fn sdk_exposes_a_curated_generic_system_surface() {
     );
     assert!(
         realization.contains(
-            "A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>"
+            "A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>"
         ) && realization.contains("ContractProviderSelection"),
         "SystemRealization should preserve target-neutral adapter typing and raw provider selection"
     );
@@ -685,7 +685,7 @@ fn sdk_exposes_a_curated_generic_system_surface() {
     assert!(
         selection.contains("pub fn using<A>(self, adapter: A)")
             && selection.contains(
-                "A: AdapterDefinition<Target = S, SchemaSupport = AdapterSystemSchemaSupport>"
+                "A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>"
             ),
         "SystemSelection::using should be available only for system-target adapters with system schema support"
     );

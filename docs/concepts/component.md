@@ -32,6 +32,11 @@ Core resolve the capability providers.
 self-realization path, but it is authoring convenience rather than ontology.
 Handwritten definitions use the same public machinery.
 
+A Component may be declaration-only, explicitly self-realizing, or
+Adapter-realized. These are realization choices for one declared behavior;
+they do not change the Component's identity, Operations, or semantic
+Resource/System requirements.
+
 ```text
 ComponentDefinition
       | define(config)

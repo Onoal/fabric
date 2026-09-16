@@ -217,7 +217,7 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     );
     assert!(
         codegen.contains("type Target = #target;")
-            && codegen.contains("type SchemaSupport = #schema_support_ty;")
+            && codegen.contains("type Compatibility = #schema_support_ty;")
             && codegen.contains("impl #target_service for Runtime")
             && codegen.contains("<#raw_impl_mod::Runtime as #interface>::realization_contract")
             && codegen.contains("SystemRequires::<#system>::versioned("),

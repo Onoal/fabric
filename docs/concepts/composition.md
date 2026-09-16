@@ -239,10 +239,12 @@ Systems are a different semantic world: normal typed authoring has one
 coherent System occurrence per `SystemId` in a Composition, rather than
 Resource-style named occurrences.
 
-An [Adapter](adapter.md), where a Resource or adaptable System needs one, realizes that
-semantic capability through its public realization interface. A Component still
-requires the Resource or System, not the Adapter. The dedicated Adapter page
-will cover realization authoring in depth.
+An [Adapter](adapter.md), where an adaptable Component, Resource, or System
+needs one, realizes that semantic target through its public realization
+interface. A Component still requires semantic Resources or Systems rather
+than concrete Adapters; an Adapter-realized Component uses an Adapter only for
+its own realization. The dedicated Adapter page covers realization authoring
+in depth.
 
 ### Two common mistakes
 

@@ -9,9 +9,9 @@ struct WrongSchemaSupportClockAdapter;
 
 impl AdapterDefinition for WrongSchemaSupportClockAdapter {
     type Target = Clock;
-    type SchemaSupport = AdapterSystemSchemaSupport;
+    type Compatibility = AdapterSystemSchemaSupport;
 
-    fn schema_support(&self) -> Self::SchemaSupport {
+    fn compatibility(&self) -> Self::Compatibility {
         AdapterSystemSchemaSupport::provisional(
             SystemId::new("fabric.test.system.foreign").expect("system id"),
         )

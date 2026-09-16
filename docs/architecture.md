@@ -1,6 +1,6 @@
 # Fabric architecture
 
-This document describes the Fabric 0.1 public model. Start with
+This document describes Fabric's public model. Start with
 [Getting Started](getting-started.md) and the [Concepts overview](concepts/README.md)
 for the learning path. The [Advanced Raw API](advanced/raw-api.md) describes
 direct Core authoring.
@@ -13,7 +13,7 @@ direct Core authoring.
   identified by `ResourceId + ResourceName`.
 - **System** is an instance-wide shared capability. Normal typed authoring has
   one coherent occurrence per `SystemId` in a Composition.
-- **Adapter** realizes a Resource or adaptable System. It names both the
+- **Adapter** realizes an adaptable Component, Resource, or System. It names both the
   semantic target and that target's public typed realization interface.
 - **Component** owns semantic behavior expressed as typed operations. It can
   require Resources and Systems.
@@ -31,7 +31,7 @@ Typed Contracts make consumption explicit. Resource, System, Adapter, and
 Component authoring lowers through Core requirements, providers, and provider
 selections. There is no second resolver or general runtime service locator.
 
-A Resource or adaptable System may expose a public realization trait. An
+A Component, Resource, or adaptable System may expose a public realization trait. An
 Adapter names both sides explicitly:
 
 ```rust

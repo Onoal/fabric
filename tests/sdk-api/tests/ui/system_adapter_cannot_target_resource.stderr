@@ -15,10 +15,10 @@ note: required by a bound in `fabric::authoring::definitions::resource_selection
   |     pub fn using<A>(
   |            ----- required by a bound in this associated function
 ...
-  |         A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+  |         A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
   |                              ^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`
 
-error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinition>::SchemaSupport == AdapterResourceSchemaSupport`
+error[E0271]: type mismatch resolving `<FixedOperationsAdapter as AdapterDefinition>::Compatibility == AdapterResourceSchemaSupport`
  --> tests/ui/system_adapter_cannot_target_resource.rs:7:16
   |
 7 |           .using(FixedOperationsAdapter::new(FixedOperationsAdapterConfig {
@@ -35,5 +35,5 @@ note: required by a bound in `fabric::authoring::definitions::resource_selection
   |     pub fn using<A>(
   |            ----- required by a bound in this associated function
 ...
-  |         A: AdapterDefinition<Target = R, SchemaSupport = AdapterResourceSchemaSupport>,
+  |         A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`

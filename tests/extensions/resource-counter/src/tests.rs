@@ -1178,8 +1178,8 @@ fn declaration_only_adapter_source_contains_no_runtime_obligation() {
     for required in [
         "impl AdapterDefinition for PackageOnlyAdapter",
         "type Target = AdaptedCounter",
-        "type SchemaSupport",
-        "fn schema_support(",
+        "type Compatibility",
+        "fn compatibility(",
         "fn declaration(",
         "PackageOnlyAdapterConfig",
     ] {

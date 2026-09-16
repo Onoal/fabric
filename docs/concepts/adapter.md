@@ -1,23 +1,23 @@
 # Adapter
 
 An **Adapter** is Fabric's explicit realization boundary between semantic
-Resource or System contracts and one concrete implementation. It answers *how
+Component, Resource, or System contracts and one concrete implementation. It answers *how
 are these semantics implemented here?* It does not redefine what the target
 means or what a Component requires.
 
 ```text
-Resource/System semantics != Adapter realization
-Adapter = one concrete realization of one Resource or System target
+Component/Resource/System semantics != Adapter realization
+Adapter = one concrete realization of one Component, Resource, or System target
 ```
 
 ## Target, Config, and interface
 
-Every `AdapterDefinition` has one explicit `Target`: the Resource or System
-definition it realizes. Its public responsibilities are `Target`,
-`SchemaSupport`, `schema_support()`, `host_requirement()`, declaration
+Every `AdapterDefinition` has one explicit `Target`: the Component, Resource,
+or System definition it realizes. Its public responsibilities are `Target`,
+`Compatibility`, `compatibility()`, `host_requirement()`, declaration
 construction, and optional provider-runtime materialization. `adapter!` is the
-normal ergonomic authoring form; handwritten `AdapterDefinition` remains
-public.
+normal ergonomic authoring form for Resource and System targets; handwritten
+`AdapterDefinition` remains the public path for Component targets.
 
 ```rust
 fabric::adapter! {
@@ -44,11 +44,13 @@ Adapters normally supply one.
 ## Compatibility and selection
 
 Resource-targeting Adapters use `AdapterResourceSchemaSupport`; System targets
-use `AdapterSystemSchemaSupport`. Support says which semantic schema versions
+use `AdapterSystemSchemaSupport`. Their compatibility says which semantic schema versions
 the implementation understands. `Provisional` matches only `Provisional`;
 versioned support uses semantic-version requirements. Target identity must
-also match: compatible-looking methods cannot apply an Adapter for one
-Resource/System to another.
+also match: compatible-looking methods cannot apply an Adapter for one target
+to another. Component-targeting Adapters use the Component's typed realization
+boundary and target identity; Components do not gain Resource/System schema
+machinery for this purpose.
 
 ```rust
 let realized = MyResource::select("primary", resource_config)?
@@ -97,7 +99,7 @@ and binds that dependency before the Adapter runtime starts; it is not a global
 lookup or a requirement for a concrete System Adapter.
 
 ```text
-Resource/System definition -> realization interface -> selection .using(Adapter)
+Component/Resource/System definition -> realization interface -> selection .using(Adapter)
 -> provider selection -> Composition -> materialize on Host -> provider runtime
 ```
 
@@ -114,9 +116,8 @@ selections; they are Resource occurrences, not globally registered Adapters.
 Likewise, separate Compositions can choose different Adapters for one System.
 
 ```text
-Adapter != Resource/System: semantics versus implementation
+Adapter != Component/Resource/System: semantics versus implementation
 Adapter != Host: implementation versus environment compatibility
-Adapter != Component: realization versus semantic behavior
 Adapter != external service or infrastructure account
 Adapter != plugin, marketplace entry, dynamic ABI, or discovery registry
 ```

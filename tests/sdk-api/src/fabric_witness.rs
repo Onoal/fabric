@@ -136,6 +136,11 @@ struct PingoraAdapter {
     implementation: String,
 }
 
+#[derive(Clone)]
+struct AlternateGatewayAdapter {
+    implementation: String,
+}
+
 impl AdaptableComponentDefinition for Gateway {
     fn realization_requirement() -> ContractRequirement<ComponentRealizationContract<Self>> {
         ContractRequirement::provisional(
@@ -145,6 +150,31 @@ impl AdaptableComponentDefinition for Gateway {
 }
 
 impl AdapterDefinition for PingoraAdapter {
+    type Target = Gateway;
+    type Compatibility = ComponentId;
+    fn compatibility(&self) -> ComponentId {
+        Gateway::component_id()
+    }
+    fn host_requirement(&self) -> HostRequirement {
+        HostRequirement::new().require_facility(host_bound_clock_facility())
+    }
+    fn declaration(&self, module_id: ModuleId) -> ModuleDeclaration {
+        ModuleDeclaration::new(module_id).with_provided_contracts(vec![
+            ContractKey::<ComponentRealizationContract<Gateway>>::provisional(
+                Gateway::realization_requirement().id().clone(),
+            )
+            .declaration(),
+        ])
+    }
+    fn materialize_provider(&self, module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(PingoraRuntime {
+            module_id,
+            implementation: self.implementation.clone(),
+        }))
+    }
+}
+
+impl AdapterDefinition for AlternateGatewayAdapter {
     type Target = Gateway;
     type Compatibility = ComponentId;
     fn compatibility(&self) -> ComponentId {
@@ -1265,6 +1295,39 @@ fn gateway_adapter_realization_rejects_an_incompatible_host() {
             .materialize_named_on("fabric.test.gateway.host.local", &test_host())
             .is_err()
     );
+}
+
+#[test]
+fn gateway_semantics_support_an_alternate_adapter_realization() {
+    let gateway = ComponentSpec::<Gateway>::declaration_only(GatewayConfig {
+        prefix: "edge".to_owned(),
+    })
+    .using(AlternateGatewayAdapter {
+        implementation: "alternate".to_owned(),
+    })
+    .expect("typed alternate gateway realization");
+    let built = Fabric::new("fabric.test.gateway.alternate")
+        .expect("fabric")
+        .component(gateway)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on("fabric.test.gateway.alternate.local", &facility_host())
+        .expect("materialize");
+    instance.start().expect("start");
+    let components = instance.components().expect("components");
+    components
+        .materialize::<Gateway>()
+        .expect("materialize gateway");
+    let output: GatewayOutput = futures::executor::block_on(
+        components.invoke_external(&gateway::operations::handle(), GatewayInput),
+    )
+    .expect("invoke");
+    assert_eq!(output.value, "edge:alternate");
+    components
+        .dematerialize::<Gateway>()
+        .expect("dematerialize");
+    instance.stop();
 }
 
 #[test]

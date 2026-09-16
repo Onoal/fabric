@@ -42,6 +42,31 @@ that generation `Stopped`; failure is not a second durable lifecycle state.
 Cleanup stops already initialized runtime modules, but is not a promise of
 generic rollback for arbitrary external side effects.
 
+### Failure and interruption boundaries
+
+Materialization can fail while constructing, context-binding, exporting, or
+binding runtime modules. In those cases Fabric returns no usable `Instance`:
+there is no `Ready` lifecycle to start and no report to inspect. A generation
+may have been minted internally while materialization was attempted, but it is
+not thereby established as a live observable Instance incarnation.
+
+After an Instance has been returned, initialize or start failure is different:
+the same generation is stopped, the operation returns `InstanceError`, and
+`InstanceReport` shows the current stopped state. Reverse-order `stop()` calls
+are bounded cleanup for initialized modules, not a guarantee that arbitrary
+external side effects were rolled back.
+
+Component materialization is likewise local to a Component participation. A
+failed preparation leaves no active participation or callable registered
+operation; a later caller retry may create a fresh participation when the
+Component runtime permits it. Dematerialization revokes future participation
+and calls, but does not retroactively cancel work already executing.
+
+A process crash is not `stop()`: Fabric does not persist Instance lifecycle,
+generation allocation, Component participation, controls, or reports across a
+process restart. Retrying an operation is a caller action; materializing again
+creates a new generation. Neither is generic Fabric recovery.
+
 ## Why Instance exists
 
 A Composition can be validated, inspected, reused, and materialized more than

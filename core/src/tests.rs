@@ -673,6 +673,85 @@ impl ModuleRuntime for ContextObserver {
     }
 }
 
+#[derive(Clone, Copy)]
+enum MaterializationFailurePhase {
+    Context,
+    Bind,
+}
+
+#[derive(Clone)]
+struct FailingMaterializationModule {
+    module_id: ModuleId,
+    phase: MaterializationFailurePhase,
+    recorder: Arc<Recorder>,
+}
+
+impl FailingMaterializationModule {
+    fn new(module_id: &str, phase: MaterializationFailurePhase, recorder: Arc<Recorder>) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id.to_owned()).expect("module id"),
+            phase,
+            recorder,
+        }
+    }
+}
+
+impl ModuleRuntime for FailingMaterializationModule {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        self.recorder
+            .push(format!("export:{}", self.module_id.as_str()));
+        Ok(Vec::new())
+    }
+
+    fn bind_instance_context(
+        &mut self,
+        _context: &crate::InstanceRuntimeContext,
+    ) -> Result<(), ModuleError> {
+        self.recorder
+            .push(format!("context:{}", self.module_id.as_str()));
+        match self.phase {
+            MaterializationFailurePhase::Context => {
+                Err(ModuleError::new("forced instance-context binding failure"))
+            }
+            MaterializationFailurePhase::Bind => Ok(()),
+        }
+    }
+
+    fn bind(&mut self, _bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        self.recorder
+            .push(format!("bind:{}", self.module_id.as_str()));
+        match self.phase {
+            MaterializationFailurePhase::Context => Ok(()),
+            MaterializationFailurePhase::Bind => Err(ModuleError::new("forced binding failure")),
+        }
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        self.recorder
+            .push(format!("initialize:{}", self.module_id.as_str()));
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        self.recorder
+            .push(format!("start:{}", self.module_id.as_str()));
+        Ok(())
+    }
+
+    fn stop(&mut self) {
+        self.recorder
+            .push(format!("stop:{}", self.module_id.as_str()));
+    }
+
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
 struct CycleModule {
     module_id: ModuleId,
     provides: ContractId,
@@ -1323,6 +1402,55 @@ fn every_runtime_module_receives_its_materialization_context() {
     assert_eq!(contexts[0].1, first.generation());
     assert_eq!(contexts[2].1, second.generation());
     assert_ne!(contexts[0].1, contexts[2].1);
+}
+
+#[test]
+fn pre_instance_materialization_failures_expose_no_lifecycle_or_start_path() {
+    let context_recorder = Recorder::new();
+    let context_composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.context.failure".to_owned()).expect("block"))
+            .register_module(FailingMaterializationModule::new(
+                "context-failure",
+                MaterializationFailurePhase::Context,
+                Arc::clone(&context_recorder),
+            ))
+            .build(),
+    )
+    .expect("composition");
+
+    assert!(matches!(
+        materialize_test_instance(&context_composition, "test.context.failure"),
+        Err(CompositionError::ModuleFailure {
+            phase: "instance_context",
+            ..
+        })
+    ));
+    assert_eq!(context_recorder.snapshot(), vec!["context:context-failure"]);
+
+    let bind_recorder = Recorder::new();
+    let bind_composition = composition_for(
+        BlockBuilder::new(BlockId::new("test.bind.failure".to_owned()).expect("block"))
+            .register_module(FailingMaterializationModule::new(
+                "bind-failure",
+                MaterializationFailurePhase::Bind,
+                Arc::clone(&bind_recorder),
+            ))
+            .build(),
+    )
+    .expect("composition");
+
+    assert!(matches!(
+        materialize_test_instance(&bind_composition, "test.bind.failure"),
+        Err(CompositionError::ModuleFailure { phase: "bind", .. })
+    ));
+    assert_eq!(
+        bind_recorder.snapshot(),
+        vec![
+            "context:bind-failure",
+            "export:bind-failure",
+            "bind:bind-failure"
+        ]
+    );
 }
 
 #[test]

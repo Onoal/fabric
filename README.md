@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.3.0" }
+fabric = { package = "onoal-fabric", version = "0.4.0" }
 ```
 
 ```rust
@@ -95,7 +95,7 @@ let mut instance = built
 
 instance.start().expect("start");
 // Operate declared Components here when the Composition contains them.
-instance.stop();
+instance.stop().expect("stop");
 ```
 
 The [Getting Started guide](docs/getting-started.md) builds on this with a
@@ -114,9 +114,10 @@ live runtime.
 
 ## Project status
 
-The latest crates.io release is `onoal-fabric` 0.3.0. It establishes open
-semantic augmentation and the root-first public SDK while retaining Fabric's
-existing structural and runtime foundations.
+Fabric 0.4.0 completes the runtime lifecycle spine: every materialized runtime
+occurrence receives deterministic, observable cleanup; normal Resource,
+System, and Adapter authoring can own fresh per-materialization state and
+lifecycle hooks; and Component host lifecycle remains separate from health.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

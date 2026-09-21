@@ -39,8 +39,11 @@ versions, Composition revisions, durable epochs, or globally unique values.
 `LifecycleState` intentionally remains only `Ready`, `Running`, and
 `Stopped`. A failed initialize or start operation returns its error and leaves
 that generation `Stopped`; failure is not a second durable lifecycle state.
-Cleanup stops already initialized runtime modules, but is not a promise of
-generic rollback for arbitrary external side effects.
+Cleanup calls fallible `stop` on every successfully materialized runtime
+participant, including a participant whose context binding, initialization, or
+start did not complete. Failures preserve the primary startup error and remain
+observable as cleanup evidence; this is not a promise of generic rollback for
+arbitrary external side effects.
 
 ## Why Instance exists
 
@@ -112,14 +115,15 @@ assert_eq!(instance.lifecycle(), LifecycleState::Ready);
 instance.start().expect("start");
 assert_eq!(instance.lifecycle(), LifecycleState::Running);
 
-instance.stop();
+instance.stop().expect("stop");
 assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
 ```
 
-`stop()` is also valid from `Ready`, which transitions directly to `Stopped`.
-Calling it again after `Stopped` leaves the Instance stopped. `start()` is
-valid only from `Ready`; a stopped Instance is not restarted. To run again,
-create a fresh materialization.
+`stop()` is also valid from `Ready`; it performs the same participant cleanup
+before reaching `Stopped`, and reports any cleanup failures. Calling it again
+after `Stopped` leaves the Instance stopped. `start()` is valid only from
+`Ready`; a stopped Instance is not restarted. To run again, create a fresh
+materialization.
 
 ## Core Instance and FabricInstance
 
@@ -376,7 +380,7 @@ components.materialize::<Greeter>().expect("materialize Greeter");
 // The Component can now be invoked through components.invoke_external(...).
 
 components.dematerialize::<Greeter>().expect("dematerialize Greeter");
-instance.stop();
+instance.stop().expect("stop Instance");
 ```
 
 Starting an Instance does not materialize every declared Component. Component

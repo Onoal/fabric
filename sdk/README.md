@@ -14,7 +14,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.3.0" }
+fabric = { package = "onoal-fabric", version = "0.4.0" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -54,7 +54,7 @@ let output = futures::executor::block_on(
 ).expect("runtime invocation");
 assert_eq!(output.message, "hello, Ada");
 components.dematerialize::<Greeter>().expect("dematerialize component");
-instance.stop();
+instance.stop().expect("stop instance");
 ```
 
 `BuiltFabric` materializes to `FabricInstance`; raw
@@ -65,6 +65,18 @@ Instance service locator.
 
 Host-constrained Adapter compositions materialize explicitly with a
 `HostDescriptor` through the host-aware high-level materialization method.
+
+## Stateful runtime authoring
+
+Configuration is immutable declarative input; it is not live runtime state.
+`RuntimeState`, `RuntimeContext`, `StatefulRuntimeAuthoring`, and
+`StatefulAdapterDefinition` are normal SDK machinery for handwritten authors.
+The `resource!`, `system!`, and `adapter!` macros also accept optional `state`
+and `lifecycle` sections. State is fresh for each materialization, while
+contract handles and lifecycle hooks for that occurrence share it. Hooks are
+optional: simple stateless definitions retain successful initialize/start/stop
+defaults and healthy reporting. `stop` is deterministic cleanup and may return
+an observable error.
 
 ## Resource, System, and Adapter authoring
 
@@ -217,7 +229,7 @@ packages should not need them.
 `fabric::experimental::projection` is shipped for explicit experimentation. It
 is not canonical Core ontology, is never prelude-imported, and may change or be
 removed in a future minor release while remaining compatibility-sensitive in a
-`0.2.x` patch line. Binding and Resource Registry research remain
+patch line. Binding and Resource Registry research remain
 repository-only. Fabric does not define Component-to-Component declarative
 dependencies, global registries, scheduler/placement, deployment/reconstruction
 formats, dynamic plugins, or IDL generation.

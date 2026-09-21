@@ -79,10 +79,20 @@ failure, start, stop, and health observation do not mutate declarative
 Composition truth.
 
 Core's Instance lifecycle is deliberately narrow: materialization creates a
-fresh generation in `Ready`; `start()` reaches `Running`; `stop()` reaches
-`Stopped`, which is terminal for that generation. Lifecycle is separate from
-Health, and both are separate from Component runtime lifecycle, readiness, and
-desired Component control.
+fresh generation in `Ready`; `start()` reaches `Running`; fallible `stop()`
+deterministically cleans every materialized runtime participant and reaches
+`Stopped`, which is terminal for that generation. Startup abandonment also uses
+that cleanup path. Lifecycle is separate from Health, and both are separate
+from Component runtime lifecycle, readiness, and desired Component control.
+
+Runtime participation is a cross-cutting execution spine, not another semantic
+subject. Configuration is declarative materialization input; `RuntimeState` is
+fresh ephemeral state for one materialized occurrence; lifecycle is that
+occurrence's initialize/start/stop participation; Health reports its current
+ability to fulfill responsibility. Normal Resource, System, and Adapter
+authoring may provide state and lifecycle hooks without implementing Core
+`ModuleRuntime`; contract handles for one occurrence share its state, while a
+fresh materialization receives fresh state.
 
 Structural declaration or realization change is represented by authoring new
 declarative truth and materializing a fresh Instance generation. Fabric does
@@ -191,12 +201,12 @@ Callers can extend the returned `Fabric` before `build()`.
 `fabric::experimental::projection` is explicitly shipped for exploration and
 use, but is not canonical Core ontology, a Composition participant, or a
 Manifest semantic category. Experimental APIs may change or disappear at a
-future minor release while remaining compatibility-sensitive in a `0.2.x`
-patch line. Binding and Resource Registry research remain repository-only.
+future minor release while remaining compatibility-sensitive within a patch
+line. Binding and Resource Registry research remain repository-only.
 
 ## Scope
 
-Fabric's completed 0.3 Time / Lifecycle / Change milestone does not define a scheduler, placement/capacity engine,
+Fabric 0.4 does not define a scheduler, placement/capacity engine,
 global Resource/Adapter/requirement registry, package manager, portable
 deployment language, Manifest reconstruction, dynamic plugin ABI, IDL
 generation, container orchestration, identity/authority model, lifecycle

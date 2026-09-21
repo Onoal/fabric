@@ -280,12 +280,17 @@ let mut instance = built
     .expect("materialize a separate live Instance");
 instance.start().expect("start");
 // Materialize and invoke declared Components through instance.components().
-instance.stop();
+instance.stop().expect("stop");
 ```
 
 The same built Composition can produce multiple independent Instances. Their
 lifecycle, runtime objects, and generations are separate even though their
 declaration is shared.
+
+Composition itself never starts or stops. Its materialized Instance coordinates
+runtime participants through bind, initialize, start, and fallible `stop`.
+Stopping is deterministic cleanup for every materialized participant, including
+participants in an abandoned startup; it does not mutate Composition truth.
 
 Host requirements follow the same boundary. A Composition may carry declared
 environmental compatibility requirements through its realizations; a concrete

@@ -7,7 +7,7 @@ operation. It shows the full path from declaration to a running Instance.
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.1.2" }
+fabric = { package = "onoal-fabric", version = "0.4.0" }
 futures = "0.3"
 ```
 
@@ -88,7 +88,7 @@ assert_eq!(output.message, "hello, Ada");
 components
     .dematerialize::<Greeter>()
     .expect("dematerialize component");
-instance.stop();
+instance.stop().expect("stop");
 ```
 
 The `Fabric` builder accumulates declarations. `build()` validates them and

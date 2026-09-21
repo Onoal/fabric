@@ -2,7 +2,7 @@
 //!
 //! Projection is not a Core primitive, a Composition participant, or a
 //! Manifest semantic category. Its API may change or disappear in a future
-//! minor release, while remaining compatibility-sensitive within `0.2.x`.
+//! minor release, while remaining compatibility-sensitive within a patch line.
 
 mod contract;
 mod error;

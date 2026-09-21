@@ -25,7 +25,7 @@ impl ComponentRuntimeLifecycle {
             (self, next),
             (Self::Stopped, Self::Starting)
                 | (Self::Starting, Self::Ready)
-                | (Self::Starting, Self::Stopped)
+                | (Self::Starting, Self::Stopping)
                 | (Self::Ready, Self::Stopping)
                 | (Self::Stopping, Self::Stopped)
         );

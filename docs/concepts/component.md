@@ -200,6 +200,11 @@ The Component runtime host has its own `Starting`, `Ready`, `Stopping`, and
 `Ready + Degraded`, and `Ready + Unavailable` are all meaningful observations.
 None is the lifecycle of one semantic Component declaration.
 
+Normal host shutdown follows `Ready -> Stopping -> Stopped`. If Instance
+startup is abandoned after host initialization, the same cleanup path is
+`Starting -> Stopping -> Stopped`; `Stopping` remains the one deactivation
+phase for both cases.
+
 Preparation may establish runtime machinery owned by one participation. Normal
 `component!` authoring may add an optional `teardown { ... }` section; direct
 authors use `ComponentRuntimePreparation::with_teardown`. Fabric runs that

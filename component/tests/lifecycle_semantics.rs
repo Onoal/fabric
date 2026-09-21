@@ -2,7 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use fabric_core::{
     BlockBuilder, BlockId, CompositionBuilder, CompositionId, ContractRequirement, Health,
-    InstanceId, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
+    InstanceError, InstanceId, ModuleBindings, ModuleContract, ModuleError, ModuleId,
+    ModuleRuntime,
 };
 
 use fabric_component::{
@@ -113,6 +114,119 @@ impl ModuleRuntime for ComponentRuntimeLifecycleProbeModule {
     }
 }
 
+#[derive(Clone, Copy)]
+enum LifecycleFailurePhase {
+    Initialize,
+    Start,
+}
+
+#[derive(Clone)]
+struct LifecycleFailureModule {
+    module_id: ModuleId,
+    phase: LifecycleFailurePhase,
+    runtime_requirement: Option<ContractRequirement<ComponentRuntime>>,
+    captured_contract: CapturedContract,
+    observed_statuses: CapturedStatuses,
+}
+
+impl LifecycleFailureModule {
+    fn after_component_initialize(
+        captured_contract: CapturedContract,
+        observed_statuses: CapturedStatuses,
+    ) -> Self {
+        Self {
+            module_id: ModuleId::new("runtime.lifecycle.initialize-failure").expect("module id"),
+            phase: LifecycleFailurePhase::Initialize,
+            runtime_requirement: Some(ContractRequirement::provisional(
+                fabric_component::component_runtime_contract_id(),
+            )),
+            captured_contract,
+            observed_statuses,
+        }
+    }
+
+    fn before_component_start() -> Self {
+        Self {
+            module_id: ModuleId::new("runtime.lifecycle.start-failure").expect("module id"),
+            phase: LifecycleFailurePhase::Start,
+            runtime_requirement: None,
+            captured_contract: Arc::new(Mutex::new(None)),
+            observed_statuses: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    fn observe_component_status(&self) {
+        let Some(contract) = self
+            .captured_contract
+            .lock()
+            .expect("runtime contract capture")
+            .clone()
+        else {
+            return;
+        };
+        self.observed_statuses
+            .lock()
+            .expect("observed statuses")
+            .push(contract.current_status());
+    }
+}
+
+impl ModuleRuntime for LifecycleFailureModule {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
+        self.runtime_requirement
+            .iter()
+            .map(|requirement| {
+                fabric_core::ContractRequirementDeclaration::provisional(requirement.id().clone())
+            })
+            .collect()
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+
+    fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        let Some(requirement) = &self.runtime_requirement else {
+            return Ok(());
+        };
+        let contract = bindings
+            .resolve(requirement)
+            .map_err(|error| ModuleError::new(error.to_string()))?;
+        *self
+            .captured_contract
+            .lock()
+            .expect("runtime contract capture") = Some(contract);
+        Ok(())
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        self.observe_component_status();
+        match self.phase {
+            LifecycleFailurePhase::Initialize => Err(ModuleError::new("forced initialize failure")),
+            LifecycleFailurePhase::Start => Ok(()),
+        }
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        match self.phase {
+            LifecycleFailurePhase::Initialize => Ok(()),
+            LifecycleFailurePhase::Start => Err(ModuleError::new("forced start failure")),
+        }
+    }
+
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
 #[test]
 fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
     let captured_contract = Arc::new(Mutex::new(None));
@@ -161,6 +275,7 @@ fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
     assert_eq!(running_status.health(), Health::Healthy);
 
     instance.stop().expect("stop instance");
+    instance.stop().expect("stopped instance is idempotent");
 
     let stopped_status = contract.current_status();
     assert_eq!(
@@ -257,4 +372,130 @@ fn valid_runtime_lifecycle_progression_is_explicit() {
         .expect("stopping -> stopped");
 
     assert_eq!(lifecycle, ComponentRuntimeLifecycle::Stopped);
+}
+
+#[test]
+fn abandoned_startup_uses_the_same_stopping_cleanup_path() {
+    let lifecycle = ComponentRuntimeLifecycle::Stopped
+        .transition_to(ComponentRuntimeLifecycle::Starting)
+        .expect("stopped -> starting");
+    let lifecycle = lifecycle
+        .transition_to(ComponentRuntimeLifecycle::Stopping)
+        .expect("starting -> stopping");
+    let lifecycle = lifecycle
+        .transition_to(ComponentRuntimeLifecycle::Stopped)
+        .expect("stopping -> stopped");
+
+    assert_eq!(lifecycle, ComponentRuntimeLifecycle::Stopped);
+    assert!(
+        ComponentRuntimeLifecycle::Starting
+            .transition_to(ComponentRuntimeLifecycle::Stopped)
+            .is_err()
+    );
+}
+
+#[test]
+fn initialize_failure_cleans_a_starting_component_host_without_cleanup_error() {
+    let captured_contract = Arc::new(Mutex::new(None));
+    let observed_statuses = Arc::new(Mutex::new(Vec::new()));
+    let composition = CompositionBuilder::new(
+        CompositionId::new("runtime.lifecycle.initialize-abandonment").expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("runtime.lifecycle.block").expect("block"))
+            .register_module(ComponentRuntimeModule::new())
+            .register_module(LifecycleFailureModule::after_component_initialize(
+                Arc::clone(&captured_contract),
+                Arc::clone(&observed_statuses),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("composition");
+    let instance_id = InstanceId::new("runtime.lifecycle.initialize-abandonment").expect("id");
+    let mut instance = composition
+        .materialize(instance_id.clone())
+        .expect("materialize instance");
+
+    let error = instance.start().expect_err("initialize must fail");
+    assert!(matches!(
+        error,
+        InstanceError::ModuleFailure {
+            ref module_id,
+            phase: "initialize",
+            cleanup: None,
+            ..
+        } if module_id.as_str() == "runtime.lifecycle.initialize-failure"
+    ));
+    assert_eq!(instance.lifecycle(), fabric_core::LifecycleState::Stopped);
+
+    let observed = observed_statuses.lock().expect("observed statuses").clone();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].instance_id(), &instance_id);
+    assert_eq!(observed[0].lifecycle(), ComponentRuntimeLifecycle::Starting);
+    assert_eq!(observed[0].health(), Health::Degraded);
+
+    let runtime = captured_contract
+        .lock()
+        .expect("runtime contract capture")
+        .clone()
+        .expect("captured contract");
+    assert_eq!(
+        runtime.current_status().lifecycle(),
+        ComponentRuntimeLifecycle::Stopped
+    );
+    assert_eq!(runtime.current_status().health(), Health::Unavailable);
+}
+
+#[test]
+fn start_failure_before_component_host_start_cleans_the_starting_host_without_cleanup_error() {
+    let captured_contract = Arc::new(Mutex::new(None));
+    let observed_statuses = Arc::new(Mutex::new(Vec::new()));
+    let composition = CompositionBuilder::new(
+        CompositionId::new("runtime.lifecycle.start-abandonment").expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("runtime.lifecycle.block").expect("block"))
+            .register_module(LifecycleFailureModule::before_component_start())
+            .register_module(ComponentRuntimeModule::new())
+            .register_module(ComponentRuntimeLifecycleProbeModule::new(
+                "runtime.lifecycle.start-observer",
+                Arc::clone(&captured_contract),
+                Arc::clone(&observed_statuses),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("composition");
+    let mut instance = composition
+        .materialize(InstanceId::new("runtime.lifecycle.start-abandonment").expect("id"))
+        .expect("materialize instance");
+
+    let error = instance.start().expect_err("start must fail");
+    assert!(matches!(
+        error,
+        InstanceError::ModuleFailure {
+            ref module_id,
+            phase: "start",
+            cleanup: None,
+            ..
+        } if module_id.as_str() == "runtime.lifecycle.start-failure"
+    ));
+    assert_eq!(instance.lifecycle(), fabric_core::LifecycleState::Stopped);
+
+    let observed = observed_statuses.lock().expect("observed statuses").clone();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].lifecycle(), ComponentRuntimeLifecycle::Starting);
+    assert_eq!(observed[0].health(), Health::Degraded);
+
+    let runtime = captured_contract
+        .lock()
+        .expect("runtime contract capture")
+        .clone()
+        .expect("captured contract");
+    assert_eq!(
+        runtime.current_status().lifecycle(),
+        ComponentRuntimeLifecycle::Stopped
+    );
+    assert_eq!(runtime.current_status().health(), Health::Unavailable);
 }

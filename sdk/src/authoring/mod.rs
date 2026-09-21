@@ -5,6 +5,7 @@ mod definitions;
 mod fabric;
 mod fabric_builder;
 mod fabric_instance;
+mod runtime_authoring;
 mod system;
 
 pub(crate) use augmentation_requirement::requirement_for_key;
@@ -33,6 +34,9 @@ pub use fabric::{
 };
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};
+pub use runtime_authoring::{
+    RuntimeContext, RuntimeState, StatefulAdapterDefinition, StatefulRuntimeAuthoring,
+};
 pub use system::{
     AdaptableSystemDefinition, PrimarySystemContract, SystemAugmentation,
     SystemAugmentationDefinition, SystemAugmentationError, SystemAugmentationRealization,

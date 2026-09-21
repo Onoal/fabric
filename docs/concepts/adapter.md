@@ -115,6 +115,44 @@ Provider runtimes participate in ordinary Core bind, initialize, start, stop,
 and health phases. Adapter does not introduce a separate lifecycle, scheduler,
 or control plane.
 
+### Stateful realization runtime
+
+Adapter Config is immutable materialization input. A realization that owns
+live machinery may instead declare a `state` section: Fabric constructs that
+state freshly for each provider runtime occurrence, while contract-service
+clones for the same occurrence share it. This keeps runtime state out of
+definition Config and prevents rematerialized generations from inheriting live
+state accidentally.
+
+```rust
+fabric::adapter! {
+    LocalStoreAdapter for resource Store implements StoreRealization {
+        schema: provisional;
+        realization: provisional;
+        config { directory: String; }
+        state { LocalStoreState = LocalStoreState::new(config.directory.clone()); }
+        runtime { /* realization methods can use self.state.get() */ }
+        lifecycle {
+            initialize { Ok(()) }
+            stop { self.state.get().close(); Ok(()) }
+            health: Health::Healthy;
+        }
+    }
+}
+```
+
+Every hook is optional. Defaults remain successful `initialize`, `start`, and
+`stop`, with Healthy health. `RuntimeContext` is available after normal
+instance-context binding, but cleanup must tolerate it being absent because
+Core may abandon a materialized provider before binding completes. `stop` is
+fallible and its cleanup failure is returned by `Instance::stop()`; it is not
+a restart, recovery, or replacement policy.
+
+The public SDK machinery behind this syntax is `RuntimeState`,
+`RuntimeContext`, `StatefulRuntimeAuthoring`, and `StatefulAdapterDefinition`.
+It is available for direct SDK authoring as well; these are runtime-construction
+tools, not a new semantic Fabric participant kind.
+
 ## Augmentation boundary
 
 Adapter openness does not require Adapter augmentation. An Adapter is an

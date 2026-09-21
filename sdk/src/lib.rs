@@ -38,11 +38,12 @@ pub use authoring::{
     ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
     ResourceAugmentationManifestEntry, ResourceAugmentationRealization,
     ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
-    ResourceManifestEntry, ResourceRealization, ResourceSelection,
-    SelfRealizingComponentDefinition, SystemAugmentation, SystemAugmentationDefinition,
-    SystemAugmentationError, SystemAugmentationManifestEntry, SystemAugmentationRealization,
-    SystemAugmentationRequirement, SystemAugmentationSupportDefinition, SystemDefinition,
-    SystemManifestEntry, SystemRealization, SystemRequires, SystemSelection,
+    ResourceManifestEntry, ResourceRealization, ResourceSelection, RuntimeContext, RuntimeState,
+    SelfRealizingComponentDefinition, StatefulAdapterDefinition, StatefulRuntimeAuthoring,
+    SystemAugmentation, SystemAugmentationDefinition, SystemAugmentationError,
+    SystemAugmentationManifestEntry, SystemAugmentationRealization, SystemAugmentationRequirement,
+    SystemAugmentationSupportDefinition, SystemDefinition, SystemManifestEntry, SystemRealization,
+    SystemRequires, SystemSelection,
 };
 pub use component::{
     ComponentError, ComponentId, ComponentRequirementKind, ComponentResourceRequirementName,
@@ -52,7 +53,7 @@ pub use component::{
 pub use core::{
     CompositionError, CompositionId, ContractId, ContractIdentity, ContractKey, ContractVersion,
     ContractVersionRequirement, Health, InstanceError, InstanceGeneration, InstanceId,
-    LifecycleState,
+    LifecycleState, ModuleError, RuntimeCleanupError,
 };
 pub use error::SdkAuthoringError;
 pub use host::{

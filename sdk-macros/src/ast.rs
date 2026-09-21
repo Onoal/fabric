@@ -10,6 +10,8 @@ pub struct ResourceInput {
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
+    pub runtime_state: Option<RuntimeStateDefinition>,
+    pub lifecycle: RuntimeLifecycleDefinition,
 }
 
 pub struct SystemInput {
@@ -22,6 +24,8 @@ pub struct SystemInput {
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
+    pub runtime_state: Option<RuntimeStateDefinition>,
+    pub lifecycle: RuntimeLifecycleDefinition,
 }
 
 pub struct AdapterInput {
@@ -36,6 +40,8 @@ pub struct AdapterInput {
     pub systems: Vec<SystemDependencyDefinition>,
     pub host_requirement: Option<Expr>,
     pub runtime_methods: Vec<RuntimeMethod>,
+    pub runtime_state: Option<RuntimeStateDefinition>,
+    pub lifecycle: RuntimeLifecycleDefinition,
 }
 
 pub struct ComponentInput {
@@ -80,6 +86,19 @@ pub struct SystemDependencyDefinition {
 pub struct RuntimeMethod {
     pub signature: syn::Signature,
     pub body: Block,
+}
+
+pub struct RuntimeStateDefinition {
+    pub ty: Type,
+    pub initializer: Expr,
+}
+
+#[derive(Default)]
+pub struct RuntimeLifecycleDefinition {
+    pub initialize: Option<Block>,
+    pub start: Option<Block>,
+    pub stop: Option<Block>,
+    pub health: Option<Expr>,
 }
 
 pub struct ComponentOperationDefinition {

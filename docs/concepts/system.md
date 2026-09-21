@@ -83,6 +83,16 @@ let built = Fabric::new("example.system")?.system(operations).build()?;
 semantic `SystemManifestEntry` containing `SystemId` and schema. There is no
 ResourceName-equivalent in that Manifest entry.
 
+### Runtime state and lifecycle authoring
+
+A self-realizing System can use the same optional `state` and `lifecycle`
+sections as a Resource. `state` is fresh for each materialized Instance
+generation, while Config remains declarative selection input. Hooks use the
+same lifecycle spine: `initialize` prepares after normal binding, `start`
+activates, `stop` releases occurrence-owned machinery even on abandoned
+startup, and `health` reports ability separately from lifecycle. A System with
+no custom sections keeps the stateless successful defaults.
+
 ## Schema and direct realization
 
 `SystemSchemaDescriptor` combines `SystemSchemaIdentity` and

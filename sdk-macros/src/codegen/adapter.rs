@@ -81,6 +81,44 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
             }
         }
     });
+    let runtime_state_field = input.runtime_state.as_ref().map(|state| {
+        let ty = &state.ty;
+        quote!(state: #sdk::authoring::RuntimeState<#ty>,)
+    });
+    let runtime_state_initializer = input.runtime_state.as_ref().map(|state| {
+        let initializer = &state.initializer;
+        quote! {
+            let state = #sdk::authoring::RuntimeState::new({
+                let config = &config;
+                #initializer
+            });
+        }
+    });
+    let runtime_state_value = input.runtime_state.as_ref().map(|_| quote!(state,));
+    let initialize_hook = input
+        .lifecycle
+        .initialize
+        .as_ref()
+        .map(|body| quote!(#body))
+        .unwrap_or_else(|| quote!(Ok(())));
+    let start_hook = input
+        .lifecycle
+        .start
+        .as_ref()
+        .map(|body| quote!(#body))
+        .unwrap_or_else(|| quote!(Ok(())));
+    let stop_hook = input
+        .lifecycle
+        .stop
+        .as_ref()
+        .map(|body| quote!(#body))
+        .unwrap_or_else(|| quote!(Ok(())));
+    let health_hook = input
+        .lifecycle
+        .health
+        .as_ref()
+        .map(|expr| quote!(#expr))
+        .unwrap_or_else(|| quote!(#sdk::core::Health::Healthy));
     let host_requirement_expr = input
         .host_requirement
         .as_ref()
@@ -146,14 +184,19 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
                 config: #config_name,
+                runtime_context: #sdk::authoring::RuntimeContext,
+                #runtime_state_field
                 #(#dependency_fields)*
             }
 
             impl Runtime {
                 pub fn new(module_id: #sdk::core::ModuleId, config: #config_name) -> Self {
+                    #runtime_state_initializer
                     Self {
                         module_id,
                         config,
+                        runtime_context: #sdk::authoring::RuntimeContext::default(),
+                        #runtime_state_value
                         #(#dependency_initializers)*
                     }
                 }
@@ -204,20 +247,28 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
                     Ok(())
                 }
 
-                fn initialize(&mut self) -> ::std::result::Result<(), #sdk::core::ModuleError> {
+                fn bind_instance_context(
+                    &mut self,
+                    context: &#sdk::core::InstanceRuntimeContext,
+                ) -> ::std::result::Result<(), #sdk::core::ModuleError> {
+                    self.runtime_context.bind(context.clone());
                     Ok(())
+                }
+
+                fn initialize(&mut self) -> ::std::result::Result<(), #sdk::core::ModuleError> {
+                    #initialize_hook
                 }
 
                 fn start(&mut self) -> ::std::result::Result<(), #sdk::core::ModuleError> {
-                    Ok(())
+                    #start_hook
                 }
 
                 fn stop(&mut self) -> ::std::result::Result<(), #sdk::core::ModuleError> {
-                    Ok(())
+                    #stop_hook
                 }
 
                 fn health(&self) -> #sdk::core::Health {
-                    #sdk::core::Health::Healthy
+                    #health_hook
                 }
             }
         }

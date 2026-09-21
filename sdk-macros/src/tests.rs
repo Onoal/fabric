@@ -248,6 +248,50 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
 }
 
 #[test]
+fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_but_not_component() {
+    let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
+    let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
+    let resource =
+        fs::read_to_string(crate_root().join("src/codegen/resource.rs")).expect("read resource");
+    let system =
+        fs::read_to_string(crate_root().join("src/codegen/system.rs")).expect("read system");
+    let adapter =
+        fs::read_to_string(crate_root().join("src/codegen/adapter.rs")).expect("read adapter");
+    let component =
+        fs::read_to_string(crate_root().join("src/codegen/component.rs")).expect("read component");
+
+    assert!(
+        ast.contains("pub struct RuntimeStateDefinition")
+            && ast.contains("pub struct RuntimeLifecycleDefinition"),
+        "state and lifecycle syntax should project through shared macro AST machinery"
+    );
+    for subject in ["resource", "system", "adapter"] {
+        assert!(
+            parse.contains(&format!(
+                "{subject}! supports only one `state {{ ... }}` section"
+            )) && parse.contains(&format!(
+                "{subject}! supports only one `lifecycle {{ ... }}` section"
+            )),
+            "{subject}! should reject duplicate state and lifecycle sections"
+        );
+    }
+    for codegen in [&resource, &system, &adapter] {
+        assert!(
+            codegen.contains("RuntimeState")
+                && codegen.contains("RuntimeContext")
+                && codegen.contains("fn bind_instance_context")
+                && codegen.contains("#initialize_hook")
+                && codegen.contains("#stop_hook"),
+            "all supported authoring worlds should lower through the shared Core runtime spine"
+        );
+    }
+    assert!(
+        !component.contains("RuntimeState") && !component.contains("RuntimeContext"),
+        "component lifecycle authoring must remain outside the I2 macro surface"
+    );
+}
+
+#[test]
 fn component_macro_codegen_supports_typed_operations() {
     let lib = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read lib");
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");

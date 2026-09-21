@@ -75,6 +75,43 @@ let built = Fabric::new("example.resources")?.resource(primary).build()?;
 convenience rather than the ontology. Handwritten `ResourceDefinition` remains
 public.
 
+### Runtime state and lifecycle authoring
+
+Resource Config remains declarative input. When a self-realizing Resource
+needs live state, `state` constructs a fresh value for each materialized
+runtime occurrence; it is not a shared `Arc<Mutex<_>>` hidden in Config. The
+generated typed service handles for that occurrence share this state.
+
+```rust
+fabric::resource! {
+    LocalCounter {
+        id: "example.local-counter";
+        schema: provisional;
+        config {}
+        contracts { primary Api {
+            id: "example.local-counter.api"; version: provisional;
+            fn current(&self) -> usize;
+        }}
+        state { CounterState = CounterState::default(); }
+        runtime { fn current(&self) -> usize { self.state.get().current() } }
+        lifecycle {
+            initialize { Ok(()) }
+            stop { self.state.get().close(); Ok(()) }
+            health: Health::Healthy;
+        }
+    }
+}
+```
+
+`initialize` runs after context and dependency binding, `start` activates the
+runtime, and `stop` is the one fallible cleanup hook. Fabric calls `stop` even
+when a materialized generation is abandoned before start. `RuntimeContext` is
+bound before normal initialization but may be absent during early cleanup.
+Health is an observation separate from Instance lifecycle: a running Resource
+may be Healthy, Degraded, or Unavailable without changing its lifecycle state.
+All sections are optional; the existing stateless form retains successful
+initialize/start/stop defaults and Healthy health.
+
 ## Schema and realization
 
 `ResourceSchemaDescriptor` combines semantic schema identity and version.

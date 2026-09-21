@@ -90,6 +90,7 @@ fn sdk_source_stays_generic_and_curated() {
         "src/authoring/definitions/resource_definition.rs",
         "src/authoring/definitions/resource_realization.rs",
         "src/authoring/definitions/resource_selection.rs",
+        "src/authoring/runtime_authoring.rs",
         "src/authoring/system/adaptable_system_definition.rs",
         "src/authoring/system/primary_system_contract.rs",
         "src/authoring/system/system_definition.rs",
@@ -124,6 +125,28 @@ fn sdk_source_stays_generic_and_curated() {
                 "{file} must stay free of concrete implementation name {forbidden}"
             );
         }
+    }
+}
+
+#[test]
+fn runtime_authoring_stays_sdk_machinery_not_a_lifecycle_ontology() {
+    let runtime = fs::read_to_string(crate_root().join("src/authoring/runtime_authoring.rs"))
+        .expect("read runtime authoring");
+    let root = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read root exports");
+    let prelude =
+        fs::read_to_string(crate_root().join("src/prelude.rs")).expect("read prelude exports");
+
+    assert!(
+        runtime.contains("fresh runtime occurrence")
+            && runtime.contains("not a Fabric semantic subject")
+            && runtime.contains("StatefulAdapterDefinition"),
+        "SDK should expose stateful runtime construction without creating a semantic lifecycle plane"
+    );
+    for public in ["RuntimeState", "RuntimeContext", "StatefulRuntimeAuthoring"] {
+        assert!(
+            root.contains(public) && prelude.contains(public),
+            "normal root and prelude surfaces should both expose {public}"
+        );
     }
 }
 

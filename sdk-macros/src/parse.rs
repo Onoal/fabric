@@ -6,8 +6,9 @@ use syn::{
 use crate::ast::{
     AdapterInput, AdapterTargetKind, ComponentInput, ComponentOperationContext,
     ComponentOperationDefinition, ConfigField, ContractDefinition, ContractMethod,
-    RealizationDefinition, RequirementDefinition, RequirementLiteral, ResourceInput, RuntimeMethod,
-    SystemDependencyDefinition, SystemInput, VersionLiteral,
+    RealizationDefinition, RequirementDefinition, RequirementLiteral, ResourceInput,
+    RuntimeLifecycleDefinition, RuntimeMethod, RuntimeStateDefinition, SystemDependencyDefinition,
+    SystemInput, VersionLiteral,
 };
 
 mod kw {
@@ -22,7 +23,9 @@ mod kw {
     syn::custom_keyword!(id);
     syn::custom_keyword!(implements);
     syn::custom_keyword!(input);
+    syn::custom_keyword!(initialize);
     syn::custom_keyword!(invocation);
+    syn::custom_keyword!(lifecycle);
     syn::custom_keyword!(operations);
     syn::custom_keyword!(output);
     syn::custom_keyword!(primary);
@@ -30,6 +33,10 @@ mod kw {
     syn::custom_keyword!(realization);
     syn::custom_keyword!(requires);
     syn::custom_keyword!(runtime);
+    syn::custom_keyword!(state);
+    syn::custom_keyword!(start);
+    syn::custom_keyword!(stop);
+    syn::custom_keyword!(health);
     syn::custom_keyword!(schema);
     syn::custom_keyword!(system);
     syn::custom_keyword!(version);
@@ -50,6 +57,8 @@ impl Parse for ResourceInput {
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
+        let mut runtime_state = None;
+        let mut lifecycle = None;
 
         while !content.is_empty() {
             if content.peek(kw::id) {
@@ -110,6 +119,22 @@ impl Parse for ResourceInput {
                     );
                 }
                 runtime_methods = Some(parse_runtime_methods(&content)?);
+            } else if content.peek(kw::state) {
+                content.parse::<kw::state>()?;
+                if runtime_state.is_some() {
+                    return Err(
+                        content.error("resource! supports only one `state { ... }` section")
+                    );
+                }
+                runtime_state = Some(parse_runtime_state(&content)?);
+            } else if content.peek(kw::lifecycle) {
+                content.parse::<kw::lifecycle>()?;
+                if lifecycle.is_some() {
+                    return Err(
+                        content.error("resource! supports only one `lifecycle { ... }` section")
+                    );
+                }
+                lifecycle = Some(parse_runtime_lifecycle(&content)?);
             } else {
                 return Err(content.error("unsupported resource! section"));
             }
@@ -152,6 +177,8 @@ impl Parse for ResourceInput {
                     "resource! requires a `runtime { ... }` section",
                 )
             })?,
+            runtime_state,
+            lifecycle: lifecycle.unwrap_or_default(),
         })
     }
 }
@@ -170,6 +197,8 @@ impl Parse for SystemInput {
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
+        let mut runtime_state = None;
+        let mut lifecycle = None;
 
         while !content.is_empty() {
             if content.peek(kw::id) {
@@ -226,6 +255,20 @@ impl Parse for SystemInput {
                     );
                 }
                 runtime_methods = Some(parse_runtime_methods(&content)?);
+            } else if content.peek(kw::state) {
+                content.parse::<kw::state>()?;
+                if runtime_state.is_some() {
+                    return Err(content.error("system! supports only one `state { ... }` section"));
+                }
+                runtime_state = Some(parse_runtime_state(&content)?);
+            } else if content.peek(kw::lifecycle) {
+                content.parse::<kw::lifecycle>()?;
+                if lifecycle.is_some() {
+                    return Err(
+                        content.error("system! supports only one `lifecycle { ... }` section")
+                    );
+                }
+                lifecycle = Some(parse_runtime_lifecycle(&content)?);
             } else {
                 return Err(content.error("unsupported system! section"));
             }
@@ -268,6 +311,8 @@ impl Parse for SystemInput {
                     "system! requires a `runtime { ... }` section",
                 )
             })?,
+            runtime_state,
+            lifecycle: lifecycle.unwrap_or_default(),
         })
     }
 }
@@ -298,6 +343,8 @@ impl Parse for AdapterInput {
         let mut systems = None;
         let mut host_requirement = None;
         let mut runtime_methods = None;
+        let mut runtime_state = None;
+        let mut lifecycle = None;
 
         while !content.is_empty() {
             if content.peek(kw::schema) {
@@ -352,6 +399,20 @@ impl Parse for AdapterInput {
                     );
                 }
                 runtime_methods = Some(parse_runtime_methods(&content)?);
+            } else if content.peek(kw::state) {
+                content.parse::<kw::state>()?;
+                if runtime_state.is_some() {
+                    return Err(content.error("adapter! supports only one `state { ... }` section"));
+                }
+                runtime_state = Some(parse_runtime_state(&content)?);
+            } else if content.peek(kw::lifecycle) {
+                content.parse::<kw::lifecycle>()?;
+                if lifecycle.is_some() {
+                    return Err(
+                        content.error("adapter! supports only one `lifecycle { ... }` section")
+                    );
+                }
+                lifecycle = Some(parse_runtime_lifecycle(&content)?);
             } else {
                 return Err(content.error("unsupported adapter! section"));
             }
@@ -391,6 +452,8 @@ impl Parse for AdapterInput {
                     "adapter! requires a `runtime { ... }` section",
                 )
             })?,
+            runtime_state,
+            lifecycle: lifecycle.unwrap_or_default(),
         })
     }
 }
@@ -736,6 +799,57 @@ fn parse_runtime_methods(input: ParseStream<'_>) -> Result<Vec<RuntimeMethod>> {
         });
     }
     Ok(methods)
+}
+
+fn parse_runtime_state(input: ParseStream<'_>) -> Result<RuntimeStateDefinition> {
+    let content;
+    braced!(content in input);
+    let ty = content.parse::<Type>()?;
+    content.parse::<Token![=]>()?;
+    let initializer = content.parse::<Expr>()?;
+    content.parse::<Token![;]>()?;
+    if !content.is_empty() {
+        return Err(content.error("state { ... } accepts exactly one `Type = expression;` entry"));
+    }
+    Ok(RuntimeStateDefinition { ty, initializer })
+}
+
+fn parse_runtime_lifecycle(input: ParseStream<'_>) -> Result<RuntimeLifecycleDefinition> {
+    let content;
+    braced!(content in input);
+    let mut lifecycle = RuntimeLifecycleDefinition::default();
+    while !content.is_empty() {
+        if content.peek(kw::initialize) {
+            content.parse::<kw::initialize>()?;
+            if lifecycle.initialize.is_some() {
+                return Err(content.error("lifecycle supports only one `initialize { ... }` hook"));
+            }
+            lifecycle.initialize = Some(content.parse::<syn::Block>()?);
+        } else if content.peek(kw::start) {
+            content.parse::<kw::start>()?;
+            if lifecycle.start.is_some() {
+                return Err(content.error("lifecycle supports only one `start { ... }` hook"));
+            }
+            lifecycle.start = Some(content.parse::<syn::Block>()?);
+        } else if content.peek(kw::stop) {
+            content.parse::<kw::stop>()?;
+            if lifecycle.stop.is_some() {
+                return Err(content.error("lifecycle supports only one `stop { ... }` hook"));
+            }
+            lifecycle.stop = Some(content.parse::<syn::Block>()?);
+        } else if content.peek(kw::health) {
+            content.parse::<kw::health>()?;
+            if lifecycle.health.is_some() {
+                return Err(content.error("lifecycle supports only one `health: ...;` hook"));
+            }
+            content.parse::<Token![:]>()?;
+            lifecycle.health = Some(content.parse::<Expr>()?);
+            content.parse::<Token![;]>()?;
+        } else {
+            return Err(content.error("expected initialize, start, stop, or health in lifecycle"));
+        }
+    }
+    Ok(lifecycle)
 }
 
 fn parse_component_operations(input: ParseStream<'_>) -> Result<Vec<ComponentOperationDefinition>> {

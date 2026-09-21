@@ -15,6 +15,84 @@ use crate::{
     OperationRegistrarService,
 };
 
+/// Identifies one preparation contribution that belongs to a Component
+/// participation. This is runtime machinery, not a second Component identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComponentRuntimeContribution {
+    Base,
+    Augmentation { index: usize },
+}
+
+/// One occurrence-local cleanup action returned by successful preparation.
+///
+/// The action is consumed exactly once when the participation is rolled back,
+/// dematerialized, or its host stops.
+pub type ComponentRuntimeTeardown = Box<dyn FnOnce() -> Result<(), ComponentError> + Send>;
+
+/// The result of preparing the base contribution for one Component
+/// participation.
+pub struct ComponentRuntimePreparation {
+    health: Health,
+    teardown: Option<ComponentRuntimeTeardown>,
+}
+
+impl ComponentRuntimePreparation {
+    pub fn new(health: Health) -> Self {
+        Self {
+            health,
+            teardown: None,
+        }
+    }
+
+    pub fn with_teardown(
+        health: Health,
+        teardown: impl FnOnce() -> Result<(), ComponentError> + Send + 'static,
+    ) -> Self {
+        Self {
+            health,
+            teardown: Some(Box::new(teardown)),
+        }
+    }
+
+    pub fn health(&self) -> Health {
+        self.health
+    }
+
+    pub(crate) fn into_parts(self) -> (Health, Option<ComponentRuntimeTeardown>) {
+        (self.health, self.teardown)
+    }
+}
+
+/// The result of preparing one additive augmentation contribution for a
+/// Component participation.
+pub struct ComponentAugmentationRuntimePreparation {
+    teardown: Option<ComponentRuntimeTeardown>,
+}
+
+impl ComponentAugmentationRuntimePreparation {
+    pub fn new() -> Self {
+        Self { teardown: None }
+    }
+
+    pub fn with_teardown(
+        teardown: impl FnOnce() -> Result<(), ComponentError> + Send + 'static,
+    ) -> Self {
+        Self {
+            teardown: Some(Box::new(teardown)),
+        }
+    }
+
+    pub(crate) fn into_teardown(self) -> Option<ComponentRuntimeTeardown> {
+        self.teardown
+    }
+}
+
+impl Default for ComponentAugmentationRuntimePreparation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 const COMPONENT_MATERIALIZER_CONTRACT_ID: &str = "fabric.component.materializer";
 
 /// Instance-local transport for a Core-resolved Component capability dependency.
@@ -176,11 +254,13 @@ pub struct ComponentAugmentationRuntimeDefinition {
     prepare: Arc<ComponentAugmentationPrepareFn>,
 }
 
-type ComponentAugmentationPrepareFn =
-    dyn Fn(&ComponentRuntimeScope) -> Result<(), ComponentError> + Send + Sync;
+type ComponentAugmentationPrepareFn = dyn Fn(&ComponentRuntimeScope) -> Result<ComponentAugmentationRuntimePreparation, ComponentError>
+    + Send
+    + Sync;
 
-type ComponentRuntimePrepareFn =
-    dyn Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError> + Send + Sync;
+type ComponentRuntimePrepareFn = dyn Fn(&ComponentRuntimeScope) -> Result<ComponentRuntimePreparation, ComponentError>
+    + Send
+    + Sync;
 
 pub trait ComponentMaterializerService: Send + Sync {
     fn known_component_ids(&self) -> Vec<ComponentId>;
@@ -213,6 +293,22 @@ impl ComponentRuntimeDefinition {
     ) -> Self {
         Self {
             component_id,
+            prepare: Arc::new(move |scope| prepare(scope).map(ComponentRuntimePreparation::new)),
+        }
+    }
+
+    /// Defines preparation that returns cleanup ownership for this one
+    /// participation. The returned teardown is never shared with another
+    /// materialization.
+    pub fn new_with_teardown(
+        component_id: ComponentId,
+        prepare: impl Fn(&ComponentRuntimeScope) -> Result<ComponentRuntimePreparation, ComponentError>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
+            component_id,
             prepare: Arc::new(prepare),
         }
     }
@@ -223,6 +319,15 @@ impl ComponentRuntimeDefinition {
 
     /// Prepares one generation-scoped Component participation.
     pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<Health, ComponentError> {
+        Ok((self.prepare)(scope)?.health())
+    }
+
+    /// Prepares this occurrence and returns its cleanup ownership to the
+    /// native Component host.
+    pub fn prepare_with_teardown(
+        &self,
+        scope: &ComponentRuntimeScope,
+    ) -> Result<ComponentRuntimePreparation, ComponentError> {
         (self.prepare)(scope)
     }
 }
@@ -231,6 +336,25 @@ impl ComponentAugmentationRuntimeDefinition {
     pub fn new(
         component_id: ComponentId,
         prepare: impl Fn(&ComponentRuntimeScope) -> Result<(), ComponentError> + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            component_id,
+            prepare: Arc::new(move |scope| {
+                prepare(scope).map(|()| ComponentAugmentationRuntimePreparation::new())
+            }),
+        }
+    }
+
+    /// Defines an additive preparation contribution with occurrence-local
+    /// teardown ownership.
+    pub fn new_with_teardown(
+        component_id: ComponentId,
+        prepare: impl Fn(
+            &ComponentRuntimeScope,
+        ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         Self {
             component_id,
@@ -244,6 +368,14 @@ impl ComponentAugmentationRuntimeDefinition {
 
     /// Prepares the same participation already created for the base runtime.
     pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+        (self.prepare)(scope).map(|_| ())
+    }
+
+    /// Prepares the same participation and returns its additive teardown.
+    pub fn prepare_with_teardown(
+        &self,
+        scope: &ComponentRuntimeScope,
+    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
         (self.prepare)(scope)
     }
 }

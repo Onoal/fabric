@@ -15,6 +15,12 @@ struct ReadClockOutput {
     tick: Result<u64, ClockError>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TeardownInput;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TeardownOutput;
+
 fn test_host() -> HostDescriptor {
     HostDescriptor::new(
         HostOperatingSystem::new("linux").expect("os"),
@@ -101,6 +107,30 @@ fabric::component! {
     }
 }
 
+fabric::component! {
+    ExternalTeardownComponent {
+        id: "fabric.test.external.teardown-component";
+
+        config {
+            events: Arc<Mutex<Vec<String>>>;
+        }
+
+        operations {
+            noop {
+                id: "fabric.test.external.teardown-component.noop";
+                input: TeardownInput = "fabric.test.external.teardown-component.noop.input";
+                output: TeardownOutput = "fabric.test.external.teardown-component.noop.output";
+                handler |_input: TeardownInput| async move { Ok(TeardownOutput) };
+            }
+        }
+
+        teardown {
+            config.events.lock().expect("events").push("component-teardown".to_owned());
+            Ok(())
+        }
+    }
+}
+
 #[test]
 fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_path() {
     let clock_selection = Clock::select("primary", ClockConfig::default()).expect("clock");
@@ -149,6 +179,39 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
         .dematerialize::<EcosystemClockProbe>()
         .expect("dematerialize component");
     instance.stop().expect("stop instance");
+}
+
+#[test]
+fn external_component_macro_owns_participation_local_teardown_without_native_runtime_api() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let built = Fabric::new("fabric.test.external.component-teardown")
+        .expect("fabric")
+        .component(ExternalTeardownComponent::define(
+            ExternalTeardownComponentConfig {
+                events: Arc::clone(&events),
+            },
+        ))
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.external.component-teardown.instance",
+            &test_host(),
+        )
+        .expect("materialize");
+    instance.start().expect("start");
+    let components = instance.components().expect("component host");
+    components
+        .materialize::<ExternalTeardownComponent>()
+        .expect("materialize component");
+    components
+        .dematerialize::<ExternalTeardownComponent>()
+        .expect("dematerialize component");
+    assert_eq!(
+        events.lock().expect("events").as_slice(),
+        ["component-teardown"]
+    );
+    instance.stop().expect("stop");
 }
 
 #[test]

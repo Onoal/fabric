@@ -48,9 +48,9 @@ use crate::requirement::{
 };
 use crate::runtime::{
     ComponentAugmentationRuntimeDefinition, ComponentMaterializer, ComponentMaterializerService,
-    ComponentResourceDependency, ComponentRuntimeDefinition, ComponentRuntimeScope,
-    component_materializer_contract_key, component_named_resource_dependency_contract_key,
-    component_system_dependency_contract_key,
+    ComponentResourceDependency, ComponentRuntimeContribution, ComponentRuntimeDefinition,
+    ComponentRuntimeScope, ComponentRuntimeTeardown, component_materializer_contract_key,
+    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 use crate::surface::{
     Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
@@ -102,6 +102,7 @@ struct ComponentModuleState {
     runtime_attachments: BTreeMap<crate::ComponentId, ComponentRuntimeDefinition>,
     augmentation_preparations:
         BTreeMap<crate::ComponentId, Vec<crate::ComponentAugmentationRuntimeDefinition>>,
+    prepared_contributions: BTreeMap<crate::ComponentId, PreparedParticipation>,
     resource_dependencies: Arc<BTreeMap<fabric_core::ContractId, Arc<ComponentResourceDependency>>>,
     components: BTreeMap<crate::ComponentId, ComponentStatus>,
     control_snapshot: Option<ComponentControlSnapshot>,
@@ -111,6 +112,16 @@ struct ComponentModuleState {
     requirements: Vec<ResolvedComponentRequirement>,
     next_invocation_id: u64,
     next_participation_id: u64,
+}
+
+struct PreparedComponentContribution {
+    kind: ComponentRuntimeContribution,
+    teardown: Option<ComponentRuntimeTeardown>,
+}
+
+struct PreparedParticipation {
+    participation: ComponentParticipation,
+    contributions: Vec<PreparedComponentContribution>,
 }
 
 fn unbound_instance_id() -> InstanceId {
@@ -236,6 +247,7 @@ impl ComponentRuntimeModule {
                     component_declarations,
                     runtime_attachments,
                     augmentation_preparations: BTreeMap::new(),
+                    prepared_contributions: BTreeMap::new(),
                     resource_dependencies: Arc::new(BTreeMap::new()),
                     components: BTreeMap::new(),
                     control_snapshot,
@@ -248,6 +260,99 @@ impl ComponentRuntimeModule {
                 }),
             }),
         })
+    }
+}
+
+impl SharedComponentState {
+    fn record_prepared_contribution(
+        &self,
+        participation: &ComponentParticipation,
+        kind: ComponentRuntimeContribution,
+        teardown: Option<ComponentRuntimeTeardown>,
+    ) -> Result<(), ComponentError> {
+        let mut state = self.inner.lock().expect("component runtime state lock");
+        if !current_preparing_participation(&state, participation) {
+            return Err(ComponentError::StaleComponentParticipation(
+                participation.clone(),
+            ));
+        }
+        let entry = state
+            .prepared_contributions
+            .entry(participation.component().component_id().clone())
+            .or_insert_with(|| PreparedParticipation {
+                participation: participation.clone(),
+                contributions: Vec::new(),
+            });
+        if entry.participation != *participation {
+            return Err(ComponentError::StaleComponentParticipation(
+                participation.clone(),
+            ));
+        }
+        entry
+            .contributions
+            .push(PreparedComponentContribution { kind, teardown });
+        Ok(())
+    }
+
+    /// Removes all participation-owned authority before invoking its
+    /// occurrence-local teardown actions. Teardown then runs outside the host
+    /// mutex, in reverse successful preparation order.
+    fn unregister_with_teardown(
+        &self,
+        participation: &ComponentParticipation,
+    ) -> Result<ComponentStatus, ComponentError> {
+        let (status, contributions) = {
+            let mut state = self.inner.lock().expect("component runtime state lock");
+            let status = state
+                .components
+                .get(participation.component().component_id())
+                .cloned()
+                .ok_or_else(|| {
+                    ComponentError::UnknownComponent(
+                        participation.component().component_id().clone(),
+                    )
+                })?;
+            if status.participation() != participation {
+                return Err(ComponentError::StaleComponentParticipation(
+                    participation.clone(),
+                ));
+            }
+            state
+                .components
+                .remove(participation.component().component_id());
+            state
+                .operations
+                .retain(|_, operation| operation.owner != *participation);
+            state.surfaces.retain(|_, surface| {
+                surface.owner().component_id() != participation.component().component_id()
+            });
+            let contributions = state
+                .prepared_contributions
+                .remove(participation.component().component_id())
+                .filter(|prepared| prepared.participation == *participation)
+                .map(|prepared| prepared.contributions)
+                .unwrap_or_default();
+            refresh_operational_status(&mut state);
+            (status, contributions)
+        };
+
+        let mut failures = Vec::new();
+        for contribution in contributions.into_iter().rev() {
+            let Some(teardown) = contribution.teardown else {
+                continue;
+            };
+            if let Err(source) = teardown() {
+                failures.push(crate::ComponentRuntimeTeardownFailure::new(
+                    participation.clone(),
+                    contribution.kind,
+                    source,
+                ));
+            }
+        }
+        match crate::ComponentRuntimeTeardownError::from_failures(failures) {
+            Some(cleanup) => Err(ComponentError::ComponentRuntimeTeardownFailed(cleanup)),
+            None => Ok(status),
+        }
     }
 }
 
@@ -490,34 +595,68 @@ impl ModuleRuntime for ComponentRuntimeModule {
             .inner
             .lock()
             .expect("component runtime state lock");
-        let projected = project_aggregate_readiness(&state);
         state
-            .transition_to(projected.status().lifecycle())
+            .transition_to(ComponentRuntimeLifecycle::Ready)
             .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
+        let projected = project_aggregate_readiness(&state);
         state.set_health(projected.status().health());
         Ok(())
     }
 
     fn stop(&mut self) -> Result<(), fabric_core::ModuleError> {
+        let participations = {
+            let mut state = self
+                .shared
+                .inner
+                .lock()
+                .expect("component runtime state lock");
+            if state.current_status().lifecycle() == ComponentRuntimeLifecycle::Stopped {
+                return Ok(());
+            }
+            state
+                .transition_to(ComponentRuntimeLifecycle::Stopping)
+                .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
+            state.set_health(Health::Unavailable);
+            state
+                .components
+                .values()
+                .map(|status| status.participation().clone())
+                .collect::<Vec<_>>()
+        };
+
+        let registry =
+            ComponentRegistry::new(self.shared.clone() as Arc<dyn ComponentRegistryService>);
+        let mut failures = Vec::new();
+        for participation in participations {
+            if let Err(error) = registry.unregister(&participation) {
+                failures.push(error);
+            }
+        }
+
         let mut state = self
             .shared
             .inner
             .lock()
             .expect("component runtime state lock");
-        if state.current_status().lifecycle() == ComponentRuntimeLifecycle::Stopped {
-            return Ok(());
-        }
-        state
-            .transition_to(ComponentRuntimeLifecycle::Stopping)
-            .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
-        state.set_health(Health::Unavailable);
         state.operations.clear();
+        state.surfaces.clear();
         state.components.clear();
+        state.prepared_contributions.clear();
         state
             .transition_to(ComponentRuntimeLifecycle::Stopped)
             .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         state.set_health(Health::Unavailable);
-        Ok(())
+        if failures.is_empty() {
+            Ok(())
+        } else {
+            Err(fabric_core::ModuleError::new(
+                failures
+                    .into_iter()
+                    .map(|failure| failure.to_string())
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            ))
+        }
     }
 
     fn health(&self) -> Health {
@@ -606,9 +745,7 @@ impl ComponentRuntimeService for SharedComponentState {
     fn current_instance_id(&self) -> Result<InstanceId, ComponentError> {
         let state = self.inner.lock().expect("component runtime state lock");
         match state.current_status().lifecycle() {
-            ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {
-                Ok(state.instance_id())
-            }
+            ComponentRuntimeLifecycle::Ready => Ok(state.instance_id()),
             ComponentRuntimeLifecycle::Starting
             | ComponentRuntimeLifecycle::Stopping
             | ComponentRuntimeLifecycle::Stopped => Err(ComponentError::Unavailable),
@@ -651,9 +788,7 @@ impl ComponentReadinessService for SharedComponentState {
     fn aggregate_readiness(&self) -> ComponentAggregateReadiness {
         let state = self.inner.lock().expect("component runtime state lock");
         match state.status.lifecycle() {
-            ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {
-                project_aggregate_readiness(&state)
-            }
+            ComponentRuntimeLifecycle::Ready => project_aggregate_readiness(&state),
             ComponentRuntimeLifecycle::Starting
             | ComponentRuntimeLifecycle::Stopping
             | ComponentRuntimeLifecycle::Stopped => ComponentAggregateReadiness::new(
@@ -666,10 +801,35 @@ impl ComponentReadinessService for SharedComponentState {
 }
 
 impl ComponentMaterializerAdapter {
-    fn rollback_materialization(&self, participation: &ComponentParticipation) {
+    fn rollback_materialization(
+        &self,
+        participation: &ComponentParticipation,
+    ) -> Option<crate::ComponentRuntimeTeardownError> {
         let registry =
             ComponentRegistry::new(self.shared.clone() as Arc<dyn ComponentRegistryService>);
-        let _ = registry.unregister(participation);
+        match registry.unregister(participation) {
+            Err(ComponentError::ComponentRuntimeTeardownFailed(cleanup)) => Some(cleanup),
+            _ => None,
+        }
+    }
+
+    fn materialization_failure(
+        &self,
+        component_id: &ComponentId,
+        participation: &ComponentParticipation,
+        phase: crate::ComponentRuntimeFailurePhase,
+    ) -> ComponentError {
+        let primary = ComponentError::ComponentRuntimeMaterializationFailed {
+            component_id: component_id.clone(),
+            phase,
+        };
+        match self.rollback_materialization(participation) {
+            Some(cleanup) => ComponentError::ComponentRuntimeMaterializationCleanupFailed {
+                primary: Box::new(primary),
+                cleanup,
+            },
+            None => primary,
+        }
     }
 
     fn preparation_completes_declaration(
@@ -714,7 +874,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .lock()
                 .expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {}
+                ComponentRuntimeLifecycle::Ready => {}
                 ComponentRuntimeLifecycle::Starting
                 | ComponentRuntimeLifecycle::Stopping
                 | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),
@@ -766,16 +926,32 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             component_scope,
             resource_dependencies,
         );
-        let health = match attachment.prepare(&scope) {
-            Ok(health) => health,
+        let preparation = match attachment.prepare_with_teardown(&scope) {
+            Ok(preparation) => preparation,
             Err(_) => {
-                self.rollback_materialization(&participation);
-                return Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                    component_id: component_id.clone(),
-                    phase: crate::error::ComponentRuntimeFailurePhase::Prepare,
-                });
+                return Err(self.materialization_failure(
+                    component_id,
+                    &participation,
+                    crate::ComponentRuntimeFailurePhase::Prepare,
+                ));
             }
         };
+        let (health, teardown) = preparation.into_parts();
+        if self
+            .shared
+            .record_prepared_contribution(
+                &participation,
+                ComponentRuntimeContribution::Base,
+                teardown,
+            )
+            .is_err()
+        {
+            return Err(self.materialization_failure(
+                component_id,
+                &participation,
+                crate::ComponentRuntimeFailurePhase::Prepare,
+            ));
+        }
         let augmentations = self
             .shared
             .inner
@@ -785,38 +961,54 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             .get(component_id)
             .cloned()
             .unwrap_or_default();
-        for augmentation in augmentations {
-            if augmentation.prepare(&scope).is_err() {
-                self.rollback_materialization(&participation);
-                return Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                    component_id: component_id.clone(),
-                    phase: crate::error::ComponentRuntimeFailurePhase::Prepare,
-                });
+        for (index, augmentation) in augmentations.into_iter().enumerate() {
+            let preparation = match augmentation.prepare_with_teardown(&scope) {
+                Ok(preparation) => preparation,
+                Err(_) => {
+                    return Err(self.materialization_failure(
+                        component_id,
+                        &participation,
+                        crate::ComponentRuntimeFailurePhase::Prepare,
+                    ));
+                }
+            };
+            if self
+                .shared
+                .record_prepared_contribution(
+                    &participation,
+                    ComponentRuntimeContribution::Augmentation { index },
+                    preparation.into_teardown(),
+                )
+                .is_err()
+            {
+                return Err(self.materialization_failure(
+                    component_id,
+                    &participation,
+                    crate::ComponentRuntimeFailurePhase::Prepare,
+                ));
             }
         }
         if !self.preparation_completes_declaration(component_id, &participation) {
-            self.rollback_materialization(&participation);
-            return Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                component_id: component_id.clone(),
-                phase: crate::error::ComponentRuntimeFailurePhase::Prepare,
-            });
+            return Err(self.materialization_failure(
+                component_id,
+                &participation,
+                crate::ComponentRuntimeFailurePhase::Prepare,
+            ));
         }
         if registry.update_health(&participation, health).is_err() {
-            self.rollback_materialization(&participation);
-            return Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                component_id: component_id.clone(),
-                phase: crate::error::ComponentRuntimeFailurePhase::UpdateHealth,
-            });
+            return Err(self.materialization_failure(
+                component_id,
+                &participation,
+                crate::ComponentRuntimeFailurePhase::UpdateHealth,
+            ));
         }
         match registry.activate(&participation) {
             Ok(status) => Ok(status),
-            Err(_) => {
-                self.rollback_materialization(&participation);
-                Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                    component_id: component_id.clone(),
-                    phase: crate::error::ComponentRuntimeFailurePhase::Activate,
-                })
-            }
+            Err(_) => Err(self.materialization_failure(
+                component_id,
+                &participation,
+                crate::ComponentRuntimeFailurePhase::Activate,
+            )),
         }
     }
 
@@ -828,7 +1020,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .lock()
                 .expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {}
+                ComponentRuntimeLifecycle::Ready => {}
                 ComponentRuntimeLifecycle::Starting
                 | ComponentRuntimeLifecycle::Stopping
                 | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),
@@ -881,10 +1073,7 @@ impl ComponentReconstructionService for ComponentReconstructionAdapter {
                     .collect::<std::collections::BTreeSet<_>>(),
             )
         };
-        if !matches!(
-            lifecycle,
-            ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded
-        ) {
+        if !matches!(lifecycle, ComponentRuntimeLifecycle::Ready) {
             return Err(ComponentError::ComponentReconstructionUnavailableLifecycle(
                 lifecycle,
             ));

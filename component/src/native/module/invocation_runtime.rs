@@ -6,7 +6,7 @@ impl crate::InvocationService for SharedComponentState {
     fn begin_external(&self) -> Result<crate::InvocationContext, ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");
         match state.current_status().lifecycle() {
-            ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {}
+            ComponentRuntimeLifecycle::Ready => {}
             ComponentRuntimeLifecycle::Starting
             | ComponentRuntimeLifecycle::Stopping
             | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),

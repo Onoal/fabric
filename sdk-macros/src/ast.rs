@@ -52,6 +52,7 @@ pub struct ComponentInput {
     pub requires: Vec<RequirementDefinition>,
     pub systems: Vec<SystemDependencyDefinition>,
     pub operations: Vec<ComponentOperationDefinition>,
+    pub teardown: Option<Block>,
 }
 
 pub struct ConfigField {

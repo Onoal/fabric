@@ -44,7 +44,7 @@ impl OperationRailService for SharedComponentState {
         let (operation, context) = {
             let state = self.inner.lock().expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {}
+                ComponentRuntimeLifecycle::Ready => {}
                 ComponentRuntimeLifecycle::Starting
                 | ComponentRuntimeLifecycle::Stopping
                 | ComponentRuntimeLifecycle::Stopped => {

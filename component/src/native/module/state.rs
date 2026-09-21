@@ -235,17 +235,11 @@ pub(super) fn project_aggregate_readiness(
         }
     }
 
-    let lifecycle = if aggregate_health == Health::Healthy {
-        ComponentRuntimeLifecycle::Ready
-    } else {
-        ComponentRuntimeLifecycle::Degraded
-    };
-
     ComponentAggregateReadiness::new(
         ComponentRuntimeStatus::new(
             state.instance_id(),
             state.status.generation(),
-            lifecycle,
+            state.status.lifecycle(),
             aggregate_health,
         ),
         state.readiness_policy.clone(),
@@ -254,10 +248,7 @@ pub(super) fn project_aggregate_readiness(
 }
 
 pub(super) fn refresh_operational_status(state: &mut ComponentModuleState) {
-    if !matches!(
-        state.status.lifecycle(),
-        ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded
-    ) {
+    if !matches!(state.status.lifecycle(), ComponentRuntimeLifecycle::Ready) {
         return;
     }
     state.status = project_aggregate_readiness(state).status().clone();
@@ -340,9 +331,7 @@ impl ComponentModuleState {
 
     pub(super) fn current_status(&self) -> ComponentRuntimeStatus {
         match self.status.lifecycle() {
-            ComponentRuntimeLifecycle::Ready | ComponentRuntimeLifecycle::Degraded => {
-                project_aggregate_readiness(self).status().clone()
-            }
+            ComponentRuntimeLifecycle::Ready => project_aggregate_readiness(self).status().clone(),
             ComponentRuntimeLifecycle::Starting
             | ComponentRuntimeLifecycle::Stopping
             | ComponentRuntimeLifecycle::Stopped => self.status.clone(),

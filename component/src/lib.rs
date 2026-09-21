@@ -57,7 +57,10 @@ pub use declaration::{
     ComponentDeclaration, ComponentResourceRequirementDeclaration,
     ComponentResourceRequirementName, ComponentSystemRequirementDeclaration,
 };
-pub use error::{ComponentError, ComponentRuntimeFailurePhase};
+pub use error::{
+    ComponentError, ComponentRuntimeFailurePhase, ComponentRuntimeTeardownError,
+    ComponentRuntimeTeardownFailure,
+};
 pub use fabric_core::{InstanceGeneration, InstanceId};
 pub use invocation::{
     InvocationContext, InvocationId, InvocationOrigin, InvocationRail, InvocationService,
@@ -101,9 +104,10 @@ pub use requirement::{
     component_requirement_contract_key,
 };
 pub use runtime::{
-    ComponentAugmentationRuntimeDefinition, ComponentMaterializer, ComponentMaterializerService,
-    ComponentResourceDependency, ComponentRuntimeDefinition, ComponentRuntimeScope,
-    component_materializer_contract_id, component_materializer_contract_key,
+    ComponentAugmentationRuntimeDefinition, ComponentAugmentationRuntimePreparation,
+    ComponentMaterializer, ComponentMaterializerService, ComponentResourceDependency,
+    ComponentRuntimeContribution, ComponentRuntimeDefinition, ComponentRuntimePreparation,
+    ComponentRuntimeScope, component_materializer_contract_id, component_materializer_contract_key,
     component_named_resource_dependency_contract_key, component_resource_dependency_contract_id,
     component_resource_dependency_contract_key, component_system_dependency_contract_key,
 };

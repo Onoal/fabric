@@ -4,9 +4,94 @@ use std::fmt;
 use fabric_core::{InstanceGeneration, InstanceId};
 
 use crate::{
-    ComponentId, ComponentParticipation, ComponentRuntimeLifecycle, OperationId, OperationTypeId,
-    SurfaceId,
+    ComponentId, ComponentParticipation, ComponentRuntimeContribution, ComponentRuntimeLifecycle,
+    OperationId, OperationTypeId, SurfaceId,
 };
+
+/// One best-effort cleanup failure from one Component participation
+/// contribution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComponentRuntimeTeardownFailure {
+    component_id: ComponentId,
+    participation: ComponentParticipation,
+    contribution: ComponentRuntimeContribution,
+    source: Box<ComponentError>,
+}
+
+impl ComponentRuntimeTeardownFailure {
+    pub fn component_id(&self) -> &ComponentId {
+        &self.component_id
+    }
+
+    pub fn participation(&self) -> &ComponentParticipation {
+        &self.participation
+    }
+
+    pub fn contribution(&self) -> ComponentRuntimeContribution {
+        self.contribution
+    }
+
+    pub fn source(&self) -> &ComponentError {
+        &self.source
+    }
+
+    pub(crate) fn new(
+        participation: ComponentParticipation,
+        contribution: ComponentRuntimeContribution,
+        source: ComponentError,
+    ) -> Self {
+        Self {
+            component_id: participation.component().component_id().clone(),
+            participation,
+            contribution,
+            source: Box::new(source),
+        }
+    }
+}
+
+/// Aggregated best-effort cleanup evidence for one Component participation
+/// operation. This remains Component-specific because preparation
+/// contributions are not Core ModuleRuntime participants.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComponentRuntimeTeardownError {
+    failures: Vec<ComponentRuntimeTeardownFailure>,
+}
+
+impl ComponentRuntimeTeardownError {
+    pub fn failures(&self) -> &[ComponentRuntimeTeardownFailure] {
+        &self.failures
+    }
+
+    pub(crate) fn from_failures(failures: Vec<ComponentRuntimeTeardownFailure>) -> Option<Self> {
+        (!failures.is_empty()).then_some(Self { failures })
+    }
+}
+
+impl fmt::Display for ComponentRuntimeTeardownError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Component participation teardown failed for {} contribution(s): ",
+            self.failures.len()
+        )?;
+        for (index, failure) in self.failures.iter().enumerate() {
+            if index > 0 {
+                f.write_str("; ")?;
+            }
+            write!(
+                f,
+                "{} participation {} {:?}: {}",
+                failure.component_id,
+                failure.participation.participation_id(),
+                failure.contribution,
+                failure.source,
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for ComponentRuntimeTeardownError {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentRuntimeFailurePhase {
@@ -110,6 +195,11 @@ pub enum ComponentError {
         component_id: ComponentId,
         phase: ComponentRuntimeFailurePhase,
     },
+    ComponentRuntimeMaterializationCleanupFailed {
+        primary: Box<ComponentError>,
+        cleanup: ComponentRuntimeTeardownError,
+    },
+    ComponentRuntimeTeardownFailed(ComponentRuntimeTeardownError),
     UnknownComponentControl(ComponentId),
     ComponentReconstructionUnavailableLifecycle(ComponentRuntimeLifecycle),
     UnknownOperation(OperationId),
@@ -336,6 +426,11 @@ impl fmt::Display for ComponentError {
                 f,
                 "ComponentId `{component_id}` runtime materialization failed during `{phase:?}`"
             ),
+            Self::ComponentRuntimeMaterializationCleanupFailed { primary, cleanup } => write!(
+                f,
+                "Component runtime materialization failed: {primary}; teardown also failed: {cleanup}"
+            ),
+            Self::ComponentRuntimeTeardownFailed(cleanup) => write!(f, "{cleanup}"),
             Self::UnknownComponentControl(component_id) => {
                 write!(
                     f,

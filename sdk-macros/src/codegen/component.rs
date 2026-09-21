@@ -155,6 +155,53 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 }
             }
         });
+    let self_realization = if let Some(teardown) = &input.teardown {
+        quote! {
+            #sdk::component::ComponentRuntimeDefinition::new_with_teardown(
+                <Self as #sdk::authoring::ComponentDefinition>::component_id(),
+                move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
+                    #sdk::component::ComponentRuntimePreparation,
+                    #sdk::component::ComponentError,
+                > {
+                    let dependencies = #dependencies_name {
+                        #(#dependency_initializers)*
+                    };
+                    #(#operation_registrations)*
+                    let teardown_scope = scope.clone();
+                    let teardown_config = config.clone();
+                    let teardown_dependencies = dependencies.clone();
+                    ::std::result::Result::Ok(
+                        #sdk::component::ComponentRuntimePreparation::with_teardown(
+                            #sdk::core::Health::Healthy,
+                            move || {
+                                let scope = teardown_scope;
+                                let config = teardown_config;
+                                let dependencies = teardown_dependencies;
+                                let _ = (&scope, &config, &dependencies);
+                                #teardown
+                            },
+                        ),
+                    )
+                },
+            )
+        }
+    } else {
+        quote! {
+            #sdk::component::ComponentRuntimeDefinition::new(
+                <Self as #sdk::authoring::ComponentDefinition>::component_id(),
+                move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
+                    #sdk::core::Health,
+                    #sdk::component::ComponentError,
+                > {
+                    let dependencies = #dependencies_name {
+                        #(#dependency_initializers)*
+                    };
+                    #(#operation_registrations)*
+                    ::std::result::Result::Ok(#sdk::core::Health::Healthy)
+                },
+            )
+        }
+    };
 
     quote! {
         #[derive(Clone)]
@@ -201,19 +248,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 config: &Self::Config,
             ) -> #sdk::component::ComponentRuntimeDefinition {
                 let config = config.clone();
-                #sdk::component::ComponentRuntimeDefinition::new(
-                    <Self as #sdk::authoring::ComponentDefinition>::component_id(),
-                    move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
-                        #sdk::core::Health,
-                        #sdk::component::ComponentError,
-                    > {
-                        let dependencies = #dependencies_name {
-                            #(#dependency_initializers)*
-                        };
-                        #(#operation_registrations)*
-                        ::std::result::Result::Ok(#sdk::core::Health::Healthy)
-                    },
-                )
+                #self_realization
             }
         }
 

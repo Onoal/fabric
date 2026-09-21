@@ -608,7 +608,7 @@ fn reconstruction_updates_readiness_without_mutating_desired_or_semantic_truth()
     let component_b = component(&rails.runtime, "component.b");
     assert_eq!(
         rails.readiness.aggregate_readiness().status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
 
     rails

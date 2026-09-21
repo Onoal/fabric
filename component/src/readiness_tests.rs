@@ -326,7 +326,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     let absent = rails.readiness.aggregate_readiness();
     assert_eq!(
         absent.status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(absent.status().health(), Health::Unavailable);
     assert_eq!(
@@ -356,7 +356,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     let degraded = rails.readiness.aggregate_readiness();
     assert_eq!(
         degraded.status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(degraded.status().health(), Health::Degraded);
     assert_eq!(
@@ -379,7 +379,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     let unavailable = rails.readiness.aggregate_readiness();
     assert_eq!(
         unavailable.status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(unavailable.status().health(), Health::Unavailable);
 
@@ -437,7 +437,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
     let degraded = rails.readiness.aggregate_readiness();
     assert_eq!(
         degraded.status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(degraded.status().health(), Health::Degraded);
 
@@ -448,7 +448,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
     let unavailable = rails.readiness.aggregate_readiness();
     assert_eq!(
         unavailable.status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(unavailable.status().health(), Health::Unavailable);
 
@@ -512,7 +512,7 @@ fn unlisted_and_optional_components_do_not_degrade_aggregate_without_required_pa
         .expect("y unavailable");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Unavailable);
     instance.stop().expect("stop instance");
@@ -536,7 +536,7 @@ fn desired_state_is_separate_from_readiness_and_aggregate_failure_does_not_globa
         .expect("set desired");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Degraded
+        ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Unavailable);
 

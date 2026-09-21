@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
 use fabric_component::{
-    ComponentAugmentationRuntimeDefinition, ComponentError, ComponentRuntimeScope,
+    ComponentAugmentationRuntimeDefinition, ComponentAugmentationRuntimePreparation,
+    ComponentError, ComponentRuntimeScope,
 };
 use fabric_core::{
     ContractKey, ContractProviderSelection, ContractRequirement, HostMaterializationRequirement,
@@ -41,6 +42,18 @@ where
         config: &X::Config,
         scope: &ComponentRuntimeScope,
     ) -> Result<(), ComponentError>;
+
+    /// Prepares one participation-scoped contribution. Existing support can
+    /// keep implementing [`Self::prepare`]; stateful support overrides this
+    /// method to return cleanup ownership for this occurrence.
+    fn prepare_with_teardown(
+        &self,
+        config: &X::Config,
+        scope: &ComponentRuntimeScope,
+    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
+        self.prepare(config, scope)?;
+        Ok(ComponentAugmentationRuntimePreparation::new())
+    }
 }
 
 /// One semantic attachment carried by the configured Component contribution.
@@ -253,9 +266,10 @@ where
         let support = self.support.clone();
         let config = attachment.config.clone();
         let preparation_config = config.clone();
-        let preparation = ComponentAugmentationRuntimeDefinition::new(component_id, move |scope| {
-            support.prepare(&preparation_config, scope)
-        });
+        let preparation =
+            ComponentAugmentationRuntimeDefinition::new_with_teardown(component_id, move |scope| {
+                support.prepare_with_teardown(&preparation_config, scope)
+            });
         let mut component = attachment.component;
         component.augmentation_preparations.push(preparation);
         (

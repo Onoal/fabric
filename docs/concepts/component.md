@@ -193,10 +193,20 @@ components.dematerialize::<Greeter>()?;
 
 `Instance Running != every declared Component active`. Dematerialization ends
 that active participation; it does not remove the Component declaration from
-Composition. Participation passes through `Preparing` to `Active`; its status
-carries participation, state, and local health. The Component runtime host has
-its own `Starting`, `Ready`, `Degraded`, `Stopping`, and `Stopped` lifecycle;
-that is not the lifecycle of one semantic Component declaration.
+Composition. Participation passes through `Preparing` to `Active` and then
+back to absence; its status carries participation, state, and local health.
+The Component runtime host has its own `Starting`, `Ready`, `Stopping`, and
+`Stopped` lifecycle. Host health remains independent, so `Ready + Healthy`,
+`Ready + Degraded`, and `Ready + Unavailable` are all meaningful observations.
+None is the lifecycle of one semantic Component declaration.
+
+Preparation may establish runtime machinery owned by one participation. Normal
+`component!` authoring may add an optional `teardown { ... }` section; direct
+authors use `ComponentRuntimePreparation::with_teardown`. Fabric runs that
+action exactly once after disabling participation-owned authority, on failed
+preparation rollback, explicit dematerialization, or host stop. Base
+preparation runs before augmentations; successful teardown runs in reverse
+order, so later augmentation contributions clean up before the base.
 
 ## Build time and runtime
 

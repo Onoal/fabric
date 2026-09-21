@@ -46,9 +46,11 @@ pub use authoring::{
     SystemRequires, SystemSelection,
 };
 pub use component::{
-    ComponentError, ComponentId, ComponentRequirementKind, ComponentResourceRequirementName,
-    ComponentStatus, InvocationContext, InvocationOrigin, OperationId, OperationKey,
-    OperationTypeId, ParticipationState,
+    ComponentAugmentationRuntimePreparation, ComponentError, ComponentId, ComponentRequirementKind,
+    ComponentResourceRequirementName, ComponentRuntimeContribution, ComponentRuntimePreparation,
+    ComponentRuntimeTeardownError, ComponentRuntimeTeardownFailure, ComponentStatus,
+    InvocationContext, InvocationOrigin, OperationId, OperationKey, OperationTypeId,
+    ParticipationState,
 };
 pub use core::{
     CompositionError, CompositionId, ContractId, ContractIdentity, ContractKey, ContractVersion,

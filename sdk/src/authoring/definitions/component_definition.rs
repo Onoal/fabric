@@ -9,7 +9,7 @@ use crate::authoring::{
 use fabric_component::{
     ComponentAugmentationRuntimeDefinition, ComponentDeclaration, ComponentError, ComponentId,
     ComponentResourceDependency, ComponentResourceRequirementDeclaration,
-    ComponentResourceRequirementName, ComponentRuntimeDefinition,
+    ComponentResourceRequirementName, ComponentRuntimeDefinition, ComponentRuntimePreparation,
     ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
     component_system_dependency_contract_key,
 };
@@ -462,7 +462,7 @@ pub trait SelfRealizingComponentDefinition: ComponentDefinition {
 type ComponentRealizationPrepareFn<C> = dyn Fn(
         &<C as ComponentDefinition>::Config,
         &fabric_component::ComponentRuntimeScope,
-    ) -> Result<Health, ComponentError>
+    ) -> Result<ComponentRuntimePreparation, ComponentError>
     + Send
     + Sync;
 
@@ -498,6 +498,24 @@ where
         + 'static,
     ) -> Self {
         Self {
+            prepare: Arc::new(move |config, scope| {
+                prepare(config, scope).map(ComponentRuntimePreparation::new)
+            }),
+        }
+    }
+
+    /// Constructs a Component realization contribution that owns cleanup for
+    /// the one participation it prepared.
+    pub fn new_with_teardown(
+        prepare: impl Fn(
+            &C::Config,
+            &fabric_component::ComponentRuntimeScope,
+        ) -> Result<ComponentRuntimePreparation, ComponentError>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
             prepare: Arc::new(prepare),
         }
     }
@@ -507,6 +525,14 @@ where
         config: &C::Config,
         scope: &fabric_component::ComponentRuntimeScope,
     ) -> Result<Health, ComponentError> {
+        Ok((self.prepare)(config, scope)?.health())
+    }
+
+    pub fn prepare_with_teardown(
+        &self,
+        config: &C::Config,
+        scope: &fabric_component::ComponentRuntimeScope,
+    ) -> Result<ComponentRuntimePreparation, ComponentError> {
         (self.prepare)(config, scope)
     }
 }
@@ -821,14 +847,15 @@ where
         let config = self.config.clone();
         let realization_contract = Arc::new(Mutex::new(None::<ComponentRealizationContract<C>>));
         let forwarded = Arc::clone(&realization_contract);
-        let realization = ComponentRuntimeDefinition::new(C::component_id(), move |scope| {
-            let realization = forwarded
-                .lock()
-                .expect("component realization bridge lock")
-                .clone()
-                .ok_or(ComponentError::Unavailable)?;
-            realization.prepare(&config, scope)
-        });
+        let realization =
+            ComponentRuntimeDefinition::new_with_teardown(C::component_id(), move |scope| {
+                let realization = forwarded
+                    .lock()
+                    .expect("component realization bridge lock")
+                    .clone()
+                    .ok_or(ComponentError::Unavailable)?;
+                realization.prepare_with_teardown(&config, scope)
+            });
         let component = ComponentSpec {
             self_realization: Some(realization),
             ..self

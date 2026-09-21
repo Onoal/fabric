@@ -376,6 +376,33 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for FailingAudit {
 }
 
 #[derive(Clone)]
+struct TeardownAuditSupport(Arc<AtomicUsize>);
+impl ComponentAugmentationSupportDefinition<Greeter, Audit> for TeardownAuditSupport {
+    fn declaration(&self, id: ModuleId) -> ModuleDeclaration {
+        ModuleDeclaration::new(id)
+    }
+    fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(AuditRuntime { id }))
+    }
+    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+        Ok(())
+    }
+    fn prepare_with_teardown(
+        &self,
+        _: &(),
+        _: &ComponentRuntimeScope,
+    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
+        let teardown_count = Arc::clone(&self.0);
+        Ok(ComponentAugmentationRuntimePreparation::with_teardown(
+            move || {
+                teardown_count.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            },
+        ))
+    }
+}
+
+#[derive(Clone)]
 struct UndeclaredOperationAudit;
 impl ComponentAugmentationSupportDefinition<Greeter, Audit> for UndeclaredOperationAudit {
     fn declaration(&self, id: ModuleId) -> ModuleDeclaration {
@@ -429,6 +456,33 @@ fn external_component_semantic_prepares_alongside_base_operations() {
     ))
     .expect("invoke");
     assert_eq!(output.message, "hello, Ada");
+}
+
+#[test]
+fn third_party_component_augmentation_teardown_is_participation_scoped() {
+    let teardown_count = Arc::new(AtomicUsize::new(0));
+    let built = Fabric::new("fabric.test.component.augmentation.teardown")
+        .expect("fabric")
+        .component(
+            Greeter::define(GreeterConfig {})
+                .augment::<Audit>(())
+                .expect("attach")
+                .using(TeardownAuditSupport(Arc::clone(&teardown_count))),
+        )
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named("component-augmentation-teardown")
+        .expect("materialize");
+    instance.start().expect("start");
+    let components = instance.components().expect("components");
+    components.materialize::<Greeter>().expect("participate");
+    components
+        .dematerialize::<Greeter>()
+        .expect("dematerialize");
+    assert_eq!(teardown_count.load(Ordering::SeqCst), 1);
+    instance.stop().expect("stop");
+    assert_eq!(teardown_count.load(Ordering::SeqCst), 1);
 }
 
 #[test]

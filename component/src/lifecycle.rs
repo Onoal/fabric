@@ -7,7 +7,6 @@ use crate::ComponentError;
 pub enum ComponentRuntimeLifecycle {
     Starting,
     Ready,
-    Degraded,
     Stopping,
     Stopped,
 }
@@ -26,12 +25,8 @@ impl ComponentRuntimeLifecycle {
             (self, next),
             (Self::Stopped, Self::Starting)
                 | (Self::Starting, Self::Ready)
-                | (Self::Starting, Self::Degraded)
                 | (Self::Starting, Self::Stopped)
-                | (Self::Ready, Self::Degraded)
                 | (Self::Ready, Self::Stopping)
-                | (Self::Degraded, Self::Ready)
-                | (Self::Degraded, Self::Stopping)
                 | (Self::Stopping, Self::Stopped)
         );
         if valid {

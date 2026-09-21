@@ -248,7 +248,7 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
 }
 
 #[test]
-fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_but_not_component() {
+fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_and_component_uses_teardown() {
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
     let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
     let resource =
@@ -287,7 +287,12 @@ fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_but_not_componen
     }
     assert!(
         !component.contains("RuntimeState") && !component.contains("RuntimeContext"),
-        "component lifecycle authoring must remain outside the I2 macro surface"
+        "component teardown must not inherit the Resource/System runtime lifecycle vocabulary"
+    );
+    assert!(
+        component.contains("new_with_teardown")
+            && parse.contains("component! supports only one `teardown { ... }` section"),
+        "component! should expose participation-scoped teardown without lifecycle DSL"
     );
 }
 

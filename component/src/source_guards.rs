@@ -87,6 +87,22 @@ fn component_source_stays_headless_and_foundational() {
 }
 
 #[test]
+fn component_host_lifecycle_keeps_health_out_of_its_state_vocabulary() {
+    let lifecycle = fs::read_to_string(format!("{}/src/lifecycle.rs", env!("CARGO_MANIFEST_DIR")))
+        .expect("lifecycle source");
+    assert!(
+        lifecycle.contains("Starting,")
+            && lifecycle.contains("Ready,")
+            && lifecycle.contains("Stopping,")
+            && lifecycle.contains("Stopped,")
+    );
+    assert!(
+        !lifecycle.contains("Degraded,"),
+        "Component host lifecycle must not encode health"
+    );
+}
+
+#[test]
 fn component_resolution_api_stays_sealed_against_public_synthetic_bypasses() {
     let communication = fs::read_to_string(format!(
         "{}/src/communication.rs",

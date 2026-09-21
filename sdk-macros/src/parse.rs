@@ -39,6 +39,7 @@ mod kw {
     syn::custom_keyword!(health);
     syn::custom_keyword!(schema);
     syn::custom_keyword!(system);
+    syn::custom_keyword!(teardown);
     syn::custom_keyword!(version);
     syn::custom_keyword!(resource);
 }
@@ -470,6 +471,7 @@ impl Parse for ComponentInput {
         let mut requires = None;
         let mut systems = None;
         let mut operations = None;
+        let mut teardown = None;
 
         while !content.is_empty() {
             if content.peek(kw::id) {
@@ -514,6 +516,14 @@ impl Parse for ComponentInput {
                     );
                 }
                 operations = Some(parse_component_operations(&content)?);
+            } else if content.peek(kw::teardown) {
+                content.parse::<kw::teardown>()?;
+                if teardown.is_some() {
+                    return Err(
+                        content.error("component! supports only one `teardown { ... }` section")
+                    );
+                }
+                teardown = Some(content.parse::<syn::Block>()?);
             } else {
                 return Err(content.error("unsupported component! section"));
             }
@@ -544,6 +554,7 @@ impl Parse for ComponentInput {
                     "component! requires an `operations { ... }` section",
                 )
             })?,
+            teardown,
         })
     }
 }

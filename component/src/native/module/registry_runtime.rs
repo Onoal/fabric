@@ -77,27 +77,7 @@ impl ComponentRegistryService for SharedComponentState {
         &self,
         participation: &ComponentParticipation,
     ) -> Result<ComponentStatus, ComponentError> {
-        let mut state = self.inner.lock().expect("component runtime state lock");
-        let status = state
-            .components
-            .get(participation.component().component_id())
-            .cloned()
-            .ok_or_else(|| {
-                ComponentError::UnknownComponent(participation.component().component_id().clone())
-            })?;
-        if status.participation() != participation {
-            return Err(ComponentError::StaleComponentParticipation(
-                participation.clone(),
-            ));
-        }
-        state
-            .components
-            .remove(participation.component().component_id());
-        state
-            .operations
-            .retain(|_, operation| operation.owner != *participation);
-        refresh_operational_status(&mut state);
-        Ok(status)
+        self.unregister_with_teardown(participation)
     }
 
     fn activate(

@@ -174,8 +174,8 @@ fn composition_and_instance_public_api_use_closed_error_vocabulary() {
         "Instance::start must expose InstanceError"
     );
     assert!(
-        instance.contains("pub fn stop(&mut self) {"),
-        "Instance::stop must stay infallible"
+        instance.contains("pub fn stop(&mut self) -> Result<(), RuntimeCleanupError>"),
+        "Instance::stop must expose runtime cleanup failures"
     );
     assert!(
         !composition.contains("BlockError") && !instance.contains("BlockError"),

@@ -41,7 +41,7 @@ macro_rules! runtime {
             fn start(&mut self) -> Result<(), ModuleError> {
                 Ok(())
             }
-            fn stop(&mut self) {}
+            fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
             fn health(&self) -> Health {
                 Health::Healthy
             }

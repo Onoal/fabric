@@ -127,7 +127,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -314,7 +316,7 @@ fn empty_policy_starts_ready_healthy_and_status_surfaces_agree() {
         ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_health(), Health::Healthy);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -399,7 +401,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
         ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -459,7 +461,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
         ComponentRuntimeLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -513,7 +515,7 @@ fn unlisted_and_optional_components_do_not_degrade_aggregate_without_required_pa
         ComponentRuntimeLifecycle::Degraded
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Unavailable);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -571,7 +573,7 @@ fn desired_state_is_separate_from_readiness_and_aggregate_failure_does_not_globa
         EchoInput("still-ok"),
     ));
     assert_eq!(second, Ok(EchoOutput("still-ok")));
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -582,7 +584,7 @@ fn stopped_runtime_remains_stopped_even_with_policy_and_components() {
         rails.runtime.current_status().lifecycle(),
         ComponentRuntimeLifecycle::Ready
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
     let readiness = rails.readiness.aggregate_readiness();
     assert_eq!(
         readiness.status().lifecycle(),
@@ -610,5 +612,5 @@ fn policy_is_supplied_immutably_from_composition_configuration() {
         required_components,
         vec!["component.a".to_owned(), "component.b".to_owned()]
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

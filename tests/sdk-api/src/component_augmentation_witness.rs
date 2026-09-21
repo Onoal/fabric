@@ -122,7 +122,9 @@ impl ModuleRuntime for AuditConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -171,7 +173,9 @@ impl ModuleRuntime for TraceConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -195,7 +199,9 @@ impl ModuleRuntime for MissingAudit {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -224,7 +230,9 @@ impl ModuleRuntime for AuditRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -256,7 +264,9 @@ impl ModuleRuntime for QuietAuditRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -280,7 +290,9 @@ impl ModuleRuntime for TraceRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }

@@ -105,7 +105,7 @@ where
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
 
     fn health(&self) -> Health {
         Health::Healthy

@@ -58,7 +58,7 @@ macro_rules! simple_component_consumer {
             fn start(&mut self) -> Result<(), ModuleError> {
                 Ok(())
             }
-            fn stop(&mut self) {}
+            fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
             fn health(&self) -> Health {
                 Health::Healthy
             }
@@ -117,7 +117,7 @@ impl ModuleRuntime for ResourceConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -174,7 +174,7 @@ impl ModuleRuntime for SystemConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
     fn health(&self) -> Health {
         Health::Healthy
     }

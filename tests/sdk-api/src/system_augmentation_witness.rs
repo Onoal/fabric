@@ -107,7 +107,9 @@ impl ModuleRuntime for NativeObservationRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -198,7 +200,9 @@ impl ModuleRuntime for DriftSupportRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -264,7 +268,9 @@ impl ModuleRuntime for RichConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -306,7 +312,9 @@ impl ModuleRuntime for MissingSupportConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -377,7 +385,7 @@ fn external_support_for_an_adapted_system_is_semantic_and_manifest_truthful() {
             implementation: "support-one".to_owned(),
         })
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -440,8 +448,8 @@ fn alternate_supports_preserve_x_identity_and_change_only_implementation() {
             implementation: "support-two".to_owned()
         })
     );
-    first_instance.stop();
-    second_instance.stop();
+    first_instance.stop().expect("stop instance");
+    second_instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -462,7 +470,7 @@ fn base_only_adapted_system_authoring_remains_valid() {
         .materialize_named_on("base-only", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -481,5 +489,5 @@ fn self_realizing_system_remains_compatible_with_external_augmentation_support()
         .materialize_named_on("native", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

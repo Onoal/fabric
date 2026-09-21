@@ -101,7 +101,9 @@ impl ModuleRuntime for SystemEchoProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -159,7 +161,9 @@ impl ModuleRuntime for EchoProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -216,7 +220,9 @@ impl ModuleRuntime for EchoConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -251,7 +257,7 @@ fn fabric_builder_builds_raw_composition_and_materializes_raw_instance() {
         .materialize_named("fabric.test.sdk.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
@@ -274,7 +280,7 @@ fn readme_flow_builds_materializes_starts_and_stops_with_public_sdk_apis() {
         .materialize_named("example.local")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]

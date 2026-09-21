@@ -130,7 +130,7 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
     components
         .dematerialize::<StoreProbe>()
         .expect("dematerialize Component");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[cfg(test)]

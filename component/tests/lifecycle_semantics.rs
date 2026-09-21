@@ -103,8 +103,9 @@ impl ModuleRuntime for ComponentRuntimeLifecycleProbeModule {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.health = Health::Unavailable;
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -159,7 +160,7 @@ fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
     assert_eq!(running_status.lifecycle(), ComponentRuntimeLifecycle::Ready);
     assert_eq!(running_status.health(), Health::Healthy);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     let stopped_status = contract.current_status();
     assert_eq!(
@@ -236,7 +237,7 @@ fn runtime_lifecycle_truth_is_shared_across_multiple_consumers() {
     instance.start().expect("start instance");
     assert_eq!(first.current_status(), second.current_status());
 
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(first.current_status(), second.current_status());
 }
 

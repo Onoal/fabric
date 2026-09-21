@@ -116,7 +116,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -303,7 +305,7 @@ fn snapshot_is_empty_until_explicit_controls_exist_and_preserves_deterministic_e
         ],
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(rails.control.snapshot(), snapshot);
 }
 
@@ -559,8 +561,8 @@ fn snapshot_load_round_trip_reconstructs_fresh_runtime_without_reviving_old_auth
         ],
     );
 
-    runtime_one.stop();
-    runtime_two.stop();
+    runtime_one.stop().expect("stop runtime");
+    runtime_two.stop().expect("stop runtime");
 }
 
 #[test]
@@ -604,5 +606,5 @@ fn snapshot_load_keeps_unknown_controls_and_reconstruction_reports_missing_runti
         ],
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

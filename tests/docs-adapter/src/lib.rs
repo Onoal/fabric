@@ -72,6 +72,6 @@ mod tests {
             )
             .expect("compatible Host");
         instance.start().expect("start");
-        instance.stop();
+        instance.stop().expect("stop instance");
     }
 }

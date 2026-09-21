@@ -250,8 +250,9 @@ impl ModuleRuntime for LifecycleCaptureOperationsProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.push_lifecycle("stop");
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -285,7 +286,9 @@ impl ModuleRuntime for EmptyOperationsProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy

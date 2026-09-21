@@ -249,7 +249,9 @@ impl ModuleRuntime for PingoraRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -315,7 +317,9 @@ impl ModuleRuntime for GatewayTraceRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -342,7 +346,9 @@ impl ModuleRuntime for GatewayAuditRuntime {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -416,7 +422,9 @@ impl ModuleRuntime for FailingGenerationStart {
         Err(ModuleError::new("forced new-generation startup failure"))
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -564,7 +572,9 @@ impl ModuleRuntime for DirectConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -621,7 +631,9 @@ impl ModuleRuntime for OperationsConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -676,7 +688,9 @@ impl ModuleRuntime for AdaptedConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -736,7 +750,9 @@ impl ModuleRuntime for ClockConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -797,7 +813,9 @@ impl ModuleRuntime for CompetingOperationsProvider {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -851,7 +869,9 @@ impl ModuleRuntime for RailsCaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -937,7 +957,7 @@ fn fabric_builds_two_adapted_contributions_without_raw_parts_ceremony() {
         .materialize_named_on("fabric.test.fabric.two-adapted.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(counter_capture.lock().expect("capture").clone(), Some(10));
 }
@@ -1070,7 +1090,7 @@ fn fabric_raw_blocks_coexist_as_opaque_presence() {
         .materialize_named("fabric.test.fabric.raw-coexist.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(11));
 }
@@ -1228,7 +1248,7 @@ fn fabric_declaration_only_component_is_host_known_without_runtime() {
         ComponentError::MissingComponentRuntimeAttachment(component_id)
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1253,7 +1273,7 @@ fn fabric_self_contained_resource_flows_through_normal_authoring() {
         .materialize_named("fabric.test.fabric.direct.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(29));
 }
@@ -1278,7 +1298,7 @@ fn fabric_self_contained_system_flows_through_normal_authoring() {
         .materialize_named("fabric.test.fabric.system-direct.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(7));
 }
@@ -1305,7 +1325,7 @@ fn fabric_handwritten_adapter_flows_through_normal_authoring() {
         .materialize_named_on("fabric.test.fabric.clock.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(13));
 }
@@ -1332,7 +1352,7 @@ fn fabric_host_bound_adapter_flows_through_normal_authoring() {
         .materialize_named_on("fabric.test.fabric.host-bound.instance", &facility_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(41));
 }
@@ -1365,7 +1385,7 @@ fn fabric_runtime_component_flows_through_normal_authoring() {
     .expect("invoke");
     assert_eq!(output.message, "hello, fabric");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1398,7 +1418,7 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
     components
         .dematerialize::<Gateway>()
         .expect("dematerialize");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1449,7 +1469,7 @@ fn adapter_realized_component_prepares_external_augmentation_without_adapter_kno
     )
     .expect("invoke");
     assert_eq!(output.value, "gateway:pingora");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1491,7 +1511,7 @@ fn gateway_adapter_realization_keeps_component_config_per_composition() {
         components
             .dematerialize::<Gateway>()
             .expect("dematerialize");
-        instance.stop();
+        instance.stop().expect("stop instance");
     }
 }
 
@@ -1546,7 +1566,7 @@ fn gateway_semantics_support_an_alternate_adapter_realization() {
     components
         .dematerialize::<Gateway>()
         .expect("dematerialize");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1645,7 +1665,7 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
 
     // Fabric has no primary-generation or cutover concept: the caller stops
     // the old generation explicitly, and that leaves the new one untouched.
-    first.stop();
+    first.stop().expect("stop runtime");
     assert_eq!(first.lifecycle(), LifecycleState::Stopped);
     assert_eq!(second.lifecycle(), LifecycleState::Running);
     let second_output: GatewayOutput = futures::executor::block_on(
@@ -1653,7 +1673,7 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
     )
     .expect("second remains usable after first stops");
     assert_eq!(second_output.value, "edge:alternate");
-    second.stop();
+    second.stop().expect("stop runtime");
 }
 
 #[test]
@@ -1722,7 +1742,7 @@ fn failed_new_generation_is_isolated_from_a_running_generation() {
             .is_err()
     );
     assert_eq!(running.lifecycle(), LifecycleState::Running);
-    running.stop();
+    running.stop().expect("stop instance");
 }
 
 #[test]
@@ -1784,8 +1804,8 @@ fn generational_resource_realization_change_is_fresh_and_has_no_state_transfer()
     second.start().expect("second starts");
     assert_eq!(*first_capture.lock().expect("capture"), Some(11));
     assert_eq!(*second_capture.lock().expect("capture"), Some(29));
-    first.stop();
-    second.stop();
+    first.stop().expect("stop runtime");
+    second.stop().expect("stop runtime");
 }
 
 #[test]
@@ -1850,7 +1870,7 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
     )
     .expect("second invocation");
     assert_eq!(output.message, "hello, Ada");
-    first.stop();
+    first.stop().expect("stop runtime");
     assert!(matches!(
         futures::executor::block_on(
             first
@@ -1865,7 +1885,7 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
         ),
         Err(ComponentError::Unavailable)
     ));
-    second.stop();
+    second.stop().expect("stop runtime");
 }
 
 #[test]
@@ -1914,7 +1934,7 @@ fn component_macro_resolves_typed_resource_and_system_dependencies() {
     assert_eq!(output.instance_id, *instance.instance_id());
     assert_eq!(output.generation, instance.generation());
     assert_eq!(output.origin, InvocationOrigin::External);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -1957,8 +1977,8 @@ fn component_macro_supplies_external_invocation_context_per_instance() {
     assert_eq!(second_context.generation, second.generation());
     assert_eq!(second_context.origin, InvocationOrigin::External);
     assert_ne!(first_context.instance_id, second_context.instance_id);
-    first.stop();
-    second.stop();
+    first.stop().expect("stop runtime");
+    second.stop().expect("stop runtime");
 }
 
 #[test]
@@ -2003,7 +2023,7 @@ fn component_macro_keeps_domain_results_inside_typed_output() {
             title: "Fabric".to_owned(),
         })
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 fn run_dual_counter_probe(swap: bool) -> DualCounterOutput {
@@ -2056,7 +2076,7 @@ fn run_dual_counter_probe(swap: bool) -> DualCounterOutput {
         components.invoke_external(&dual_counter_probe::operations::observe(), DualCounterInput),
     )
     .expect("invoke");
-    instance.stop();
+    instance.stop().expect("stop instance");
     output
 }
 
@@ -2186,7 +2206,7 @@ fn fabric_explicit_selection_resolves_ambiguity_and_core_owns_ambiguity() {
         .materialize_named("fabric.test.fabric.selected.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(capture.lock().expect("capture").clone(), Some(100));
 }
@@ -2239,7 +2259,9 @@ impl ModuleRuntime for DerivedValueConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -2555,7 +2577,7 @@ fn component_owned_system_requirement_lowers_through_core_and_reaches_its_runtim
         .materialize(&SystemOwnedComponent::component_id())
         .expect("component");
     assert_eq!(*capture.lock().expect("capture"), vec![17]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -2650,7 +2672,7 @@ fn component_system_explicit_selection_chooses_system_and_is_manifest_truth() {
         .materialize(&SystemOwnedComponent::component_id())
         .expect("component");
     assert_eq!(*capture.lock().expect("capture"), vec![41]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -2728,7 +2750,7 @@ fn two_components_independently_consume_one_system_and_combined_dependencies_rem
     assert_eq!(*a.lock().expect("A"), vec![7]);
     assert_eq!(*b.lock().expect("B"), vec![8]);
     assert_eq!(*combined.lock().expect("combined"), vec![14]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -2754,7 +2776,7 @@ fn declaration_only_component_keeps_system_requirement_without_participation() {
         .materialize_named("fabric.test.component.declaration-system.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -2792,7 +2814,7 @@ fn component_system_handoffs_are_fresh_for_each_materialized_instance() {
         materializer
             .materialize(&SystemOwnedComponent::component_id())
             .expect("component");
-        instance.stop();
+        instance.stop().expect("stop instance");
     }
     assert_eq!(*capture.lock().expect("capture"), vec![31, 31]);
 }
@@ -2900,7 +2922,7 @@ fn integrated_alpha_system_runs_end_to_end() {
         }]
     );
     assert_eq!(instance.report().lifecycle, LifecycleState::Running);
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
 }
 
@@ -2992,7 +3014,7 @@ fn component_owned_resource_requirement_lowers_through_core_and_reaches_its_runt
         .materialize(&ResourceOwnedComponent::component_id())
         .expect("component materializes");
     assert_eq!(*component_capture.lock().expect("capture"), vec![73]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -3055,7 +3077,7 @@ fn component_owned_resource_requirement_uses_explicit_resource_selection() {
         .materialize(&ResourceOwnedComponent::component_id())
         .expect("component materializes");
     assert_eq!(*capture.lock().expect("capture"), vec![89]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -3110,7 +3132,7 @@ fn components_with_identical_resource_requirements_keep_independent_selected_pro
         .expect("B");
     assert_eq!(*a.lock().expect("A capture"), vec![11]);
     assert_eq!(*b.lock().expect("B capture"), vec![22]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -3186,7 +3208,7 @@ fn components_with_identical_resource_requirements_may_share_one_provider() {
         .expect("B");
     assert_eq!(*a.lock().expect("A"), vec![44]);
     assert_eq!(*b.lock().expect("B"), vec![44]);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -3214,5 +3236,5 @@ fn declaration_only_component_keeps_resource_requirement_without_participation()
         .materialize_named("fabric.test.component.declaration-resource.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

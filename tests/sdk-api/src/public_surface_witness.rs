@@ -31,7 +31,7 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
     components
         .dematerialize::<Greeter>()
         .expect("component dematerialization");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]

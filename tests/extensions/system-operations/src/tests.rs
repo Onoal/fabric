@@ -93,7 +93,9 @@ impl ModuleRuntime for OperationsConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -160,7 +162,9 @@ impl ModuleRuntime for DerivedConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -227,7 +231,9 @@ impl ModuleRuntime for ResourceConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -310,7 +316,9 @@ impl ModuleRuntime for AdaptedSystemConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -364,7 +372,9 @@ impl ModuleRuntime for ClockConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -418,7 +428,7 @@ fn multiple_systems_can_share_one_rust_module_with_distinct_raw_namespaces() {
         .materialize_named("fabric.test.system.same-module.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -467,7 +477,7 @@ fn generic_system_consumer_resolves_typed_contract_and_preserves_provenance() {
         .materialize_named("fabric.test.system.consumer.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
@@ -507,14 +517,12 @@ fn fresh_instances_and_separate_compositions_do_not_share_system_state() {
         .materialize_named("fabric.test.system.instance-a")
         .expect("instance");
     instance_a.start().expect("start");
-    instance_a.stop();
-
+    instance_a.stop().expect("stop runtime");
     let mut instance_b = composition
         .materialize_named("fabric.test.system.instance-b")
         .expect("instance");
     instance_b.start().expect("start");
-    instance_b.stop();
-
+    instance_b.stop().expect("stop runtime");
     let composition_other = FabricBuilder::new("fabric.test.system.other")
         .expect("builder")
         .block("runtime", |block| {
@@ -543,8 +551,7 @@ fn fresh_instances_and_separate_compositions_do_not_share_system_state() {
         .materialize_named("fabric.test.system.instance-c")
         .expect("instance");
     instance_c.start().expect("start");
-    instance_c.stop();
-
+    instance_c.stop().expect("stop runtime");
     assert_eq!(
         capture_a
             .lock()
@@ -607,7 +614,7 @@ fn system_to_system_and_resource_to_system_use_the_same_contract_resolver() {
         .materialize_named("fabric.test.system.cross-plane.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         derived_capture.lock().expect("capture").clone(),
@@ -663,7 +670,7 @@ fn resource_target_adapter_can_consume_system_through_typed_contracts_under_the_
         .materialize_named_on("fabric.test.system.adapter-consumer.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
@@ -737,7 +744,7 @@ fn adapted_system_realization_uses_core_provider_selection_and_keeps_consumers_r
         .materialize_named_on("fabric.test.system.adapted.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
@@ -829,7 +836,7 @@ fn host_bound_system_adapter_evaluates_required_facility_during_materialization(
         )
         .expect("host with facility");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
@@ -1005,14 +1012,12 @@ fn adapted_system_instance_state_is_isolated_across_compositions() {
         .materialize_named_on("fabric.test.system.instance-a.local", &test_host())
         .expect("instance");
     instance_a.start().expect("start");
-    instance_a.stop();
-
+    instance_a.stop().expect("stop runtime");
     let mut instance_b = composition_b
         .materialize_named_on("fabric.test.system.instance-b.local", &test_host())
         .expect("instance");
     instance_b.start().expect("start");
-    instance_b.stop();
-
+    instance_b.stop().expect("stop runtime");
     assert_eq!(
         capture_a
             .lock()
@@ -1058,7 +1063,7 @@ fn adapted_system_adapter_lifecycle_runs_through_the_existing_runtime_model() {
         .materialize_named_on("fabric.test.system.lifecycle.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         events.lock().expect("events").clone(),

@@ -117,7 +117,7 @@ fn typed_resource_and_system_dependencies_reach_a_context_aware_handler() {
     assert_eq!(output, DependencyOutput { value: 14 });
     assert_eq!(instance.instance_id(), &instance_id);
     assert_eq!(instance.generation(), generation);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn declaration_only_component_is_valid_but_has_no_native_attachment() {
         error,
         fabric::component::ComponentError::MissingComponentRuntimeAttachment(_)
     ));
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -175,5 +175,5 @@ fn component_operations_context_domain_output_and_participation_are_distinct() {
     components
         .dematerialize::<DocumentComponent>()
         .expect("dematerialize");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

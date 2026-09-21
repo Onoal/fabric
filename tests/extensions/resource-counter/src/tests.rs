@@ -191,7 +191,9 @@ impl ModuleRuntime for DerivedConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -248,7 +250,9 @@ impl ModuleRuntime for DerivedPointerConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -315,7 +319,9 @@ impl ModuleRuntime for VersionedDerivedConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -382,7 +388,9 @@ impl ModuleRuntime for AdaptedConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -541,7 +549,7 @@ fn derived_counter_requires_direct_counter_and_exposes_typed_runtime_dependency_
         .materialize_named("fabric.test.counter.derived-flow.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     let observation = capture
         .lock()
@@ -624,7 +632,7 @@ fn composition_can_explicitly_select_a_dependent_resource_provider() {
         .materialize_named("fabric.test.counter.derived-selected.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     let observation = capture
         .lock()
@@ -671,7 +679,7 @@ fn versioned_resource_dependency_preserves_compatibility_and_provenance() {
         .materialize_named("fabric.test.counter.versioned-derived.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
@@ -763,9 +771,8 @@ fn contract_dependency_state_is_runtime_local_across_materializations() {
 
     first.start().expect("first start");
     second.start().expect("second start");
-    second.stop();
-    first.stop();
-
+    second.stop().expect("stop runtime");
+    first.stop().expect("stop runtime");
     let pointers = captures.lock().expect("captures").clone();
     assert_eq!(pointers.len(), 2);
     assert_ne!(pointers[0], pointers[1]);
@@ -835,7 +842,7 @@ fn adapted_counter_delegates_through_generated_realization_contract() {
         .materialize_named_on("fabric.test.counter.adapted.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
@@ -999,7 +1006,7 @@ fn two_adapted_resource_instances_bind_distinct_realization_providers() {
         .materialize_named_on("fabric.test.counter.two-adapted.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         primary_capture.lock().expect("capture").clone(),

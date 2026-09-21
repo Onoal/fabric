@@ -114,7 +114,9 @@ impl ModuleRuntime for CapabilityCaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -179,7 +181,9 @@ impl ModuleRuntime for SyntheticProviderModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -282,10 +286,11 @@ impl ModuleRuntime for SyntheticCapabilityModule {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         if let Some(resource_registry) = &self.resource_registry {
             let _ = resource_registry.unregister(&self.module_id);
         }
+        Ok(())
     }
 
     fn health(&self) -> Health {

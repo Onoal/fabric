@@ -98,7 +98,7 @@ impl ModuleRuntime for ResourceRegistryModule {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         let mut state = self
             .shared
             .inner
@@ -108,6 +108,7 @@ impl ModuleRuntime for ResourceRegistryModule {
         state.by_module.clear();
         state.started = false;
         state.health = Health::Unavailable;
+        Ok(())
     }
 
     fn health(&self) -> Health {

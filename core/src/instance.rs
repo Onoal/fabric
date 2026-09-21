@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::block::{BlockReport, RuntimeBlock};
 use crate::contract::ModuleContract;
-use crate::error::InstanceError;
+use crate::error::{InstanceError, ModuleCleanupFailure, RuntimeCleanupError};
 use crate::export::CompositionExport;
 use crate::health::Health;
 use crate::identifiers::{CompositionId, InstanceId};
@@ -155,30 +155,30 @@ impl Instance {
                 action: "start",
             });
         }
-        let mut initialized = Vec::new();
         let start_order = self.start_order.clone();
         for location in &start_order {
             let module_id = self.blocks[location.0].modules[location.1].id().clone();
             if let Err(source) = self.blocks[location.0].modules[location.1].initialize() {
-                self.stop_locations(&initialized);
+                let cleanup = self.stop_locations(&start_order);
                 self.set_stopped();
                 return Err(InstanceError::ModuleFailure {
                     module_id,
                     phase: "initialize",
                     source,
+                    cleanup,
                 });
             }
-            initialized.push(*location);
         }
         for location in &start_order {
             let module_id = self.blocks[location.0].modules[location.1].id().clone();
             if let Err(source) = self.blocks[location.0].modules[location.1].start() {
-                self.stop_locations(&initialized);
+                let cleanup = self.stop_locations(&start_order);
                 self.set_stopped();
                 return Err(InstanceError::ModuleFailure {
                     module_id,
                     phase: "start",
                     source,
+                    cleanup,
                 });
             }
         }
@@ -189,15 +189,18 @@ impl Instance {
         Ok(())
     }
 
-    pub fn stop(&mut self) {
+    /// Stops every materialized runtime participant in reverse dependency
+    /// order. A generation becomes terminal even when cleanup is only partly
+    /// successful; all cleanup failures are returned to the caller.
+    pub fn stop(&mut self) -> Result<(), RuntimeCleanupError> {
         match self.lifecycle {
-            LifecycleState::Ready => self.set_stopped(),
-            LifecycleState::Running => {
+            LifecycleState::Ready | LifecycleState::Running => {
                 let order = self.start_order.clone();
-                self.stop_locations(&order);
+                let cleanup = self.stop_locations(&order);
                 self.set_stopped();
+                cleanup.map_or(Ok(()), Err)
             }
-            LifecycleState::Stopped => {}
+            LifecycleState::Stopped => Ok(()),
         }
     }
 
@@ -227,10 +230,15 @@ impl Instance {
         }
     }
 
-    fn stop_locations(&mut self, locations: &[(usize, usize)]) {
+    fn stop_locations(&mut self, locations: &[(usize, usize)]) -> Option<RuntimeCleanupError> {
+        let mut failures = Vec::new();
         for (block, module) in locations.iter().rev() {
-            self.blocks[*block].modules[*module].stop();
+            let runtime = &mut self.blocks[*block].modules[*module];
+            if let Err(source) = runtime.stop() {
+                failures.push(ModuleCleanupFailure::stop(runtime.id().clone(), source));
+            }
         }
+        RuntimeCleanupError::from_failures(failures)
     }
 
     fn set_stopped(&mut self) {

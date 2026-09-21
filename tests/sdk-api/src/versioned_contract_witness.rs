@@ -45,7 +45,7 @@ fn sdk_versioned_contract_authoring_builds_raw_composition_and_preserves_provena
         .materialize_named("fabric.test.sdk.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     let resolved = capture
         .lock()
@@ -171,7 +171,7 @@ fn sdk_provider_selection_is_a_thin_authoring_wrapper_over_core() {
     );
     assert_eq!(resolved.value, "from b");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 fn takes_raw_composition(_composition: &fabric_core::Composition) {}

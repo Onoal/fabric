@@ -137,9 +137,10 @@ impl ModuleRuntime for NativeClock {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.push_lifecycle("stop");
         let _ = self.state.clear();
+        Ok(())
     }
 
     fn health(&self) -> Health {

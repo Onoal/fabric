@@ -66,5 +66,5 @@ fn getting_started_flow_builds_inspects_materializes_and_invokes() {
     components
         .dematerialize::<Greeter>()
         .expect("dematerialize component");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

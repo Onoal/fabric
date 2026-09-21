@@ -250,9 +250,10 @@ impl ModuleRuntime for TestProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -306,7 +307,9 @@ impl ModuleRuntime for MultiVersionProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -386,7 +389,9 @@ impl ModuleRuntime for ResolutionObserver {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -464,9 +469,10 @@ impl ModuleRuntime for TestConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -528,8 +534,8 @@ impl ModuleRuntime for FailingConsumer {
         Err(ModuleError::new("forced startup failure"))
     }
 
-    fn stop(&mut self) {
-        self.inner.stop();
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        self.inner.stop()
     }
 
     fn health(&self) -> Health {
@@ -593,8 +599,8 @@ impl ModuleRuntime for FailingInitializeConsumer {
         self.inner.start()
     }
 
-    fn stop(&mut self) {
-        self.inner.stop();
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        self.inner.stop()
     }
 
     fn health(&self) -> Health {
@@ -666,7 +672,9 @@ impl ModuleRuntime for ContextObserver {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -742,9 +750,10 @@ impl ModuleRuntime for FailingMaterializationModule {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -807,7 +816,9 @@ impl ModuleRuntime for CycleModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -856,7 +867,7 @@ fn successful_single_block_instance_binds_typed_contract_and_stops_in_reverse_or
     assert_eq!(report.blocks[0].block_id.as_str(), "test.block");
     assert_eq!(report.blocks[0].lifecycle, LifecycleState::Running);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
     assert_eq!(
         recorder.snapshot(),
@@ -932,7 +943,7 @@ fn cross_block_contract_resolution_orders_lifecycle_and_aggregates_health() {
     let mut instance = materialize_test_instance(&composition, "test.cloud").expect("instance");
     instance.start().expect("start");
     assert_eq!(instance.report().health, Health::Healthy);
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(
         recorder.snapshot(),
         vec![
@@ -1022,7 +1033,7 @@ fn block_is_structural_input_and_instance_owns_runtime_lifecycle() {
         instance.report().blocks[0].lifecycle,
         LifecycleState::Running
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
     assert_eq!(
         instance.report().blocks[0].lifecycle,
@@ -1035,7 +1046,7 @@ fn block_is_structural_input_and_instance_owns_runtime_lifecycle() {
 }
 
 #[test]
-fn ready_instance_stop_invokes_no_module_stop_hooks() {
+fn ready_instance_stop_cleans_every_materialized_runtime_in_reverse_dependency_order() {
     let recorder = Recorder::new();
     let key = ContractKey::provisional(
         ContractId::new("test.ready-instance-stop".to_owned()).expect("contract"),
@@ -1054,10 +1065,14 @@ fn ready_instance_stop_invokes_no_module_stop_hooks() {
     let mut instance =
         materialize_test_instance(&composition, "test.ready-instance-stop").expect("instance");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
-    assert!(recorder.snapshot().is_empty());
+    assert_eq!(
+        recorder.snapshot(),
+        vec!["stop:consumer", "stop:provider"],
+        "Ready runtimes may own materialization-time state and must be cleaned"
+    );
 }
 
 #[test]
@@ -1216,7 +1231,7 @@ fn startup_failure_unwinds_started_dependencies() {
 }
 
 #[test]
-fn initialize_failure_stops_initialized_modules_and_reports_the_stopped_generation() {
+fn initialize_failure_cleans_every_materialized_module_and_reports_the_stopped_generation() {
     let recorder = Recorder::new();
     let key = ContractKey::provisional(
         ContractId::new("test.initialize.failure".to_owned()).expect("contract"),
@@ -1255,6 +1270,7 @@ fn initialize_failure_stops_initialized_modules_and_reports_the_stopped_generati
         vec![
             "initialize:provider",
             "initialize:consumer",
+            "stop:consumer",
             "stop:provider",
         ]
     );
@@ -1293,9 +1309,9 @@ fn instance_lifecycle_is_terminal_for_one_generation() {
         })
     ));
 
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
     assert!(matches!(
         instance.start(),
@@ -1330,7 +1346,7 @@ fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_
         .materialize(instance_id.clone())
         .expect("materialize first instance");
     instance_one.start().expect("start first instance");
-    instance_one.stop();
+    instance_one.stop().expect("stop instance");
 
     let first_report = instance_one.report();
     let mut instance_two = composition
@@ -1338,7 +1354,7 @@ fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_
         .expect("materialize second instance");
     let second_report_before_start = instance_two.report();
     instance_two.start().expect("start second instance");
-    instance_two.stop();
+    instance_two.stop().expect("stop instance");
 
     assert_eq!(instance_one.instance_id(), &instance_id);
     assert_eq!(instance_two.instance_id(), &instance_id);
@@ -1425,7 +1441,10 @@ fn pre_instance_materialization_failures_expose_no_lifecycle_or_start_path() {
             ..
         })
     ));
-    assert_eq!(context_recorder.snapshot(), vec!["context:context-failure"]);
+    assert_eq!(
+        context_recorder.snapshot(),
+        vec!["context:context-failure", "stop:context-failure"]
+    );
 
     let bind_recorder = Recorder::new();
     let bind_composition = composition_for(
@@ -1448,7 +1467,8 @@ fn pre_instance_materialization_failures_expose_no_lifecycle_or_start_path() {
         vec![
             "context:bind-failure",
             "export:bind-failure",
-            "bind:bind-failure"
+            "bind:bind-failure",
+            "stop:bind-failure",
         ]
     );
 }
@@ -1547,9 +1567,10 @@ impl ModuleRuntime for UndeclaredResolver {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -1674,7 +1695,9 @@ impl ModuleRuntime for MismatchedRequirementResolver {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -1776,9 +1799,10 @@ impl ModuleRuntime for ChainModule {
         }
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -1866,7 +1890,9 @@ impl ModuleRuntime for OptionalObserver {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -1948,7 +1974,9 @@ impl ModuleRuntime for ProvenanceObserver {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -2004,7 +2032,9 @@ impl ModuleRuntime for WrongTypeConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -2081,7 +2111,9 @@ impl ModuleRuntime for DuplicateRequirementConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -2115,6 +2147,8 @@ fn undeclared_contract_cannot_be_resolved_during_bind() {
         recorder.snapshot(),
         vec![
             "bind-error:module `consumer` attempted to resolve undeclared or unbound contract `test.greeting`",
+            "stop:consumer",
+            "stop:provider",
         ]
     );
 }
@@ -3270,9 +3304,10 @@ impl ModuleRuntime for BindChainLink {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -3362,9 +3397,10 @@ impl ModuleRuntime for BindChainConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.recorder
             .push(format!("stop:{}", self.module_id.as_str()));
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -3439,7 +3475,7 @@ fn runtime_binding_follows_dependency_order_across_reverse_authored_blocks() {
     let mut instance =
         materialize_test_instance(&composition, "test.bind-chain").expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         observed.lock().expect("observed lock").clone(),
@@ -3463,4 +3499,511 @@ fn runtime_binding_follows_dependency_order_across_reverse_authored_blocks() {
             "stop:provider".to_owned(),
         ]
     );
+}
+
+#[derive(Clone, Copy)]
+enum RuntimeProbeFailure {
+    Context,
+    Export,
+    Bind,
+    Initialize,
+    Start,
+}
+
+#[derive(Clone)]
+struct RuntimeCleanupProbe {
+    module_id: ModuleId,
+    recorder: Arc<Recorder>,
+    failure: Option<RuntimeProbeFailure>,
+    stop_fails: bool,
+}
+
+impl RuntimeCleanupProbe {
+    fn new(
+        module_id: &str,
+        recorder: Arc<Recorder>,
+        failure: Option<RuntimeProbeFailure>,
+        stop_fails: bool,
+    ) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id.to_owned()).expect("module id"),
+            recorder,
+            failure,
+            stop_fails,
+        }
+    }
+
+    fn phase(&self, phase: &str) -> Result<(), ModuleError> {
+        self.recorder
+            .push(format!("{phase}:{}", self.module_id.as_str()));
+        Ok(())
+    }
+
+    fn fails(&self, phase: RuntimeProbeFailure) -> Result<(), ModuleError> {
+        if self.failure.is_some_and(|failure| {
+            std::mem::discriminant(&failure) == std::mem::discriminant(&phase)
+        }) {
+            Err(ModuleError::new("forced lifecycle probe failure"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl ModuleRuntime for RuntimeCleanupProbe {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        self.phase("export")?;
+        self.fails(RuntimeProbeFailure::Export)?;
+        Ok(Vec::new())
+    }
+
+    fn bind_instance_context(
+        &mut self,
+        _context: &crate::InstanceRuntimeContext,
+    ) -> Result<(), ModuleError> {
+        self.phase("context")?;
+        self.fails(RuntimeProbeFailure::Context)
+    }
+
+    fn bind(&mut self, _bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        self.phase("bind")?;
+        self.fails(RuntimeProbeFailure::Bind)
+    }
+
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        self.phase("initialize")?;
+        self.fails(RuntimeProbeFailure::Initialize)
+    }
+
+    fn start(&mut self) -> Result<(), ModuleError> {
+        self.phase("start")?;
+        self.fails(RuntimeProbeFailure::Start)
+    }
+
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        self.phase("stop")?;
+        if self.stop_fails {
+            Err(ModuleError::new("forced cleanup failure"))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
+struct NoRuntimeProbe {
+    module_id: ModuleId,
+}
+
+impl NoRuntimeProbe {
+    fn new(module_id: &str) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id.to_owned()).expect("module id"),
+        }
+    }
+}
+
+impl Module for NoRuntimeProbe {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        crate::ModuleDeclaration::new(self.module_id.clone())
+    }
+}
+
+struct MismatchedRuntimeIdProbe {
+    declared_module_id: ModuleId,
+    runtime: RuntimeCleanupProbe,
+}
+
+impl MismatchedRuntimeIdProbe {
+    fn new(declared_module_id: &str, runtime: RuntimeCleanupProbe) -> Self {
+        Self {
+            declared_module_id: ModuleId::new(declared_module_id.to_owned()).expect("module id"),
+            runtime,
+        }
+    }
+}
+
+impl Module for MismatchedRuntimeIdProbe {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        crate::ModuleDeclaration::new(self.declared_module_id.clone())
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(self.runtime.clone()))
+    }
+}
+
+struct DeclaredButUnexportedProbe {
+    runtime: RuntimeCleanupProbe,
+    contract: ContractKey<String>,
+}
+
+impl DeclaredButUnexportedProbe {
+    fn new(runtime: RuntimeCleanupProbe, contract: ContractKey<String>) -> Self {
+        Self { runtime, contract }
+    }
+}
+
+impl Module for DeclaredButUnexportedProbe {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        crate::ModuleDeclaration::new(self.runtime.module_id.clone())
+            .with_provided_contracts(vec![self.contract.declaration()])
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(self.runtime.clone()))
+    }
+}
+
+fn cleanup_probe_composition(
+    id: &str,
+    recorder: Arc<Recorder>,
+    failure: RuntimeProbeFailure,
+) -> Composition {
+    composition_for(
+        BlockBuilder::new(BlockId::new(format!("{id}.block")).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&recorder),
+                None,
+                false,
+            ))
+            .register_module(RuntimeCleanupProbe::new(
+                "consumer",
+                recorder,
+                Some(failure),
+                false,
+            ))
+            .build(),
+    )
+    .expect("composition")
+}
+
+#[test]
+fn materialization_failures_cleanup_all_existing_runtimes_in_reverse_order() {
+    let materializer_recorder = Recorder::new();
+    let materializer_composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.materializer".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&materializer_recorder),
+                None,
+                false,
+            ))
+            .register_module(NoRuntimeProbe::new("consumer-without-runtime"))
+            .build(),
+    )
+    .expect("composition");
+    assert!(matches!(
+        materialize_test_instance(&materializer_composition, "cleanup.materializer"),
+        Err(CompositionError::MissingRuntimeMaterializer { .. })
+    ));
+    assert_eq!(materializer_recorder.snapshot(), vec!["stop:provider"]);
+
+    for (failure, phase, expected) in [
+        (
+            RuntimeProbeFailure::Context,
+            "instance_context",
+            vec![
+                "context:provider",
+                "context:consumer",
+                "stop:consumer",
+                "stop:provider",
+            ],
+        ),
+        (
+            RuntimeProbeFailure::Export,
+            "export_contracts",
+            vec![
+                "context:provider",
+                "context:consumer",
+                "export:provider",
+                "export:consumer",
+                "stop:consumer",
+                "stop:provider",
+            ],
+        ),
+        (
+            RuntimeProbeFailure::Bind,
+            "bind",
+            vec![
+                "context:provider",
+                "context:consumer",
+                "export:provider",
+                "export:consumer",
+                "bind:provider",
+                "bind:consumer",
+                "stop:consumer",
+                "stop:provider",
+            ],
+        ),
+    ] {
+        let recorder = Recorder::new();
+        let composition =
+            cleanup_probe_composition("cleanup.phase", Arc::clone(&recorder), failure);
+        assert!(matches!(
+            materialize_test_instance(&composition, "cleanup.phase"),
+            Err(CompositionError::ModuleFailure { phase: actual, .. }) if actual == phase
+        ));
+        assert_eq!(recorder.snapshot(), expected);
+    }
+}
+
+#[test]
+fn materialization_cleanup_failures_preserve_the_primary_error() {
+    let recorder = Recorder::new();
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.primary".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&recorder),
+                None,
+                true,
+            ))
+            .register_module(RuntimeCleanupProbe::new(
+                "consumer",
+                Arc::clone(&recorder),
+                Some(RuntimeProbeFailure::Context),
+                true,
+            ))
+            .build(),
+    )
+    .expect("composition");
+
+    let error = materialize_test_instance(&composition, "cleanup.primary")
+        .expect_err("context failure must abandon the generation");
+    match error {
+        CompositionError::RuntimeMaterializationFailure { primary, cleanup } => {
+            assert!(matches!(
+                *primary,
+                CompositionError::ModuleFailure {
+                    phase: "instance_context",
+                    ..
+                }
+            ));
+            assert_eq!(
+                cleanup
+                    .failures()
+                    .iter()
+                    .map(|failure| failure.module_id().as_str())
+                    .collect::<Vec<_>>(),
+                vec!["consumer", "provider"]
+            );
+        }
+        error => panic!("unexpected error: {error}"),
+    }
+    assert_eq!(
+        recorder.snapshot(),
+        vec![
+            "context:provider",
+            "context:consumer",
+            "stop:consumer",
+            "stop:provider",
+        ]
+    );
+}
+
+#[test]
+fn runtime_validation_and_external_export_failures_cleanup_materialized_runtimes() {
+    let id_recorder = Recorder::new();
+    let id_composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.runtime-id".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&id_recorder),
+                None,
+                false,
+            ))
+            .register_module(MismatchedRuntimeIdProbe::new(
+                "consumer",
+                RuntimeCleanupProbe::new(
+                    "incorrect-runtime-id",
+                    Arc::clone(&id_recorder),
+                    None,
+                    false,
+                ),
+            ))
+            .build(),
+    )
+    .expect("composition");
+    assert!(matches!(
+        materialize_test_instance(&id_composition, "cleanup.runtime-id"),
+        Err(CompositionError::RuntimeModuleIdMismatch { .. })
+    ));
+    assert_eq!(
+        id_recorder.snapshot(),
+        vec!["stop:incorrect-runtime-id", "stop:provider"]
+    );
+
+    let export_recorder = Recorder::new();
+    let declared_contract = ContractKey::<String>::provisional(
+        ContractId::new("cleanup.declared-contract".to_owned()).expect("contract"),
+    );
+    let export_composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.runtime-export".to_owned()).expect("block"))
+            .register_module(DeclaredButUnexportedProbe::new(
+                RuntimeCleanupProbe::new("provider", Arc::clone(&export_recorder), None, false),
+                declared_contract,
+            ))
+            .build(),
+    )
+    .expect("composition");
+    assert!(matches!(
+        materialize_test_instance(&export_composition, "cleanup.runtime-export"),
+        Err(CompositionError::MissingDeclaredExport { .. })
+    ));
+    assert_eq!(
+        export_recorder.snapshot(),
+        vec!["context:provider", "export:provider", "stop:provider"]
+    );
+
+    let external_recorder = Recorder::new();
+    let external_export = CompositionExport::<String>::new(
+        ContractId::new("cleanup.external-export".to_owned()).expect("export id"),
+        ContractRequirement::provisional(
+            ContractId::new("cleanup.absent-contract".to_owned()).expect("contract"),
+        ),
+    );
+    let external_composition = CompositionBuilder::new(
+        CompositionId::new("cleanup.external-export".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("cleanup.external-export".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&external_recorder),
+                None,
+                false,
+            ))
+            .build(),
+    )
+    .export(external_export)
+    .build()
+    .expect("composition");
+    assert!(matches!(
+        materialize_test_instance(&external_composition, "cleanup.external-export"),
+        Err(CompositionError::MissingExportProvider { .. })
+    ));
+    assert!(
+        external_recorder.snapshot().is_empty(),
+        "declared external exports are rejected before materialization when no declaration can satisfy them"
+    );
+}
+
+#[test]
+fn initialize_and_start_failures_preserve_cleanup_failures_and_terminality() {
+    for (failure, phase) in [
+        (RuntimeProbeFailure::Initialize, "initialize"),
+        (RuntimeProbeFailure::Start, "start"),
+    ] {
+        let recorder = Recorder::new();
+        let composition = composition_for(
+            BlockBuilder::new(BlockId::new(format!("cleanup.{phase}")).expect("block"))
+                .register_module(RuntimeCleanupProbe::new(
+                    "provider",
+                    Arc::clone(&recorder),
+                    None,
+                    true,
+                ))
+                .register_module(RuntimeCleanupProbe::new(
+                    "consumer",
+                    Arc::clone(&recorder),
+                    Some(failure),
+                    true,
+                ))
+                .build(),
+        )
+        .expect("composition");
+        let mut instance = materialize_test_instance(&composition, &format!("cleanup.{phase}"))
+            .expect("materialize");
+
+        match instance.start().expect_err("lifecycle hook failure") {
+            InstanceError::ModuleFailure {
+                phase: actual,
+                cleanup: Some(cleanup),
+                ..
+            } => {
+                assert_eq!(actual, phase);
+                assert_eq!(cleanup.failures().len(), 2);
+            }
+            error => panic!("unexpected error: {error}"),
+        }
+        assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
+        assert_eq!(
+            recorder
+                .snapshot()
+                .into_iter()
+                .filter(|event| event.starts_with("stop:"))
+                .collect::<Vec<_>>(),
+            vec!["stop:consumer", "stop:provider"]
+        );
+    }
+}
+
+#[test]
+fn running_stop_reports_all_cleanup_failures_once_and_generation_rematerializes() {
+    let recorder = Recorder::new();
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.stop".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&recorder),
+                None,
+                true,
+            ))
+            .register_module(RuntimeCleanupProbe::new(
+                "consumer",
+                Arc::clone(&recorder),
+                None,
+                true,
+            ))
+            .build(),
+    )
+    .expect("composition");
+    let instance_id = InstanceId::new("cleanup.stop".to_owned()).expect("instance id");
+    let mut instance = composition
+        .materialize(instance_id.clone())
+        .expect("materialize");
+    let first_generation = instance.generation();
+    instance.start().expect("start");
+
+    let cleanup = instance
+        .stop()
+        .expect_err("cleanup failures are observable");
+    assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
+    assert_eq!(
+        cleanup
+            .failures()
+            .iter()
+            .map(|failure| failure.module_id().as_str())
+            .collect::<Vec<_>>(),
+        vec!["consumer", "provider"]
+    );
+    let stop_events = recorder
+        .snapshot()
+        .into_iter()
+        .filter(|event| event.starts_with("stop:"))
+        .collect::<Vec<_>>();
+    assert_eq!(stop_events, vec!["stop:consumer", "stop:provider"]);
+    instance.stop().expect("stopped generation stop is a no-op");
+    assert_eq!(
+        recorder
+            .snapshot()
+            .into_iter()
+            .filter(|event| event.starts_with("stop:"))
+            .collect::<Vec<_>>(),
+        stop_events
+    );
+
+    let replacement = composition
+        .materialize(instance_id)
+        .expect("fresh materialization");
+    assert_ne!(replacement.generation(), first_generation);
 }

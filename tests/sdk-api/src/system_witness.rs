@@ -69,7 +69,9 @@ impl ModuleRuntime for SystemConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -98,7 +100,7 @@ fn sdk_exposes_handwritten_system_authoring_without_a_second_runtime_model() {
         .materialize_named("fabric.test.sdk.system.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),

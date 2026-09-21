@@ -140,7 +140,9 @@ impl ModuleRuntime for VersionedNotesProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
@@ -201,7 +203,9 @@ impl ModuleRuntime for NotesConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
@@ -259,7 +263,9 @@ impl ModuleRuntime for OptionalNotesConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
@@ -334,7 +340,9 @@ impl ModuleRuntime for MismatchedNotesConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy

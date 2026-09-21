@@ -104,11 +104,12 @@ impl ModuleRuntime for RuntimeParticipantModule {
             .map_err(|error| ModuleError::new(error.to_string()))
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         if let (Some(participation), Some(registry)) = (&self.participation, &self.registry) {
             let _ = registry.update_health(participation, self.stop_health);
             let _ = registry.unregister(participation);
         }
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -174,7 +175,9 @@ impl ModuleRuntime for RegistryCaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -270,7 +273,7 @@ fn runtime_component_appears_in_registry_after_real_startup() {
     assert_eq!(status.component().instance_id().as_str(), "runtime.runtime");
     assert_eq!(status.health(), Health::Healthy);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -313,7 +316,7 @@ fn runtime_component_registration_rejects_foreign_instance_membership() {
         ComponentError::ComponentRegistryInstanceMismatch { .. }
     ));
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -329,7 +332,7 @@ fn runtime_component_identity_is_stable_and_listing_is_deterministic() {
     );
     assert_eq!(listed[0].health(), Health::Healthy);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -403,7 +406,7 @@ fn unknown_component_health_update_fails_without_auto_registration() {
         )
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -412,7 +415,7 @@ fn shutdown_cleanup_removes_active_runtime_participants() {
         build_running_registry_fixture("runtime.registry.cleanup", "component.cleanup");
 
     assert_eq!(registry.components().len(), 1);
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert!(registry.components().is_empty());
     let error = registry
         .component(&ComponentId::new("component.cleanup").expect("component id"))
@@ -454,5 +457,5 @@ fn runtime_component_status_round_trips_health() {
     );
     assert!(status.with_state(ParticipationState::Active).is_active());
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

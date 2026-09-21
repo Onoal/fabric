@@ -100,7 +100,7 @@ impl FabricInstance {
     pub fn start(&mut self) -> Result<(), fabric_core::InstanceError> {
         self.core.start()
     }
-    pub fn stop(&mut self) {
+    pub fn stop(&mut self) -> Result<(), fabric_core::RuntimeCleanupError> {
         self.core.stop()
     }
 

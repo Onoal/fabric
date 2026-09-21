@@ -114,7 +114,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -337,7 +339,7 @@ fn required_dependency_availability_recovers_without_rewriting_consumer_health()
             .begin_component(consumer_participation)
             .is_ok()
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -386,7 +388,7 @@ fn required_relationship_survives_provider_participation_churn() {
             .expect("availability"),
         ComponentEffectiveAvailability::Available
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -451,7 +453,7 @@ fn optional_requirement_does_not_block_consumer_but_bound_call_still_fails() {
         .registry
         .update_health(&optional_participation, Health::Healthy)
         .expect("keep optional provider intrinsic health");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -495,7 +497,7 @@ fn effective_availability_is_transitive_and_has_no_fallback_provider_lookup() {
     assert_eq!(consumer_blocker.provider(), &required_provider);
     let provider_blocker = provider_blocker(consumer_blocker.provider_availability());
     assert_eq!(provider_blocker.provider(), &transitive_provider);
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -556,7 +558,7 @@ fn caller_and_provider_admission_use_effective_availability() {
             target.component_id().clone()
         ))
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -581,7 +583,7 @@ fn cross_instance_requirements_are_rejected() {
         ),
         Err(ComponentError::ComponentRegistryInstanceMismatch { .. })
     ));
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -621,5 +623,5 @@ fn malformed_requirement_cycles_fail_closed_without_recursing_forever() {
             component: a.clone(),
         }
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

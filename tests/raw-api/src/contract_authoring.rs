@@ -46,7 +46,7 @@ fn downstream_module_authoring_uses_versioned_contract_declarations_only() {
     );
     assert_eq!(resolved.value, "hello from raw api");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn explicit_provider_selection_chooses_the_selected_provider() {
     assert_eq!(resolved.provider.as_str(), "fabric.test.raw.provider.a");
     assert_eq!(resolved.value, "from a");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn provider_selection_is_scoped_per_consumer() {
         "fabric.test.raw.provider.b"
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -328,7 +328,7 @@ fn optional_requirement_without_selection_stays_optional() {
 
     assert_eq!(captured_optional_resolution(&capture), None);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -560,7 +560,9 @@ impl ModuleRuntime for IdleModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
@@ -601,7 +603,9 @@ impl ModuleRuntime for EmptyProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy

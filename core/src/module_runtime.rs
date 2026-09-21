@@ -37,7 +37,14 @@ pub trait ModuleRuntime: Send {
 
     fn start(&mut self) -> Result<(), ModuleError>;
 
-    fn stop(&mut self);
+    /// Deactivates this materialized runtime occurrence and releases any
+    /// runtime-owned live or external machinery.
+    ///
+    /// Core may call this after any successful materialization, even when
+    /// context binding, dependency binding, initialization, or start did not
+    /// complete. Implementations must therefore make it safe for partially
+    /// initialized runtime state.
+    fn stop(&mut self) -> Result<(), ModuleError>;
 
     fn health(&self) -> Health;
 }

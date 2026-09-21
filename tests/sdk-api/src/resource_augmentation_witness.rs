@@ -122,7 +122,9 @@ impl ModuleRuntime for AdditionalReadbackRuntime {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -196,7 +198,9 @@ impl ModuleRuntime for RichConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -246,7 +250,9 @@ impl ModuleRuntime for MissingAdditionalConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -318,7 +324,7 @@ fn external_support_for_an_adapted_resource_is_occurrence_scoped_and_manifest_tr
             implementation: "support-one".to_owned(),
         })
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -403,8 +409,8 @@ fn alternate_supports_preserve_x_identity_and_change_only_implementation() {
             implementation: "support-two".to_owned(),
         })
     );
-    first_instance.stop();
-    second_instance.stop();
+    first_instance.stop().expect("stop instance");
+    second_instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -423,5 +429,5 @@ fn base_only_adapted_resource_authoring_remains_valid() {
         .materialize_named_on("base-only", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

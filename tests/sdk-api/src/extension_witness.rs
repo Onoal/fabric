@@ -98,7 +98,9 @@ impl ModuleRuntime for ClockConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -134,7 +136,7 @@ fn sdk_versioned_requires_clock_resolves_primary_contract_and_preserves_provenan
         .materialize_named_on("fabric.test.sdk.extension.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
@@ -235,7 +237,7 @@ fn host_bound_clock_adapter_evaluates_required_facility_during_materialization()
         )
         .expect("host with facility");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
@@ -297,7 +299,9 @@ impl ModuleRuntime for CounterConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -332,7 +336,7 @@ fn direct_resource_realization_works_without_any_adapter_object() {
         .materialize_named("fabric.test.sdk.direct-resource.instance")
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         capture.lock().expect("capture lock").clone(),
@@ -418,7 +422,9 @@ impl ModuleRuntime for MismatchedClockConsumer {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -660,7 +666,9 @@ impl ModuleRuntime for FixedClockProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -699,7 +707,9 @@ impl ModuleRuntime for EmptyClockProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -870,7 +880,7 @@ fn two_clock_instances_bind_distinct_realization_providers_and_public_consumers(
         .materialize_named_on("fabric.test.sdk.two-clocks.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         primary_provider_capture
@@ -942,7 +952,7 @@ fn realization_dependency_order_is_driven_by_the_contract_graph() {
         .materialize_named_on("fabric.test.sdk.lifecycle.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 
     assert_eq!(
         events.lock().expect("events").clone(),

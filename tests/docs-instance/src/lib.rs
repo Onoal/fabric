@@ -60,7 +60,7 @@ fn materialization_lifecycle_report_and_component_boundary_are_distinct() {
         .expect("Component host")
         .materialize::<Greeter>()
         .expect("materialize Component after Instance start");
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
     assert!(
         instance.start().is_err(),

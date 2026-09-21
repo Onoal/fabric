@@ -146,7 +146,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -260,7 +262,7 @@ fn undeclared_operation_registration_fails_and_rolls_back() {
         ))),
         "failed preparation must roll back without stale authority"
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -332,7 +334,7 @@ fn declared_operation_type_mismatch_fails_registration() {
                 .expect("output type id"),
         })
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -507,9 +509,8 @@ fn fresh_instances_preserve_declarations_without_sharing_live_state() {
         &component_id("catalog.a")
     );
 
-    first.stop();
-    second.stop();
-
+    first.stop().expect("stop runtime");
+    second.stop().expect("stop runtime");
     assert_eq!(
         rails[0].registry.component(&component_id("catalog.a")),
         Err(ComponentError::UnknownComponent(component_id("catalog.a"))),
@@ -600,7 +601,9 @@ impl ModuleRuntime for PushingCaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy

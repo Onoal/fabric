@@ -140,7 +140,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -398,7 +400,7 @@ fn reconstruction_converges_enabled_and_disabled_without_auto_applying_controls(
         ))
     );
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -434,7 +436,7 @@ fn reconstruction_ignores_unmanaged_control_absence_and_reports_undeclared_compo
         ))
     );
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -497,7 +499,7 @@ fn reconstruction_rejects_undeclared_participation_without_affecting_control_sta
         ))
     );
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -559,7 +561,7 @@ fn reconstruction_failures_stay_local_and_retry_cleanly() {
     assert_eq!(attempts_a.load(Ordering::SeqCst), 2);
     assert_eq!(attempts_b.load(Ordering::SeqCst), 1);
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -585,7 +587,7 @@ fn reconstruction_reports_controls_in_component_id_order() {
         .collect();
     assert_eq!(ordered, vec!["component.a", "component.b"]);
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -652,7 +654,7 @@ fn reconstruction_updates_readiness_without_mutating_desired_or_semantic_truth()
         1
     );
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -689,7 +691,7 @@ fn reconstruction_materialized_runtime_executes_normally_after_convergence() {
     .expect("operation");
     assert_eq!(output, EchoOutput("hello"));
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -698,8 +700,7 @@ fn reconstruction_rejects_stopped_runtime_globally() {
         fixture(&[], [definition("component.a", |_| Ok(Health::Healthy))]);
     let component_a = component(&rails.runtime, "component.a");
     rails.control.enable(component_a.clone()).expect("enable");
-    composition.stop();
-
+    composition.stop().expect("stop runtime");
     assert_eq!(
         rails.reconstruction.reconstruct(),
         Err(ComponentError::ComponentReconstructionUnavailableLifecycle(
@@ -755,5 +756,5 @@ fn reconstruction_distinguishes_attached_unattached_and_undeclared() {
         &ComponentReconstructionResult::UndeclaredComponent
     );
 
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }

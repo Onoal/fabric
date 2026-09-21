@@ -90,5 +90,5 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
     components
         .dematerialize::<EcosystemClockProbe>()
         .expect("dematerialize component");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }

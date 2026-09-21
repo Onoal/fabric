@@ -14,7 +14,7 @@ use crate::block::{Block, RuntimeBlock};
 use crate::contract::{
     ContractRequirementDeclaration, ModuleContract, ProvidedContractDeclaration,
 };
-use crate::error::CompositionError;
+use crate::error::{CompositionError, ModuleCleanupFailure, RuntimeCleanupError};
 use crate::export::{CompositionExport, CompositionExportDeclaration};
 use crate::host_materialization::HostMaterializationRequirement;
 use crate::identifiers::{CompositionId, ContractId, InstanceId, ModuleId};
@@ -305,28 +305,109 @@ fn materialize_runtime_blocks(
         .iter()
         .map(|block| block.modules.len())
         .collect::<Vec<_>>();
-    let mut modules = blocks
-        .iter()
-        .flat_map(|block| block.modules.iter())
-        .map(|module| {
-            module
-                .materialize()
-                .ok_or_else(|| CompositionError::MissingRuntimeMaterializer {
+    let mut modules = Vec::with_capacity(validated.declarations.len());
+    for module in blocks.iter().flat_map(|block| block.modules.iter()) {
+        let Some(runtime) = module.materialize() else {
+            return Err(abandon_materialized_runtimes(
+                CompositionError::MissingRuntimeMaterializer {
                     module_id: module.declaration().module_id().clone(),
-                })
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    ensure_runtime_module_ids(&validated.declarations, &modules)?;
-    bind_instance_context(composition_id, &mut modules, context)?;
-    let exported = collect_exports(composition_id, &modules)?;
-    ensure_runtime_exports(&validated.declarations, &exported)?;
-    let external_exports = resolve_runtime_exports(external_export_declarations, &exported)?;
-    let bindings = runtime_bindings(&validated.bindings, &exported)?;
-    bind_runtime_modules(composition_id, &validated, &mut modules, &bindings)?;
+                },
+                &mut modules,
+                &validated.start_order,
+            ));
+        };
+        modules.push(runtime);
+    }
+    if let Err(primary) = ensure_runtime_module_ids(&validated.declarations, &modules) {
+        return Err(abandon_materialized_runtimes(
+            primary,
+            &mut modules,
+            &validated.start_order,
+        ));
+    }
+    if let Err(primary) = bind_instance_context(composition_id, &mut modules, context) {
+        return Err(abandon_materialized_runtimes(
+            primary,
+            &mut modules,
+            &validated.start_order,
+        ));
+    }
+    let exported = match collect_exports(composition_id, &modules) {
+        Ok(exported) => exported,
+        Err(primary) => {
+            return Err(abandon_materialized_runtimes(
+                primary,
+                &mut modules,
+                &validated.start_order,
+            ));
+        }
+    };
+    if let Err(primary) = ensure_runtime_exports(&validated.declarations, &exported) {
+        return Err(abandon_materialized_runtimes(
+            primary,
+            &mut modules,
+            &validated.start_order,
+        ));
+    }
+    let external_exports = match resolve_runtime_exports(external_export_declarations, &exported) {
+        Ok(exports) => exports,
+        Err(primary) => {
+            return Err(abandon_materialized_runtimes(
+                primary,
+                &mut modules,
+                &validated.start_order,
+            ));
+        }
+    };
+    let bindings = match runtime_bindings(&validated.bindings, &exported) {
+        Ok(bindings) => bindings,
+        Err(primary) => {
+            return Err(abandon_materialized_runtimes(
+                primary,
+                &mut modules,
+                &validated.start_order,
+            ));
+        }
+    };
+    if let Err(primary) = bind_runtime_modules(composition_id, &validated, &mut modules, &bindings)
+    {
+        return Err(abandon_materialized_runtimes(
+            primary,
+            &mut modules,
+            &validated.start_order,
+        ));
+    }
 
     let start_order = module_start_locations(&counts, &validated.start_order);
     let runtime_blocks = into_runtime_blocks(blocks, counts, modules);
     Ok((runtime_blocks, start_order, external_exports))
+}
+
+/// Cleans every runtime occurrence that was actually materialized when a
+/// later construction step abandons the generation. The dependency order was
+/// resolved before materialization; reversing that order stops consumers
+/// before providers even when declaration order differs.
+fn abandon_materialized_runtimes(
+    primary: CompositionError,
+    modules: &mut [Box<dyn ModuleRuntime>],
+    dependency_order: &[usize],
+) -> CompositionError {
+    let mut failures = Vec::new();
+    for module_index in dependency_order.iter().rev().copied() {
+        let Some(module) = modules.get_mut(module_index) else {
+            continue;
+        };
+        if let Err(source) = module.stop() {
+            failures.push(ModuleCleanupFailure::stop(module.id().clone(), source));
+        }
+    }
+    match RuntimeCleanupError::from_failures(failures) {
+        Some(cleanup) => CompositionError::RuntimeMaterializationFailure {
+            primary: Box::new(primary),
+            cleanup,
+        },
+        None => primary,
+    }
 }
 
 fn resolve_runtime_exports(

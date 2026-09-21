@@ -101,11 +101,12 @@ impl ModuleRuntime for RuntimeParticipantModule {
             .map_err(|error| ModuleError::new(error.to_string()))
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         if let (Some(participation), Some(registry)) = (&self.participation, &self.registry) {
             let _ = registry.update_health(participation, Health::Unavailable);
             let _ = registry.unregister(participation);
         }
+        Ok(())
     }
 
     fn health(&self) -> Health {
@@ -184,7 +185,9 @@ impl ModuleRuntime for ControlCaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -328,7 +331,7 @@ fn desired_state_can_exist_without_runtime_participation() {
     assert_eq!(record.desired(), ComponentDesiredState::Enabled);
     assert!(registry.components().is_empty());
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -353,7 +356,7 @@ fn runtime_participation_can_differ_from_desired_state() {
         runtime_status
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -387,7 +390,7 @@ fn desired_state_mutation_is_idempotent_and_preserves_identity() {
         component.instance_id()
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -411,7 +414,7 @@ fn foreign_instance_component_cannot_be_controlled() {
         ComponentError::ComponentControlInstanceMismatch { .. }
     ));
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -447,7 +450,7 @@ fn control_lookup_and_listing_are_deterministic() {
         vec!["component.alpha", "component.beta"]
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -465,7 +468,7 @@ fn control_lookup_reports_missing_control_without_runtime_requirement() {
         )
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]

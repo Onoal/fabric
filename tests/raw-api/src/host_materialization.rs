@@ -42,7 +42,9 @@ impl ModuleRuntime for PlainModuleRuntime {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
@@ -111,7 +113,7 @@ fn host_free_composition_still_materializes_without_explicit_host() {
         .expect("host-free materialization");
 
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -152,7 +154,7 @@ fn materialize_on_accepts_compatible_host() {
         .expect("compatible host");
 
     instance.start().expect("start");
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -261,5 +263,5 @@ fn same_portable_composition_can_succeed_or_fail_on_different_hosts() {
         )
         .expect("compatible host should materialize");
     compatible.start().expect("start");
-    compatible.stop();
+    compatible.stop().expect("stop instance");
 }

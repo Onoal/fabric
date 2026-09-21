@@ -139,6 +139,6 @@ mod tests {
         )
         .expect("invoke");
         assert_eq!(output, Marker { value: 7 });
-        instance.stop();
+        instance.stop().expect("stop instance");
     }
 }

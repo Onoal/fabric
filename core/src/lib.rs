@@ -25,7 +25,9 @@ pub use contract::{
     ContractRequirementDeclaration, ContractVersion, ContractVersionRequirement, ModuleContract,
     ProvidedContractDeclaration,
 };
-pub use error::{CompositionError, InstanceError, ModuleError};
+pub use error::{
+    CompositionError, InstanceError, ModuleCleanupFailure, ModuleError, RuntimeCleanupError,
+};
 pub use export::{CompositionExport, CompositionExportDeclaration};
 pub use health::Health;
 pub use host_materialization::HostMaterializationRequirement;

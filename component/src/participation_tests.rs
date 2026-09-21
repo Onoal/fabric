@@ -136,7 +136,9 @@ impl ModuleRuntime for RailsCapture {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -338,7 +340,7 @@ fn participating_component_can_register_and_invoke_an_operation() {
         block_on(invoke_echo(&rails, OPERATION_ID, Echo("ok".into()))),
         Ok(Echo("ok".into()))
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -365,7 +367,7 @@ fn non_participating_component_cannot_register_runtime_operation() {
             component_id: ComponentId::new("component.absent").expect("component id")
         }
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -421,7 +423,7 @@ fn unregister_removes_only_departed_components_operations_and_allows_rejoin() {
         )),
         Ok(Echo("again".into()))
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -472,7 +474,7 @@ fn stale_participation_never_regains_runtime_authority_after_rejoin() {
         )),
         Ok(Echo("current".into()))
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -544,7 +546,7 @@ fn health_controls_operation_admission_without_rejoining_or_reregistering() {
         ))
         .is_ok()
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -578,7 +580,7 @@ fn cross_instance_component_cannot_participate_or_register_operations() {
             )
             .is_err()
     );
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -593,7 +595,7 @@ fn runtime_shutdown_removes_runtime_operation_handlers() {
         .clone();
     register_echo(&rails, participation, OPERATION_ID);
 
-    instance.stop();
+    instance.stop().expect("stop instance");
     assert_eq!(
         rails.operations.owner(&echo_operation(OPERATION_ID)),
         Err(ComponentError::UnknownOperation(

@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use fabric_core::{
     ContractIdentity, ContractKey, ContractProviderSelection, ContractRequirement,
     ContractVersionRequirement, HostMaterializationRequirement, Module, ModuleDeclaration,
-    ModuleId, ModuleRuntime,
+    ModuleError, ModuleId, ModuleRuntime,
 };
 use fabric_system::SystemId;
 
@@ -181,7 +181,9 @@ where
     fn start(&mut self) -> Result<(), fabric_core::ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> fabric_core::Health {
         fabric_core::Health::Healthy
     }

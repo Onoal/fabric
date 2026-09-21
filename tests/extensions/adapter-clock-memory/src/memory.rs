@@ -140,9 +140,10 @@ impl ModuleRuntime for MemoryClockProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), ModuleError> {
         self.realization.push_lifecycle("stop", &self.module_id);
         let _ = self.realization.clear();
+        Ok(())
     }
 
     fn health(&self) -> Health {

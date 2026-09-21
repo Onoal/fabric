@@ -91,7 +91,9 @@ impl ModuleRuntime for SyntheticContractProvider {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -190,7 +192,9 @@ impl ModuleRuntime for RailsCapture {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -314,7 +318,7 @@ fn core_resolved_contract_communicates_between_participating_components() {
         notes.call(&caller, |contract| contract.reply("hello")),
         Ok("notes:hello".to_owned())
     );
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -332,7 +336,7 @@ fn core_resolved_contract_rejects_absent_provider() {
             ComponentId::new("component.notes").expect("component id")
         ))
     );
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -364,7 +368,7 @@ fn stale_handle_rejects_new_calls_after_provider_leaves_and_allows_rejoin() {
         notes.call(&caller, |contract| contract.reply("rejoined")),
         Ok("notes:rejoined".to_owned())
     );
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -391,7 +395,7 @@ fn stale_handle_rejects_new_calls_after_caller_leaves_without_affecting_another_
             actual_component_id: ComponentId::new("component.unrelated").expect("component id"),
         })
     );
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -418,7 +422,7 @@ fn call_that_started_while_participants_exist_may_finish_after_provider_leaves()
         notes.call(&caller, |contract| contract.reply("next")),
         Err(ComponentError::ComponentContractProviderNotParticipating(_))
     ));
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -456,7 +460,7 @@ fn availability_gates_contract_caller_and_provider_without_reresolution() {
         notes.call(&caller_participation, |contract| contract.reply("blocked")),
         Err(ComponentError::ComponentUnavailable(_))
     ));
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 #[test]
@@ -484,7 +488,7 @@ fn cross_instance_provider_and_caller_are_rejected() {
             )
             .is_err()
     );
-    composition.stop();
+    composition.stop().expect("stop runtime");
 }
 
 fn foreign_component(instance_id: &str, component_id: &str) -> Component {

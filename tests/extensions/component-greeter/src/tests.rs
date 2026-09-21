@@ -92,7 +92,9 @@ impl ModuleRuntime for CaptureModule {
         Ok(())
     }
 
-    fn stop(&mut self) {}
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
 
     fn health(&self) -> Health {
         Health::Healthy
@@ -321,7 +323,7 @@ fn macro_generated_greeter_invokes_through_component_runtime() {
     );
     assert_eq!(output.message, "hello, kernel");
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -358,7 +360,7 @@ fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
         scripted_greeter::operations::part().id()
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]
@@ -390,7 +392,7 @@ fn multiple_component_macros_can_coexist_in_one_module() {
         beta_component::operations::echo().id().as_str()
     );
 
-    instance.stop();
+    instance.stop().expect("stop instance");
 }
 
 #[test]

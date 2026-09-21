@@ -498,22 +498,26 @@ impl ModuleRuntime for ComponentRuntimeModule {
         Ok(())
     }
 
-    fn stop(&mut self) {
+    fn stop(&mut self) -> Result<(), fabric_core::ModuleError> {
         let mut state = self
             .shared
             .inner
             .lock()
             .expect("component runtime state lock");
+        if state.current_status().lifecycle() == ComponentRuntimeLifecycle::Stopped {
+            return Ok(());
+        }
         state
             .transition_to(ComponentRuntimeLifecycle::Stopping)
-            .expect("component runtime stopping transition must remain valid");
+            .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         state.set_health(Health::Unavailable);
         state.operations.clear();
         state.components.clear();
         state
             .transition_to(ComponentRuntimeLifecycle::Stopped)
-            .expect("component runtime stopped transition must remain valid");
+            .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         state.set_health(Health::Unavailable);
+        Ok(())
     }
 
     fn health(&self) -> Health {

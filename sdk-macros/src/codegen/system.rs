@@ -309,7 +309,9 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                     Ok(())
                 }
 
-                fn stop(&mut self) {}
+                fn stop(&mut self) -> ::std::result::Result<(), #sdk::core::ModuleError> {
+                    Ok(())
+                }
 
                 fn health(&self) -> #sdk::core::Health {
                     #sdk::core::Health::Healthy

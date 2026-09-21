@@ -3,8 +3,67 @@ use fabric_host::HostCompatibilityError;
 use crate::identifiers::{BlockId, CompositionId, ContractId, ModuleId};
 use crate::{ContractCompatibilityRequirement, ContractIdentity};
 
+/// One best-effort runtime cleanup failure.
+///
+/// Fabric records these separately from the operation that abandoned an
+/// Instance generation so cleanup evidence never replaces the primary error.
+#[derive(Debug, thiserror::Error)]
+#[error("module `{module_id}` failed during `{phase}`: {source}")]
+pub struct ModuleCleanupFailure {
+    module_id: ModuleId,
+    phase: &'static str,
+    #[source]
+    source: ModuleError,
+}
+
+impl ModuleCleanupFailure {
+    pub fn module_id(&self) -> &ModuleId {
+        &self.module_id
+    }
+
+    pub fn phase(&self) -> &'static str {
+        self.phase
+    }
+
+    pub fn source(&self) -> &ModuleError {
+        &self.source
+    }
+
+    pub(crate) fn stop(module_id: ModuleId, source: ModuleError) -> Self {
+        Self {
+            module_id,
+            phase: "stop",
+            source,
+        }
+    }
+}
+
+/// Best-effort cleanup failures from one terminal or abandoned runtime
+/// generation transition.
+#[derive(Debug, thiserror::Error)]
+#[error("runtime cleanup failed for {} module participant(s)", failures.len())]
+pub struct RuntimeCleanupError {
+    failures: Vec<ModuleCleanupFailure>,
+}
+
+impl RuntimeCleanupError {
+    pub fn failures(&self) -> &[ModuleCleanupFailure] {
+        &self.failures
+    }
+
+    pub(crate) fn from_failures(failures: Vec<ModuleCleanupFailure>) -> Option<Self> {
+        (!failures.is_empty()).then_some(Self { failures })
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum CompositionError {
+    #[error("runtime materialization failed: {primary}; cleanup also failed: {cleanup}")]
+    RuntimeMaterializationFailure {
+        #[source]
+        primary: Box<CompositionError>,
+        cleanup: RuntimeCleanupError,
+    },
     #[error("composition export `{export_id}` is duplicated")]
     DuplicateCompositionExport { export_id: ContractId },
 
@@ -220,6 +279,7 @@ pub enum InstanceError {
         phase: &'static str,
         #[source]
         source: ModuleError,
+        cleanup: Option<RuntimeCleanupError>,
     },
 }
 

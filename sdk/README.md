@@ -95,8 +95,7 @@ fabric::adapter! {
         for resource ExampleResource
         implements ExampleResourceRealization
     {
-        schema: provisional;
-        realization: "1.0.0";
+        version: "1.0.0";
         config { value: u64; }
         runtime {
             fn current_value(&self) -> ExampleValue {

@@ -11,12 +11,11 @@ pub struct StoreObservation {
 fabric::resource! {
     pub NoteStore {
         id: "example.note-store";
-        schema: provisional;
+        version: "0.1.0";
         config { label: String; }
         contracts {
             primary Api {
                 id: "example.note-store.api";
-                version: provisional;
                 fn label(&self) -> String;
             }
         }
@@ -29,10 +28,9 @@ fabric::resource! {
 fabric::component! {
     pub StoreProbe {
         id: "example.store-probe";
-        config {}
         requires {
-            primary_store: NoteStore(provisional);
-            cache_store: NoteStore(provisional);
+            primary_store: NoteStore(version = "^0.1");
+            cache_store: NoteStore(version = "^0.1");
         }
         operations {
             inspect {

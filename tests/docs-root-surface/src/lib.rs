@@ -9,10 +9,9 @@ mod root_wildcard {
     fabric::resource! {
         pub RootStore {
             id: "docs.root.store";
-            schema: provisional;
-            config {}
+            version: "0.1.0";
             contracts { primary Api {
-                id: "docs.root.store.api"; version: provisional;
+                id: "docs.root.store.api";
                 fn value(&self) -> u64;
             }}
             runtime { fn value(&self) -> u64 { 1 } }
@@ -22,10 +21,9 @@ mod root_wildcard {
     fabric::system! {
         pub RootSystem {
             id: "docs.root.system";
-            schema: provisional;
-            config {}
+            version: "0.1.0";
             contracts { primary Api {
-                id: "docs.root.system.api"; version: provisional;
+                id: "docs.root.system.api";
                 fn value(&self) -> u64;
             }}
             runtime { fn value(&self) -> u64 { 2 } }
@@ -35,7 +33,6 @@ mod root_wildcard {
     fabric::component! {
         pub RootComponent {
             id: "docs.root.component";
-            config {}
             operations {
                 ping {
                     id: "docs.root.component.ping";

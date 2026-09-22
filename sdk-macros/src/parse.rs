@@ -36,12 +36,21 @@ mod kw {
     syn::custom_keyword!(state);
     syn::custom_keyword!(start);
     syn::custom_keyword!(stop);
+    syn::custom_keyword!(supports);
     syn::custom_keyword!(health);
     syn::custom_keyword!(schema);
     syn::custom_keyword!(system);
     syn::custom_keyword!(teardown);
     syn::custom_keyword!(version);
     syn::custom_keyword!(resource);
+}
+
+struct PendingContractDefinition {
+    is_primary: bool,
+    name: Ident,
+    contract_id: LitStr,
+    version: Option<VersionLiteral>,
+    methods: Vec<ContractMethod>,
 }
 
 impl Parse for ResourceInput {
@@ -77,6 +86,16 @@ impl Parse for ResourceInput {
                     return Err(
                         content.error("resource! supports only one `schema: ...;` declaration")
                     );
+                }
+                schema = Some(parse_version_literal(&content)?);
+                content.parse::<Token![;]>()?;
+            } else if content.peek(kw::version) {
+                content.parse::<kw::version>()?;
+                content.parse::<Token![:]>()?;
+                if schema.is_some() {
+                    return Err(content.error(
+                        "resource! supports only one `version: ...;` or legacy `schema: ...;` declaration",
+                    ));
                 }
                 schema = Some(parse_version_literal(&content)?);
                 content.parse::<Token![;]>()?;
@@ -142,6 +161,16 @@ impl Parse for ResourceInput {
         }
 
         let name_for_errors = name.clone();
+        let schema = schema.unwrap_or(VersionLiteral::Provisional);
+        let contracts = resolve_contract_versions(
+            contracts.ok_or_else(|| {
+                Error::new(
+                    name_for_errors.span(),
+                    "resource! requires a `contracts { ... }` section",
+                )
+            })?,
+            &schema,
+        );
 
         Ok(Self {
             visibility,
@@ -152,25 +181,10 @@ impl Parse for ResourceInput {
                     "resource! requires an `id: ...;` declaration",
                 )
             })?,
-            schema: schema.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "resource! requires a `schema: ...;` declaration",
-                )
-            })?,
-            config_fields: config_fields.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "resource! requires a `config { ... }` section",
-                )
-            })?,
+            schema,
+            config_fields: config_fields.unwrap_or_default(),
             requires: requires.unwrap_or_default(),
-            contracts: contracts.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "resource! requires a `contracts { ... }` section",
-                )
-            })?,
+            contracts,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
                 Error::new(
@@ -217,6 +231,16 @@ impl Parse for SystemInput {
                     return Err(
                         content.error("system! supports only one `schema: ...;` declaration")
                     );
+                }
+                schema = Some(parse_version_literal(&content)?);
+                content.parse::<Token![;]>()?;
+            } else if content.peek(kw::version) {
+                content.parse::<kw::version>()?;
+                content.parse::<Token![:]>()?;
+                if schema.is_some() {
+                    return Err(content.error(
+                        "system! supports only one `version: ...;` or legacy `schema: ...;` declaration",
+                    ));
                 }
                 schema = Some(parse_version_literal(&content)?);
                 content.parse::<Token![;]>()?;
@@ -276,6 +300,16 @@ impl Parse for SystemInput {
         }
 
         let name_for_errors = name.clone();
+        let schema = schema.unwrap_or(VersionLiteral::Provisional);
+        let contracts = resolve_contract_versions(
+            contracts.ok_or_else(|| {
+                Error::new(
+                    name_for_errors.span(),
+                    "system! requires a `contracts { ... }` section",
+                )
+            })?,
+            &schema,
+        );
 
         Ok(Self {
             visibility,
@@ -286,25 +320,10 @@ impl Parse for SystemInput {
                     "system! requires an `id: ...;` declaration",
                 )
             })?,
-            schema: schema.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "system! requires a `schema: ...;` declaration",
-                )
-            })?,
-            config_fields: config_fields.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "system! requires a `config { ... }` section",
-                )
-            })?,
+            schema,
+            config_fields: config_fields.unwrap_or_default(),
             systems: systems.unwrap_or_default(),
-            contracts: contracts.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "system! requires a `contracts { ... }` section",
-                )
-            })?,
+            contracts,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
                 Error::new(
@@ -358,6 +377,16 @@ impl Parse for AdapterInput {
                 }
                 schema = Some(parse_requirement_literal(&content)?);
                 content.parse::<Token![;]>()?;
+            } else if content.peek(kw::supports) {
+                content.parse::<kw::supports>()?;
+                content.parse::<Token![:]>()?;
+                if schema.is_some() {
+                    return Err(content.error(
+                        "adapter! supports only one `supports: ...;` or legacy `schema: ...;` declaration",
+                    ));
+                }
+                schema = Some(parse_requirement_literal(&content)?);
+                content.parse::<Token![;]>()?;
             } else if content.peek(kw::realization) {
                 content.parse::<kw::realization>()?;
                 content.parse::<Token![:]>()?;
@@ -365,6 +394,16 @@ impl Parse for AdapterInput {
                     return Err(
                         content.error("adapter! supports only one `realization: ...;` declaration")
                     );
+                }
+                realization = Some(parse_version_literal(&content)?);
+                content.parse::<Token![;]>()?;
+            } else if content.peek(kw::version) {
+                content.parse::<kw::version>()?;
+                content.parse::<Token![:]>()?;
+                if realization.is_some() {
+                    return Err(content.error(
+                        "adapter! supports only one `version: ...;` or legacy `realization: ...;` declaration",
+                    ));
                 }
                 realization = Some(parse_version_literal(&content)?);
                 content.parse::<Token![;]>()?;
@@ -427,24 +466,9 @@ impl Parse for AdapterInput {
             target_kind,
             target,
             realization_interface,
-            schema: schema.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "adapter! requires a `schema: ...;` declaration",
-                )
-            })?,
-            realization: realization.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "adapter! requires a `realization: ...;` declaration",
-                )
-            })?,
-            config_fields: config_fields.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "adapter! requires a `config { ... }` section",
-                )
-            })?,
+            schema,
+            realization: realization.unwrap_or(VersionLiteral::Provisional),
+            config_fields: config_fields.unwrap_or_default(),
             systems: systems.unwrap_or_default(),
             host_requirement,
             runtime_methods: runtime_methods.ok_or_else(|| {
@@ -540,12 +564,7 @@ impl Parse for ComponentInput {
                     "component! requires an `id: ...;` declaration",
                 )
             })?,
-            config_fields: config_fields.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component! requires a `config { ... }` section",
-                )
-            })?,
+            config_fields: config_fields.unwrap_or_default(),
             requires: requires.unwrap_or_default(),
             systems: systems.unwrap_or_default(),
             operations: operations.ok_or_else(|| {
@@ -587,7 +606,7 @@ fn parse_config_fields(input: ParseStream<'_>) -> Result<Vec<ConfigField>> {
 fn parse_contracts(
     input: ParseStream<'_>,
     subject: &'static str,
-) -> Result<Vec<ContractDefinition>> {
+) -> Result<Vec<PendingContractDefinition>> {
     let content;
     braced!(content in input);
     let mut contracts = Vec::new();
@@ -625,7 +644,7 @@ fn parse_contracts(
             }
         }
 
-        contracts.push(ContractDefinition {
+        contracts.push(PendingContractDefinition {
             is_primary,
             name: name.clone(),
             contract_id: contract_id.ok_or_else(|| {
@@ -634,16 +653,27 @@ fn parse_contracts(
                     format!("{subject} contract requires an `id: ...;` declaration"),
                 )
             })?,
-            version: version.ok_or_else(|| {
-                Error::new(
-                    name.span(),
-                    format!("{subject} contract requires a `version: ...;` declaration"),
-                )
-            })?,
+            version,
             methods,
         });
     }
     Ok(contracts)
+}
+
+fn resolve_contract_versions(
+    contracts: Vec<PendingContractDefinition>,
+    default_version: &VersionLiteral,
+) -> Vec<ContractDefinition> {
+    contracts
+        .into_iter()
+        .map(|contract| ContractDefinition {
+            is_primary: contract.is_primary,
+            name: contract.name,
+            contract_id: contract.contract_id,
+            version: contract.version.unwrap_or_else(|| default_version.clone()),
+            methods: contract.methods,
+        })
+        .collect()
 }
 
 fn parse_requires(input: ParseStream<'_>) -> Result<Vec<RequirementDefinition>> {

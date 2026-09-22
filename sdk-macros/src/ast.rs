@@ -34,7 +34,9 @@ pub struct AdapterInput {
     pub target_kind: AdapterTargetKind,
     pub target: Path,
     pub realization_interface: Path,
-    pub schema: RequirementLiteral,
+    /// An explicit, advanced target-schema compatibility override.  When it
+    /// is absent, adapter support is derived exactly from the target's schema.
+    pub schema: Option<RequirementLiteral>,
     pub realization: VersionLiteral,
     pub config_fields: Vec<ConfigField>,
     pub systems: Vec<SystemDependencyDefinition>,
@@ -132,6 +134,7 @@ pub enum AdapterTargetKind {
     System,
 }
 
+#[derive(Clone)]
 pub enum VersionLiteral {
     Provisional,
     Versioned(LitStr),

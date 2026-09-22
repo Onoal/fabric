@@ -65,10 +65,10 @@ ontology. Handwritten `SystemDefinition` is public too.
 fabric::system! {
     pub Operations {
         id: "example.operations";
-        schema: provisional;
+        version: "0.1.0";
         config { seed: u64; }
         contracts { primary Api {
-            id: "example.operations.api"; version: provisional;
+            id: "example.operations.api";
             fn marker(&self) -> u64;
         }}
         runtime { fn marker(&self) -> u64 { self.config.seed } }
@@ -94,6 +94,18 @@ startup, and `health` reports ability separately from lifecycle. A System with
 no custom sections keeps the stateless successful defaults.
 
 ## Schema and direct realization
+
+### Normal and advanced compatibility authoring
+
+For normal `system!` authoring, `version: "...";` is the semantic version
+word. Omit it for provisional semantics; an omitted primary contract version
+inherits the enclosing System version, and an empty `config {}` may be
+omitted. `schema:` remains available as the legacy explicit form for advanced
+compatibility-oriented authoring rather than normal package code.
+
+An Adapter defaults to exact compatibility with the System definition named in
+its header. Use `supports: "^0.4";` only when an implementation deliberately
+supports a wider semantic-version range.
 
 `SystemSchemaDescriptor` combines `SystemSchemaIdentity` and
 `SystemSchemaVersion`; `SystemSchemaRequirement` expresses compatibility.

@@ -9,10 +9,10 @@ mod tests {
     fabric::resource! {
         pub NoteStore {
             id: "example.note-store";
-            schema: provisional;
+            version: "0.1.0";
             config { label: String; }
             contracts { primary Api {
-                id: "example.note-store.api"; version: provisional;
+                id: "example.note-store.api";
                 fn label(&self) -> String;
             }}
             runtime { fn label(&self) -> String { self.config.label.clone() } }

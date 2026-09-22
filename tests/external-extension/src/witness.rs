@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -68,6 +69,110 @@ fabric::resource! {
                 self.adapter.current()
             }
         }
+    }
+}
+
+#[derive(Default)]
+struct CleanMemoryState {
+    values: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
+}
+
+// A third-party KeyValue-style semantic definition using the 0.4.1 normal
+// path: versioned semantics, inherited contract version, and no empty config
+// or schema ceremony.
+fabric::resource! {
+    CleanKeyValueStore {
+        id: "fabric.test.external.clean-key-value";
+        version: "0.1.0";
+
+        contracts {
+            primary Api {
+                id: "fabric.test.external.clean-key-value.api";
+
+                fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
+                fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+            }
+        }
+
+        adapter Adapter {
+            id: "fabric.test.external.clean-key-value.adapter";
+            compatibility: "^1";
+
+            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
+            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+        }
+
+        runtime {
+            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+                self.adapter.get(key)
+            }
+
+            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
+                self.adapter.put(key, value)
+            }
+        }
+    }
+}
+
+fabric::adapter! {
+    CleanMemoryStore
+        for resource CleanKeyValueStore
+        implements CleanKeyValueStoreRealization
+    {
+        version: "1.0.0";
+
+        state {
+            CleanMemoryState = CleanMemoryState::default();
+        }
+
+        runtime {
+            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+                Ok(self.state.get().values.lock().expect("values").get(&key).cloned())
+            }
+
+            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
+                self.state.get().values.lock().expect("values").insert(key, value);
+                Ok(())
+            }
+        }
+    }
+}
+
+// A deliberate compatibility override remains available for an implementation
+// that supports a range rather than only its compiled target version.
+fabric::adapter! {
+    ExplicitSupportMemoryStore
+        for resource CleanKeyValueStore
+        implements CleanKeyValueStoreRealization
+    {
+        supports: "^0.1";
+        version: "1.0.0";
+
+        runtime {
+            fn get(&self, _key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+                Ok(None)
+            }
+
+            fn put(&self, _key: Vec<u8>, _value: Vec<u8>) -> Result<(), String> {
+                Ok(())
+            }
+        }
+    }
+}
+
+// A second declaration proves omitted version and config select the safe,
+// provisional and empty defaults.
+fabric::resource! {
+    ImplicitProvisionalResource {
+        id: "fabric.test.external.implicit-provisional";
+
+        contracts {
+            primary Api {
+                id: "fabric.test.external.implicit-provisional.api";
+            }
+        }
+
+        runtime {}
     }
 }
 
@@ -179,6 +284,44 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
         .dematerialize::<EcosystemClockProbe>()
         .expect("dematerialize component");
     instance.stop().expect("stop instance");
+}
+
+#[test]
+fn external_clean_normal_authoring_derives_schema_support_and_provisional_defaults() {
+    let key_value = CleanKeyValueStore::select("primary", CleanKeyValueStoreConfig {})
+        .expect("selection")
+        .using(CleanMemoryStore::new(CleanMemoryStoreConfig {}))
+        .expect("adapter support derives from target schema");
+    let implicit =
+        ImplicitProvisionalResource::select("implicit", ImplicitProvisionalResourceConfig {})
+            .expect("implicit provisional selection");
+    let explicit_support =
+        CleanKeyValueStore::select("explicit-support", CleanKeyValueStoreConfig {})
+            .expect("selection")
+            .using(ExplicitSupportMemoryStore::new(
+                ExplicitSupportMemoryStoreConfig {},
+            ))
+            .expect("explicit support");
+    let built = Fabric::new("fabric.test.external.clean-normal-authoring")
+        .expect("fabric")
+        .resource(key_value)
+        .resource(implicit)
+        .resource(explicit_support)
+        .build()
+        .expect("build");
+    assert_eq!(built.manifest().resources().len(), 3);
+    assert!(matches!(
+        ImplicitProvisionalResource::schema().identity(),
+        fabric::resource::ResourceSchemaIdentity::Provisional
+    ));
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.external.clean-normal-authoring.instance",
+            &test_host(),
+        )
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop().expect("stop");
 }
 
 #[test]

@@ -5,7 +5,6 @@ use fabric::prelude::*;
 fabric::component! {
     pub Greeter {
         id: "example.instance.greeter";
-        config {}
         operations {}
     }
 }
@@ -13,12 +12,11 @@ fabric::component! {
 fabric::resource! {
     pub NoteStore {
         id: "example.instance.note-store";
-        schema: provisional;
+        version: "0.1.0";
         config { label: String; }
         contracts {
             primary Api {
                 id: "example.instance.note-store.api";
-                version: provisional;
                 fn label(&self) -> String;
             }
         }

@@ -16,10 +16,10 @@ mod tests {
     fabric::system! {
         pub AuditSystem {
             id: "example.audit";
-            schema: provisional;
+            version: "0.1.0";
             config { seed: u64; }
             contracts { primary Api {
-                id: "example.audit.api"; version: provisional;
+                id: "example.audit.api";
                 fn marker(&self) -> u64;
             }}
             runtime { fn marker(&self) -> u64 { self.config.seed } }
@@ -29,11 +29,11 @@ mod tests {
     fabric::system! {
         pub DerivedAuditSystem {
             id: "example.derived-audit";
-            schema: provisional;
+            version: "0.1.0";
             config { offset: u64; }
-            system { base: AuditSystem(provisional); }
+            system { base: AuditSystem(version = "^0.1"); }
             contracts { primary Api {
-                id: "example.derived-audit.api"; version: provisional;
+                id: "example.derived-audit.api";
                 fn marker(&self) -> u64;
             }}
             runtime { fn marker(&self) -> u64 { self.base.marker() + self.config.offset } }
@@ -43,8 +43,7 @@ mod tests {
     fabric::component! {
         pub AuditConsumer {
             id: "example.audit-consumer";
-            config {}
-            system { audit: AuditSystem(provisional); }
+            system { audit: AuditSystem(version = "^0.1"); }
             operations {
                 observe {
                     id: "example.audit-consumer.observe";

@@ -34,7 +34,7 @@ occurrence. See [Component](component.md) and [Composition](composition.md).
 ## Definition, selection, Config, and contract
 
 `ResourceDefinition` is typed authoring for a Resource kind: Config type,
-`ResourceId`, schema, declaration construction, and optional direct runtime
+`ResourceId`, semantic version/schema compatibility, declaration construction, and optional direct runtime
 materialization. It is not an occurrence.
 
 `ResourceSelection<R>` is a configured named occurrence:
@@ -55,10 +55,10 @@ provider implementation type.
 fabric::resource! {
     pub NoteStore {
         id: "example.note-store";
-        schema: provisional;
+        version: "0.1.0";
         config { label: String; }
         contracts { primary Api {
-            id: "example.note-store.api"; version: provisional;
+            id: "example.note-store.api";
             fn label(&self) -> String;
         }}
         runtime { fn label(&self) -> String { self.config.label.clone() } }
@@ -86,10 +86,8 @@ generated typed service handles for that occurrence share this state.
 fabric::resource! {
     LocalCounter {
         id: "example.local-counter";
-        schema: provisional;
-        config {}
         contracts { primary Api {
-            id: "example.local-counter.api"; version: provisional;
+            id: "example.local-counter.api";
             fn current(&self) -> usize;
         }}
         state { CounterState = CounterState::default(); }
@@ -113,6 +111,20 @@ All sections are optional; the existing stateless form retains successful
 initialize/start/stop defaults and Healthy health.
 
 ## Schema and realization
+
+### Normal and advanced compatibility authoring
+
+Normal authors declare a semantic `version: "...";` only when the definition
+is deliberately versioned. Omitting it means provisional semantics; the
+primary contract inherits that enclosing version unless it declares its own.
+An empty `config {}` is optional. `schema:` remains a legacy explicit spelling
+for compatibility-focused code, but is not part of the normal path.
+
+The internal `ResourceSchemaDescriptor` still carries the identity/version that
+Fabric uses for compatibility. An Adapter with no explicit support declaration
+derives exact support for its compiled target definition. An implementation
+that intentionally spans target versions can opt into advanced explicit
+compatibility with `supports: "^0.4";`.
 
 `ResourceSchemaDescriptor` combines semantic schema identity and version.
 `ResourceId` says what capability exists; schema says which semantic shape and

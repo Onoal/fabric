@@ -21,7 +21,8 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
     };
     let target_service = quote!(#interface);
     let schema_support_ty = schema_support_type(&sdk, input.target_kind);
-    let schema_support_expr = schema_support_expr(&sdk, input.target_kind, target, &input.schema);
+    let schema_support_expr =
+        schema_support_expr(&sdk, input.target_kind, target, input.schema.as_ref());
     let realization_key_expr =
         realization_key_expr_interface(&sdk, interface, &raw_impl_mod, &input.realization);
     let realization_contract_expr = quote!(<#raw_impl_mod::Runtime as #interface>::realization_contract(
@@ -289,6 +290,62 @@ fn schema_support_type(sdk: &TokenStream, target_kind: AdapterTargetKind) -> Tok
 }
 
 fn schema_support_expr(
+    sdk: &TokenStream,
+    target_kind: AdapterTargetKind,
+    target: &Path,
+    schema: Option<&crate::ast::RequirementLiteral>,
+) -> TokenStream {
+    if let Some(schema) = schema {
+        return explicit_schema_support_expr(sdk, target_kind, target, schema);
+    }
+
+    match target_kind {
+        AdapterTargetKind::Resource => quote! {
+            {
+                let schema = <#target as #sdk::authoring::ResourceDefinition>::schema();
+                match schema.identity() {
+                    #sdk::resource::ResourceSchemaIdentity::Provisional => {
+                        #sdk::resource::AdapterResourceSchemaSupport::provisional(
+                            schema.resource().clone()
+                        )
+                    }
+                    #sdk::resource::ResourceSchemaIdentity::Versioned(version) => {
+                        #sdk::resource::AdapterResourceSchemaSupport::versioned(
+                            schema.resource().clone(),
+                            #sdk::resource::ResourceSchemaRequirement::parse(
+                                ::std::format!("={version}"),
+                            )
+                            .expect("adapter! generated an exact target resource schema requirement"),
+                        )
+                    }
+                }
+            }
+        },
+        AdapterTargetKind::System => quote! {
+            {
+                let schema = <#target as #sdk::authoring::SystemDefinition>::schema();
+                match schema.identity() {
+                    #sdk::system::SystemSchemaIdentity::Provisional => {
+                        #sdk::system::AdapterSystemSchemaSupport::provisional(
+                            schema.system().clone()
+                        )
+                    }
+                    #sdk::system::SystemSchemaIdentity::Versioned(version) => {
+                        #sdk::system::AdapterSystemSchemaSupport::versioned(
+                            schema.system().clone(),
+                            #sdk::system::SystemSchemaRequirement::parse(
+                                ::std::format!("={version}"),
+                            )
+                            .expect("adapter! generated an exact target system schema requirement"),
+                        )
+                    }
+                }
+            }
+        },
+    }
+}
+
+fn explicit_schema_support_expr(
     sdk: &TokenStream,
     target_kind: AdapterTargetKind,
     target: &Path,

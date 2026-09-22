@@ -114,10 +114,13 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.0 completes the runtime lifecycle spine: every materialized runtime
-occurrence receives deterministic, observable cleanup; normal Resource,
-System, and Adapter authoring can own fresh per-materialization state and
-lifecycle hooks; and Component host lifecycle remains separate from health.
+Fabric 0.4.1 keeps the runtime lifecycle spine intact and cleans the normal
+authoring path: semantic versions replace mandatory schema ceremony, Adapter
+target support is inferred by default, and empty configuration sections may be
+omitted. Every materialized runtime occurrence still receives deterministic,
+observable cleanup; normal Resource, System, and Adapter authoring can own
+fresh per-materialization state and lifecycle hooks; and Component host
+lifecycle remains separate from health.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

@@ -15,8 +15,6 @@ pub struct GreetOutput {
 fabric::component! {
     pub Greeter {
         id: "example.greeter";
-        config {}
-
         operations {
             greet {
                 id: "example.greeter.greet";

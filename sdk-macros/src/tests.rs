@@ -205,8 +205,9 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     assert!(
         parse.contains("adapter! requires `for resource ...` or `for system ...`")
             && parse.contains("adapter! supports only one `system { ... }` section")
-            && parse.contains("adapter! requires a `realization: ...;` declaration"),
-        "adapter! parsing should require explicit target plane and core sections"
+            && parse.contains("legacy `realization: ...;` declaration")
+            && parse.contains("legacy `schema: ...;` declaration"),
+        "adapter! parsing should retain explicit compatibility forms without making them mandatory"
     );
     assert!(
         validate.contains("async adapter runtime methods are not supported")
@@ -245,6 +246,35 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
             "adapter! codegen must stay free of forbidden runtime or ontology term {forbidden}"
         );
     }
+}
+
+#[test]
+fn normal_authoring_defaults_version_support_and_empty_config_without_removing_explicit_forms() {
+    let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
+    let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
+    let adapter =
+        fs::read_to_string(crate_root().join("src/codegen/adapter.rs")).expect("read adapter");
+
+    assert!(
+        ast.contains("pub schema: Option<RequirementLiteral>")
+            && parse.contains("schema.unwrap_or(VersionLiteral::Provisional)")
+            && parse.contains("config_fields: config_fields.unwrap_or_default()")
+            && parse.contains("resolve_contract_versions"),
+        "resource and system normal authoring should derive provisional version, empty config, and contract version"
+    );
+    assert!(
+        parse.contains("supports: ...;")
+            && parse.contains("version: ...;` or legacy `realization: ...;")
+            && parse.contains("schema: ...;` declaration"),
+        "adapter! should prefer version/support syntax while retaining legacy explicit forms"
+    );
+    assert!(
+        adapter.contains("ResourceSchemaIdentity::Versioned")
+            && adapter.contains("SystemSchemaIdentity::Versioned")
+            && adapter.contains("exact target resource schema requirement")
+            && adapter.contains("exact target system schema requirement"),
+        "an adapter without an explicit support override must derive exact target compatibility"
+    );
 }
 
 #[test]

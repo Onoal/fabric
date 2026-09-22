@@ -28,7 +28,6 @@ enum DocumentError {
 fabric::component! {
     pub DocumentComponent {
         id: "example.document-component";
-        config {}
         operations {
             open {
                 id: "example.document-component.open";
@@ -78,7 +77,6 @@ fabric::component! {
 fabric::component! {
     pub ZeroOperationComponent {
         id: "example.zero-operation-component";
-        config {}
         operations {}
     }
 }

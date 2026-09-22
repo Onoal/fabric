@@ -159,16 +159,14 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
 pub fn validate_adapter(input: &AdapterInput) -> Result<()> {
     let mut errors = None;
 
-    validate_requirement_literal(
-        &input.schema,
-        "invalid adapter schema compatibility requirement",
-        &mut errors,
-    );
-    validate_version_literal(
-        &input.realization,
-        "invalid adapter realization version",
-        &mut errors,
-    );
+    if let Some(schema) = &input.schema {
+        validate_requirement_literal(
+            schema,
+            "invalid adapter support version requirement",
+            &mut errors,
+        );
+    }
+    validate_version_literal(&input.realization, "invalid adapter version", &mut errors);
     validate_system_dependency_names(&input.systems, &mut errors, "adapter");
 
     for method in &input.runtime_methods {

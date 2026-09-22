@@ -22,8 +22,7 @@ normal ergonomic authoring form for Resource and System targets; handwritten
 ```rust
 fabric::adapter! {
     pub LocalStoreAdapter for resource Store implements StoreRealization {
-        schema: provisional;
-        realization: "1.0.0";
+        version: "1.0.0";
         config { directory: String; }
         runtime { /* realization methods */ }
     }
@@ -34,6 +33,13 @@ The target defines the typed `RealizationContract`; the Adapter implements it.
 That realization interface differs from the consumer semantic contract:
 Components consume the latter, while the target runtime uses the former to
 realize its semantics.
+
+`version` is the Adapter provider-contract version; `implements` already names
+the interface. Target support is inferred exactly from `Store` by default. Use
+`supports: "^0.4";` only for deliberate broader target support. The former
+`schema: ...;` and `realization: ...;` spellings remain valid as explicit
+legacy/advanced compatibility forms. Omit `config {}` when the Adapter has no
+configuration.
 
 Adapter Config configures the implementation—for example, a directory or
 endpoint—not Resource/System semantic Config, Component Config, or a Host
@@ -127,8 +133,6 @@ state accidentally.
 ```rust
 fabric::adapter! {
     LocalStoreAdapter for resource Store implements StoreRealization {
-        schema: provisional;
-        realization: provisional;
         config { directory: String; }
         state { LocalStoreState = LocalStoreState::new(config.directory.clone()); }
         runtime { /* realization methods can use self.state.get() */ }

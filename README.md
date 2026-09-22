@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.4" }
+fabric = { package = "onoal-fabric", version = "0.4.5" }
 ```
 
 ```rust
@@ -114,10 +114,11 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.4 retains the lifecycle and Config authoring lines and establishes
-universal `relations { requires { ... } }` authoring for Resources, Systems,
-and Adapters. Relations bind typed Resource/System capabilities through a
-Composition; they are not Config, lifecycle ordering, or transport.
+Fabric 0.4.5 retains lifecycle, Config, and Relations authoring and establishes
+`api { ... }` as the canonical semantic surface for Resources and Systems.
+Fabric derives the primary contract identity and version from the semantic
+owner. API is separate from Config, Relations, runtime implementation, and the
+explicit realization/Adapter boundary.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

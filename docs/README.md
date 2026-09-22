@@ -20,6 +20,7 @@ Fabric documentation has three levels.
    - [Resource](concepts/resource.md)
    - [System](concepts/system.md)
    - [Adapter](concepts/adapter.md)
+   - [API](concepts/api.md)
    - [Augmentation](concepts/augmentation.md)
    - Host
    - Manifest
@@ -31,7 +32,7 @@ Normal examples use `fabric::*`; `fabric::prelude::*` is an optional
 compatibility convenience. Explicit experiments, when needed, live under
 `fabric::experimental` and are not part of the normal learning path.
 
-Release notes record their contract changes in [release notes](releases/0.4.4.md).
+Release notes record their contract changes in [release notes](releases/0.4.5.md).
 
 The concept sequence is intentional. Composition comes first because it
 declares the assembled system; Instance then distinguishes that declaration

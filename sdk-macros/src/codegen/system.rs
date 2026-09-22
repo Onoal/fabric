@@ -434,7 +434,11 @@ fn realization_tokens(
     quote! {
         #[allow(non_snake_case)]
         mod #raw_impl_mod {
-            use super::super::super::*;
+            // This helper is emitted directly inside the generated system
+            // module. Its grandparent is therefore always the caller's
+            // invocation scope, regardless of whether that scope is the
+            // crate root or an arbitrarily nested Rust module.
+            use super::super::*;
 
             pub fn contract_id() -> #sdk::core::ContractId {
                 #sdk::core::ContractId::new(#contract_id)

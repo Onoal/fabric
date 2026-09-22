@@ -213,6 +213,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "fabric-test-macro-context"
+version = "0.1.0"
+dependencies = [
+ "onoal-fabric",
+]
+
+[[package]]
+name = "fabric-test-macro-context-consumer"
+version = "0.1.0"
+dependencies = [
+ "fabric-test-macro-context",
+ "onoal-fabric",
+]
+
+[[package]]
 name = "fabric-test-raw-api"
 version = "0.1.0"
 dependencies = [

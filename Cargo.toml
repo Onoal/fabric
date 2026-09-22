@@ -27,6 +27,8 @@ members = [
     "tests/extensions/adapter-external",
     "tests/extensions/component-greeter",
     "tests/external-extension",
+    "tests/macro-context",
+    "tests/macro-context-consumer",
 ]
 resolver = "2"
 

@@ -99,6 +99,21 @@ fn macro_codegen_uses_resource_scoped_raw_namespaces_and_strong_module_ids() {
 }
 
 #[test]
+fn realization_helpers_reference_their_invariant_generated_parent_scope() {
+    for file in ["src/codegen/resource.rs", "src/codegen/system.rs"] {
+        let source = fs::read_to_string(crate_root().join(file)).expect("read codegen");
+        assert!(
+            source.contains("use super::super::*;"),
+            "{file} must reach the macro invocation scope through its invariant generated parent"
+        );
+        assert!(
+            !source.contains("use super::super::super::*;"),
+            "{file} must not assume a fixed caller module depth"
+        );
+    }
+}
+
+#[test]
 fn resource_macro_codegen_supports_dependencies_and_realizations() {
     let codegen =
         fs::read_to_string(crate_root().join("src/codegen/resource.rs")).expect("read codegen");

@@ -22,6 +22,29 @@ pub fn root_adapter_stopped() -> bool {
     ROOT_ADAPTER_STOPPED.load(Ordering::SeqCst)
 }
 
+// These API-only definitions deliberately live in a different crate from the
+// canonical adapters below. They guard that Adapter target expansion follows
+// ordinary Rust type resolution rather than the target token's spelling.
+resource! {
+    pub ImportedCanonicalStore {
+        id: "fabric.test.macro-context.imported-canonical-store";
+
+        api {
+            fn get(&self) -> u64;
+        }
+    }
+}
+
+system! {
+    pub ImportedCanonicalSystem {
+        id: "fabric.test.macro-context.imported-canonical-system";
+
+        api {
+            fn now(&self) -> u64;
+        }
+    }
+}
+
 #[derive(Default)]
 struct RootStoreState;
 

@@ -224,6 +224,7 @@ name = "fabric-test-macro-context-consumer"
 version = "0.1.0"
 dependencies = [
  "fabric-test-macro-context",
+ "futures",
  "onoal-fabric",
 ]
 
@@ -454,7 +455,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "onoal-fabric"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "onoal-fabric-component",
  "onoal-fabric-core",
@@ -467,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "onoal-fabric-component"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "onoal-fabric-core",
  "onoal-fabric-resource",
@@ -476,7 +477,7 @@ dependencies = [
 
 [[package]]
 name = "onoal-fabric-core"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "onoal-fabric-host",
  "semver",
@@ -486,14 +487,14 @@ dependencies = [
 
 [[package]]
 name = "onoal-fabric-host"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "onoal-fabric-resource"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "semver",
  "sha2",
@@ -502,7 +503,7 @@ dependencies = [
 
 [[package]]
 name = "onoal-fabric-sdk-macros"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -514,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "onoal-fabric-system"
-version = "0.4.7"
+version = "0.4.8"
 dependencies = [
  "semver",
  "thiserror",

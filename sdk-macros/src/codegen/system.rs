@@ -4,8 +4,9 @@ use quote::{format_ident, quote};
 use crate::ast::{RealizationDefinition, RelationDefinition, SystemInput};
 
 use super::common::{
-    PrimaryContractTokens, SubjectKind, api_contract_id_expr, config_type_tokens, fabric_path,
-    has_config, inline_config_definition_tokens, method_call_args, primary_contract_tokens,
+    CanonicalAdapterBridgeTokens, PrimaryContractTokens, SubjectKind, api_contract_id_expr,
+    canonical_adapter_bridge_tokens, config_type_tokens, fabric_path, has_config,
+    inline_config_definition_tokens, method_call_args, primary_contract_tokens,
     requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
@@ -49,6 +50,10 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         contract_methods,
         contract_key_expr,
     } = contract_tokens;
+    let CanonicalAdapterBridgeTokens {
+        definition: canonical_adapter_bridge_definition,
+        builder_name: canonical_adapter_builder_name,
+    } = canonical_adapter_bridge_tokens(api, &service_name, &contract_name);
     let system_id = &input.system_id;
     let api_contract_id = api_contract_id_expr(&sdk, &api.identity, system_id, SubjectKind::System);
     let schema_expr = version_literal_expr(&sdk, &system_mod, &input.schema, SubjectKind::System);
@@ -346,6 +351,16 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
         impl #system_name {
             #select_method
+
+            #[doc(hidden)]
+            pub fn __fabric_canonical_adapter_builder() -> #system_mod::raw::#canonical_adapter_builder_name {
+                #system_mod::raw::#canonical_adapter_builder_name::new()
+            }
+
+            #[doc(hidden)]
+            pub fn __fabric_canonical_adapter_contract_key() -> #sdk::core::ContractKey<#system_mod::raw::#contract_name> {
+                #system_mod::raw::primary_contract_key()
+            }
         }
 
         impl #sdk::authoring::PrimarySystemContract for #system_name {
@@ -434,6 +449,8 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 #(#contract_methods)*
             }
 
+            #canonical_adapter_bridge_definition
+
             #self_runtime_definition
         }
 
@@ -441,7 +458,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             #[doc(hidden)]
             pub mod raw {
                 pub use super::super::#raw_impl_mod::{
-                    #contract_name, #service_name, #raw_runtime_reexport
+                    #canonical_adapter_builder_name, #contract_name, #service_name, #raw_runtime_reexport
                     primary_contract_id, primary_contract_key, system_id,
                 };
             }

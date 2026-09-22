@@ -338,10 +338,16 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
     let adapter_mod = format_ident!("{}", to_snake_case(adapter_name));
     let raw_impl_mod = format_ident!("__fabric_adapter_raw_{}", to_snake_case(adapter_name));
     let target = &input.target;
-    let target_api_raw = target_api_raw_path(target);
-    let target_service = quote!(#target_api_raw::ApiService);
-    let target_contract = quote!(#target_api_raw::ApiContract);
-    let target_key = quote!(#target_api_raw::primary_contract_key());
+    let target_key = quote!(<#target>::__fabric_canonical_adapter_contract_key());
+    let canonical_service_steps = input.runtime_methods.iter().map(|method| {
+        let name = &method.signature.ident;
+        quote!(.#name(Self::#name))
+    });
+    let canonical_contract = quote! {
+        <#target>::__fabric_canonical_adapter_builder()
+            #(#canonical_service_steps)*
+            .build(::std::sync::Arc::new(self.clone()))
+    };
     let support = match input.schema.as_ref() {
         None => quote!(#sdk::authoring::CanonicalAdapterSupport::<#target>::inferred()),
         Some(crate::ast::RequirementLiteral::Provisional) => {
@@ -380,16 +386,6 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         }
     });
     let runtime_inherent_methods = input.runtime_methods.iter().map(runtime_method_tokens);
-    let runtime_trait_methods = input.runtime_methods.iter().map(|method| {
-        let signature = &method.signature;
-        let name = &signature.ident;
-        let args = method_call_args(signature);
-        quote! {
-            #signature {
-                Self::#name(self, #(#args),*)
-            }
-        }
-    });
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
         quote!(state: #sdk::authoring::RuntimeState<#ty>,)
@@ -519,10 +515,6 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                 #(#runtime_inherent_methods)*
             }
 
-            impl #target_service for Runtime {
-                #(#runtime_trait_methods)*
-            }
-
             impl #sdk::core::ModuleRuntime for Runtime {
                 fn id(&self) -> &#sdk::core::ModuleId { &self.module_id }
 
@@ -543,10 +535,10 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                     &self,
                 ) -> ::std::result::Result<::std::vec::Vec<#sdk::core::ModuleContract>, #sdk::core::ModuleError> {
                     let key = #target_key;
-                    let service = ::std::sync::Arc::new(self.clone()) as ::std::sync::Arc<dyn #target_service>;
+                    let contract = #canonical_contract;
                     Ok(::std::vec![#sdk::core::ModuleContract::new(
                         &key,
-                        ::std::sync::Arc::new(#target_contract::new(service)),
+                        ::std::sync::Arc::new(contract),
                     )])
                 }
 
@@ -582,17 +574,6 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
             }
         }
     }
-}
-
-fn target_api_raw_path(target: &Path) -> Path {
-    let mut raw = target.clone();
-    let final_segment = raw
-        .segments
-        .last_mut()
-        .expect("adapter! target paths always contain a final segment");
-    final_segment.ident = format_ident!("{}", to_snake_case(&final_segment.ident));
-    syn::parse2(quote!(#raw::raw))
-        .expect("adapter! generated a syntactically valid target API raw path")
 }
 
 fn schema_support_type(sdk: &TokenStream, target_kind: AdapterTargetKind) -> TokenStream {

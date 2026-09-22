@@ -14,7 +14,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.5" }
+fabric = { package = "onoal-fabric", version = "0.4.8" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -103,7 +103,8 @@ fabric::adapter! {
 ```
 
 The target determines whether it is a Resource or System and supplies the
-generated API machinery internally. Normal Adapter source names no generated
+generated API machinery internally through its Rust-resolved type. Normal
+Adapter source names no generated
 interface and no `for resource` / `for system` discriminator. Adapter config
 stays normal typed Rust, and Adapter selection stays Composition truth. The
 legacy explicit realization form remains available for a semantic owner that

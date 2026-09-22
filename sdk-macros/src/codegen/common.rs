@@ -1,7 +1,7 @@
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{FnArg, Pat, PatIdent};
+use syn::{FnArg, Pat, PatIdent, ReturnType};
 
 use crate::ast::{
     ApiDefinition, ApiIdentity, ConfigDefinition, ContractMethod, RequirementLiteral,
@@ -14,6 +14,218 @@ pub struct PrimaryContractTokens {
     pub service_methods: Vec<TokenStream>,
     pub contract_methods: Vec<TokenStream>,
     pub contract_key_expr: TokenStream,
+}
+
+/// Target-owned machinery for canonical `adapter! { Name for Target }`
+/// lowering.  The adapter macro calls the generated inherent factory on the
+/// Rust-resolved target type; it never reconstructs this module from the
+/// spelling of that type.
+pub struct CanonicalAdapterBridgeTokens {
+    pub definition: TokenStream,
+    pub builder_name: Ident,
+}
+
+pub fn canonical_adapter_bridge_tokens(
+    api: &ApiDefinition,
+    service_name: &Ident,
+    contract_name: &Ident,
+) -> CanonicalAdapterBridgeTokens {
+    let builder_name = format_ident!("CanonicalAdapterBuilder");
+    let service_name_bridge = format_ident!("CanonicalAdapterService");
+    let method_names = api
+        .methods
+        .iter()
+        .map(|method| method.signature.ident.clone())
+        .collect::<Vec<_>>();
+    let function_names = method_names
+        .iter()
+        .map(|name| format_ident!("F{}", to_upper_camel_case(name)))
+        .collect::<Vec<_>>();
+    let missing_names = method_names
+        .iter()
+        .map(|name| format_ident!("CanonicalAdapterMethodMissing{}", to_upper_camel_case(name)))
+        .collect::<Vec<_>>();
+
+    let builder_ty = |types: &[TokenStream]| {
+        if types.is_empty() {
+            quote!(#builder_name)
+        } else {
+            quote!(#builder_name<#(#types),*>)
+        }
+    };
+    let service_ty = |types: &[TokenStream]| {
+        if types.is_empty() {
+            quote!(#service_name_bridge<R>)
+        } else {
+            quote!(#service_name_bridge<R, #(#types),*>)
+        }
+    };
+    let function_type_tokens = function_names
+        .iter()
+        .map(|name| quote!(#name))
+        .collect::<Vec<_>>();
+    let missing_type_tokens = method_names
+        .iter()
+        .zip(missing_names.iter())
+        .map(|(_, name)| quote!(#name))
+        .collect::<Vec<_>>();
+    let builder_type = builder_ty(&function_type_tokens);
+    let missing_builder_type = builder_ty(&missing_type_tokens);
+    let service_type = service_ty(&function_type_tokens);
+
+    let builder_generics =
+        (!function_names.is_empty()).then(|| quote!(<#(#function_names = #missing_names),*>));
+    let builder_impl_generics =
+        (!function_names.is_empty()).then(|| quote!(<#(#function_names),*>));
+    let service_generics = if function_names.is_empty() {
+        quote!(<R>)
+    } else {
+        quote!(<R, #(#function_names),*>)
+    };
+    let builder_fields = method_names
+        .iter()
+        .zip(function_names.iter())
+        .map(|(name, function)| quote!(#name: #function,))
+        .collect::<Vec<_>>();
+    let missing_fields = method_names
+        .iter()
+        .zip(missing_names.iter())
+        .map(|(name, missing)| quote!(#name: #missing,));
+    let service_fields = method_names.iter().map(|name| quote!(#name: self.#name,));
+
+    let setters = method_names.iter().enumerate().map(|(index, name)| {
+        let replacement = function_names
+            .iter()
+            .enumerate()
+            .map(|(candidate_index, candidate)| {
+                if candidate_index == index {
+                    quote!(Next)
+                } else {
+                    quote!(#candidate)
+                }
+            })
+            .collect::<Vec<_>>();
+        let return_type = builder_ty(&replacement);
+        let fields = method_names.iter().map(|field| {
+            if field == name {
+                quote!(#field: #field,)
+            } else {
+                quote!(#field: self.#field,)
+            }
+        });
+        quote! {
+            pub fn #name<Next>(self, #name: Next) -> #return_type {
+                #builder_name { #(#fields)* }
+            }
+        }
+    });
+
+    let function_bounds = api
+        .methods
+        .iter()
+        .zip(function_names.iter())
+        .map(|(method, function)| {
+            let inputs = method
+                .signature
+                .inputs
+                .iter()
+                .filter_map(|argument| match argument {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(argument) => Some(&argument.ty),
+                })
+                .collect::<Vec<_>>();
+            let output = match &method.signature.output {
+                ReturnType::Default => quote!(()),
+                ReturnType::Type(_, ty) => quote!(#ty),
+            };
+            quote!(#function: ::std::ops::Fn(&R, #(#inputs),*) -> #output + Send + Sync + 'static,)
+        })
+        .collect::<Vec<_>>();
+    let service_methods = api.methods.iter().map(|method| {
+        let signature = &method.signature;
+        let name = &signature.ident;
+        let args = method_call_args(signature);
+        quote! {
+            #signature {
+                (self.#name)(&self.runtime, #(#args),*)
+            }
+        }
+    });
+
+    let definition = quote! {
+        #(
+            #[doc(hidden)]
+            pub struct #missing_names;
+        )*
+
+        #[doc(hidden)]
+        pub struct #builder_name #builder_generics {
+            #(#builder_fields)*
+        }
+
+        impl #missing_builder_type {
+            #[doc(hidden)]
+            pub fn new() -> Self {
+                Self { #(#missing_fields)* }
+            }
+        }
+
+        impl #builder_impl_generics #builder_type {
+            #(#setters)*
+        }
+
+        #[doc(hidden)]
+        pub struct #service_name_bridge #service_generics {
+            runtime: ::std::sync::Arc<R>,
+            #(#builder_fields)*
+        }
+
+        impl #builder_impl_generics #builder_type {
+            #[doc(hidden)]
+            pub fn build<R>(self, runtime: ::std::sync::Arc<R>) -> #contract_name
+            where
+                R: Send + Sync + 'static,
+                #(#function_bounds)*
+            {
+                #contract_name::new(::std::sync::Arc::new(#service_name_bridge {
+                    runtime,
+                    #(#service_fields)*
+                }))
+            }
+        }
+
+        impl #service_generics #service_name for #service_type
+        where
+            R: Send + Sync + 'static,
+            #(#function_bounds)*
+        {
+            #(#service_methods)*
+        }
+    };
+
+    CanonicalAdapterBridgeTokens {
+        definition,
+        builder_name,
+    }
+}
+
+fn to_upper_camel_case(identifier: &Ident) -> String {
+    let mut upper_next = true;
+    identifier
+        .to_string()
+        .chars()
+        .filter_map(|character| {
+            if character == '_' {
+                upper_next = true;
+                None
+            } else if upper_next {
+                upper_next = false;
+                Some(character.to_ascii_uppercase())
+            } else {
+                Some(character)
+            }
+        })
+        .collect()
 }
 
 pub fn config_type_tokens(config: &ConfigDefinition, generated_name: &Ident) -> TokenStream {

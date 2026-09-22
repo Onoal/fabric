@@ -35,7 +35,9 @@ effective realization contract. The target alone therefore supplies the kind,
 semantic API identity, and default exact schema support. The Adapter implements
 that API directly; Fabric registers the Adapter-owned live provider behind the
 typed semantic API. There is no Resource/System forwarding runtime in this
-path, and consumers still call the semantic methods they declared.
+path, and consumers still call the semantic methods they declared. Target
+expansion follows ordinary Rust type resolution: a local type, an imported
+type, an alias, a re-export, and a fully qualified target are equivalent.
 
 Target support is inferred exactly from `Store` by default. Use
 `supports: "^0.4";` only for deliberate broader target support. A no-Config Adapter is constructed as

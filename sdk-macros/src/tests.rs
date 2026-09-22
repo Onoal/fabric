@@ -254,12 +254,14 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
         "adapter! should lower into AdapterDefinition, explicit typed realization interfaces, and canonical relations"
     );
     assert!(
-        codegen.contains("target_api_raw_path")
-            && codegen.contains("to_snake_case(&final_segment.ident)")
+        !codegen.contains("target_api_raw_path")
+            && !codegen.contains("to_snake_case(&final_segment.ident)")
+            && codegen.contains("__fabric_canonical_adapter_builder")
+            && codegen.contains("__fabric_canonical_adapter_contract_key")
             && codegen.contains("let interface = input")
             && codegen.contains("realization_target")
             && codegen.contains("host_requirement(&self) -> #sdk::host::HostRequirement"),
-        "adapter! should preserve explicit interfaces while deriving canonical target API machinery"
+        "adapter! should preserve explicit interfaces while reaching canonical target API machinery through the resolved target type"
     );
     for forbidden in [
         "fabric-adapter",

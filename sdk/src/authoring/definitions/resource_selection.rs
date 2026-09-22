@@ -110,7 +110,7 @@ where
             derive_realization_provider_module_id(&self.module_id)
                 .expect("static realization suffix must preserve module id validity")
         };
-        let selection = (bridge_mode == AdapterBridgeMode::LegacyRealization).then(|| {
+        let selection = (bridge_mode != AdapterBridgeMode::SemanticApi).then(|| {
             ContractProviderSelection::new(
                 self.module_id.clone(),
                 R::realization_requirement().id().clone(),

@@ -1,4 +1,6 @@
+use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
+use syn::spanned::Spanned;
 use syn::{
     Error, Expr, Ident, LitStr, Path, Result, Token, Type, Visibility, braced, parenthesized,
 };
@@ -6,9 +8,9 @@ use syn::{
 use crate::ast::{
     AdapterInput, AdapterTargetKind, ApiDefinition, ApiIdentity, ComponentInput,
     ComponentOperationContext, ComponentOperationDefinition, ConfigDefinition, ConfigField,
-    ContractMethod, RealizationDefinition, RelationDefinition, RequirementDefinition,
-    RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
-    RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
+    ContractMethod, DifferentialRealizationDefinition, RealizationDefinition, RelationDefinition,
+    RequirementDefinition, RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition,
+    RuntimeMethod, RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
 };
 
 mod kw {
@@ -27,6 +29,7 @@ mod kw {
     syn::custom_keyword!(initialize);
     syn::custom_keyword!(invocation);
     syn::custom_keyword!(lifecycle);
+    syn::custom_keyword!(mediate);
     syn::custom_keyword!(operations);
     syn::custom_keyword!(output);
     syn::custom_keyword!(primary);
@@ -73,6 +76,7 @@ impl Parse for ResourceInput {
         let mut api = None;
         let mut contracts = None;
         let mut realization = None;
+        let mut differential_realization = None;
         let mut runtime_methods = None;
         let mut runtime_state = None;
         let mut lifecycle = None;
@@ -171,6 +175,17 @@ impl Parse for ResourceInput {
                     ));
                 }
                 realization = Some(parse_realization(&content, "resource")?);
+            } else if content.peek(kw::realization) {
+                content.parse::<kw::realization>()?;
+                if differential_realization.is_some() {
+                    return Err(
+                        content.error("resource! supports only one `realization { ... }` section")
+                    );
+                }
+                if realization.is_some() {
+                    return Err(content.error("resource! cannot use both `realization { ... }` and legacy `adapter ... { ... }`"));
+                }
+                differential_realization = Some(parse_differential_realization(&content)?);
             } else if content.peek(kw::runtime) {
                 content.parse::<kw::runtime>()?;
                 if runtime_methods.is_some() {
@@ -203,6 +218,12 @@ impl Parse for ResourceInput {
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
         let api = resolve_api(api, contracts, &schema, &name_for_errors, "resource")?;
+        validate_differential_realization(
+            &api,
+            differential_realization.as_ref(),
+            runtime_methods.as_deref(),
+            "resource",
+        )?;
 
         Ok(Self {
             visibility,
@@ -217,6 +238,7 @@ impl Parse for ResourceInput {
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
             api,
+            differential_realization,
             realization,
             runtime_methods,
             runtime_state,
@@ -239,6 +261,7 @@ impl Parse for SystemInput {
         let mut api = None;
         let mut contracts = None;
         let mut realization = None;
+        let mut differential_realization = None;
         let mut runtime_methods = None;
         let mut runtime_state = None;
         let mut lifecycle = None;
@@ -333,6 +356,17 @@ impl Parse for SystemInput {
                     ));
                 }
                 realization = Some(parse_realization(&content, "system")?);
+            } else if content.peek(kw::realization) {
+                content.parse::<kw::realization>()?;
+                if differential_realization.is_some() {
+                    return Err(
+                        content.error("system! supports only one `realization { ... }` section")
+                    );
+                }
+                if realization.is_some() {
+                    return Err(content.error("system! cannot use both `realization { ... }` and legacy `adapter ... { ... }`"));
+                }
+                differential_realization = Some(parse_differential_realization(&content)?);
             } else if content.peek(kw::runtime) {
                 content.parse::<kw::runtime>()?;
                 if runtime_methods.is_some() {
@@ -363,6 +397,12 @@ impl Parse for SystemInput {
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
         let api = resolve_api(api, contracts, &schema, &name_for_errors, "system")?;
+        validate_differential_realization(
+            &api,
+            differential_realization.as_ref(),
+            runtime_methods.as_deref(),
+            "system",
+        )?;
 
         Ok(Self {
             visibility,
@@ -377,6 +417,7 @@ impl Parse for SystemInput {
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
             api,
+            differential_realization,
             realization,
             runtime_methods,
             runtime_state,
@@ -997,6 +1038,127 @@ fn parse_realization(
         })?,
         methods,
     })
+}
+
+fn parse_differential_realization(
+    input: ParseStream<'_>,
+) -> Result<DifferentialRealizationDefinition> {
+    let content;
+    braced!(content in input);
+    let mut mediated = Vec::new();
+    let mut operations = Vec::new();
+
+    while !content.is_empty() {
+        if content.peek(kw::mediate) {
+            content.parse::<kw::mediate>()?;
+            let method = content.parse::<Ident>()?;
+            content.parse::<Token![;]>()?;
+            if mediated.iter().any(|existing| existing == &method) {
+                return Err(Error::new(
+                    method.span(),
+                    "realization! declares this mediated API method more than once",
+                ));
+            }
+            mediated.push(method);
+        } else {
+            let method = content.parse::<syn::TraitItemFn>()?;
+            if operations
+                .iter()
+                .any(|existing: &ContractMethod| existing.signature.ident == method.sig.ident)
+            {
+                return Err(Error::new(
+                    method.sig.ident.span(),
+                    "realization! declares this realization-only operation more than once",
+                ));
+            }
+            operations.push(ContractMethod {
+                signature: method.sig,
+            });
+        }
+    }
+
+    Ok(DifferentialRealizationDefinition {
+        mediated,
+        operations,
+    })
+}
+
+fn validate_differential_realization(
+    api: &ApiDefinition,
+    differential: Option<&DifferentialRealizationDefinition>,
+    runtime_methods: Option<&[RuntimeMethod]>,
+    subject: &'static str,
+) -> Result<()> {
+    let Some(differential) = differential else {
+        return Ok(());
+    };
+    let api_method = |name: &Ident| {
+        api.methods
+            .iter()
+            .find(|method| method.signature.ident == *name)
+    };
+    for mediated in &differential.mediated {
+        if api_method(mediated).is_none() {
+            return Err(Error::new(
+                mediated.span(),
+                format!(
+                    "{subject}! realization mediates `{mediated}`, but that method is not in the semantic API"
+                ),
+            ));
+        }
+        let Some(runtime) = runtime_methods.and_then(|methods| {
+            methods
+                .iter()
+                .find(|method| method.signature.ident == *mediated)
+        }) else {
+            return Err(Error::new(
+                mediated.span(),
+                format!(
+                    "{subject}! semantic method `{mediated}` is mediated and requires a matching `runtime` implementation"
+                ),
+            ));
+        };
+        let expected = api_method(mediated).expect("checked API method");
+        if runtime.signature.to_token_stream().to_string()
+            != expected.signature.to_token_stream().to_string()
+        {
+            return Err(Error::new(
+                runtime.signature.span(),
+                format!(
+                    "{subject}! mediation implementation `{mediated}` must match its semantic API signature"
+                ),
+            ));
+        }
+    }
+    for operation in &differential.operations {
+        if api_method(&operation.signature.ident).is_some() {
+            return Err(Error::new(
+                operation.signature.ident.span(),
+                format!(
+                    "{subject}! realization-only operation `{}` conflicts with a semantic API method",
+                    operation.signature.ident
+                ),
+            ));
+        }
+    }
+    if let Some(methods) = runtime_methods {
+        for method in methods {
+            if !differential
+                .mediated
+                .iter()
+                .any(|name| name == &method.signature.ident)
+            {
+                return Err(Error::new(
+                    method.signature.ident.span(),
+                    format!(
+                        "{subject}! runtime method `{}` is not declared as mediated",
+                        method.signature.ident
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn parse_requirement_literal(input: ParseStream<'_>) -> Result<RequirementLiteral> {

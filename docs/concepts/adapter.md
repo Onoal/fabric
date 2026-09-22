@@ -46,10 +46,37 @@ Target support is inferred exactly from `Store` by default. Use
 
 An existing explicit realization boundary remains the advanced compatibility
 form: `for resource Store implements StoreRealization` (or `for system ...`)
-continues to lower through its declared realization contract. Use it when a
-semantic owner deliberately mediates between its public API and a different
-lower-level implementation interface. 0.4.7 does not add a new differential
-realization language.
+continues to lower through its declared realization contract. Fabric 0.4.9 also
+adds an optional typed differential boundary: a semantic owner may mediate
+selected API methods while an Adapter provides the derived effective realization
+contract. Direct API methods are assembled by typed delegation; the normal
+direct Adapter path remains the default.
+
+```rust
+resource! {
+    DocumentStore {
+        id: "example.document-store";
+        api {
+            fn read(&self, key: String) -> String;
+            fn write(&self, key: String, value: String) -> usize;
+        }
+        realization {
+            mediate read;
+            fn read_bytes(&self, key: String) -> Vec<u8>;
+        }
+        runtime {
+            fn read(&self, key: String) -> String {
+                String::from_utf8(self.realization.read_bytes(key)).expect("utf8")
+            }
+        }
+    }
+}
+```
+
+Consumers still receive only `read` and `write`; the Adapter supplies `write`
+and `read_bytes`. The effective realization Contract is internal and
+owner-derived. There remains one selected provider for the semantic API and
+one selected provider for the effective realization Contract.
 
 Adapter Config configures the implementation—for example, a directory or
 endpoint—not Resource/System semantic Config, Component Config, or a Host

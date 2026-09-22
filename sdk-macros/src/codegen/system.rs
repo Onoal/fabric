@@ -1,13 +1,17 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::ast::{RealizationDefinition, RelationDefinition, SystemInput};
+use crate::ast::{
+    ApiDefinition, ApiIdentity, ContractMethod, DifferentialRealizationDefinition,
+    RealizationDefinition, RelationDefinition, SystemInput,
+};
 
 use super::common::{
     CanonicalAdapterBridgeTokens, PrimaryContractTokens, SubjectKind, api_contract_id_expr,
-    canonical_adapter_bridge_tokens, config_type_tokens, fabric_path, has_config,
-    inline_config_definition_tokens, method_call_args, primary_contract_tokens,
-    requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
+    canonical_adapter_bridge_tokens, canonical_adapter_bridge_tokens_named, config_type_tokens,
+    fabric_path, has_config, inline_config_definition_tokens, method_call_args,
+    primary_contract_tokens, requirement_literal_expr, runtime_method_tokens, to_snake_case,
+    version_literal_expr,
 };
 
 pub fn expand_system(input: &SystemInput) -> TokenStream {
@@ -54,6 +58,76 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         definition: canonical_adapter_bridge_definition,
         builder_name: canonical_adapter_builder_name,
     } = canonical_adapter_bridge_tokens(api, &service_name, &contract_name);
+    let differential = input.differential_realization.as_ref();
+    let effective_api = differential.map(|differential| effective_api(api, differential));
+    let effective_contract_tokens = effective_api.as_ref().map(|effective_api| {
+        primary_contract_tokens(
+            &sdk,
+            effective_api,
+            quote!(effective_realization_contract_id()),
+        )
+    });
+    let differential_contract_definition = effective_contract_tokens.as_ref().map(|tokens| {
+        let service = &tokens.service_name;
+        let contract = &tokens.contract_name;
+        let service_methods = &tokens.service_methods;
+        let contract_methods = &tokens.contract_methods;
+        quote! {
+            pub trait #service: Send + Sync { #(#service_methods)* }
+            #[derive(Clone)] pub struct #contract { inner: ::std::sync::Arc<dyn #service> }
+            impl #contract { pub fn new(inner: ::std::sync::Arc<dyn #service>) -> Self { Self { inner } } #(#contract_methods)* }
+        }
+    });
+    let differential_effective_key_definition = effective_contract_tokens.as_ref().map(|tokens| {
+        let contract = &tokens.contract_name;
+        let key = &tokens.contract_key_expr;
+        quote!(pub fn effective_realization_contract_key() -> #sdk::core::ContractKey<#contract> { #key })
+    });
+    let differential_bridge = effective_contract_tokens.as_ref().map(|tokens| {
+        let effective_api = effective_api
+            .as_ref()
+            .expect("effective API accompanies tokens");
+        canonical_adapter_bridge_tokens_named(
+            effective_api,
+            &tokens.service_name,
+            &tokens.contract_name,
+            "Effective",
+        )
+    });
+    let differential_builder_name = differential_bridge
+        .as_ref()
+        .map(|bridge| bridge.builder_name.clone());
+    let differential_bridge_definition = differential_bridge
+        .as_ref()
+        .map(|bridge| bridge.definition.clone());
+    let target_builder_name = differential_builder_name
+        .as_ref()
+        .unwrap_or(&canonical_adapter_builder_name);
+    let target_builder_type = quote!(#system_mod::raw::#target_builder_name);
+    let target_contract_type = if let Some(tokens) = effective_contract_tokens.as_ref() {
+        let contract = &tokens.contract_name;
+        quote!(#system_mod::raw::#contract)
+    } else {
+        quote!(#system_mod::raw::#contract_name)
+    };
+    let target_contract_key = if differential.is_some() {
+        quote!(#system_mod::raw::effective_realization_contract_key())
+    } else {
+        quote!(#system_mod::raw::primary_contract_key())
+    };
+    let target_bridge_mode = if differential.is_some() {
+        quote!(#sdk::authoring::AdapterBridgeMode::DifferentialSemanticApi)
+    } else {
+        quote!(#sdk::authoring::AdapterBridgeMode::SemanticApi)
+    };
+    let differential_raw_reexports = effective_contract_tokens.as_ref().map(|tokens| {
+        let contract = &tokens.contract_name;
+        let service = &tokens.service_name;
+        let builder = differential_builder_name
+            .as_ref()
+            .expect("differential builder");
+        quote!(#builder, #contract, #service, effective_realization_contract_key,)
+    });
     let system_id = &input.system_id;
     let api_contract_id = api_contract_id_expr(&sdk, &api.identity, system_id, SubjectKind::System);
     let schema_expr = version_literal_expr(&sdk, &system_mod, &input.schema, SubjectKind::System);
@@ -132,6 +206,24 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 .map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
         }
     });
+    let differential_field = effective_contract_tokens.as_ref().map(|tokens| {
+        let contract = &tokens.contract_name;
+        quote!(realization: #sdk::authoring::ContractDependency<#system_mod::raw::#contract>,)
+    });
+    let differential_initializer = effective_contract_tokens.as_ref().map(|_| quote!(
+        realization: #sdk::authoring::ContractDependency::new(
+            <#system_name as #sdk::authoring::AdaptableSystemDefinition>::realization_requirement(),
+        ),
+    ));
+    let differential_declaration = effective_contract_tokens
+        .as_ref()
+        .map(|_| quote!(declarations.push(self.realization.declaration().clone());));
+    let differential_requirement_declaration = effective_contract_tokens.as_ref().map(|_| quote!(
+        required.push(<#system_name as #sdk::authoring::AdaptableSystemDefinition>::realization_requirement().declaration().clone());
+    ));
+    let differential_binding = effective_contract_tokens.as_ref().map(|_| quote!(
+        self.realization.bind(bindings).map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
+    ));
     let adaptable_impl = if let Some(realization) = input.realization.as_ref() {
         let contract_name = format_ident!("{}Contract", realization.name);
         quote! {
@@ -140,6 +232,20 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
                 fn realization_requirement() -> #sdk::core::ContractRequirement<Self::RealizationContract> {
                     #system_mod::realization::raw::requirement()
+                }
+            }
+        }
+    } else if let Some(tokens) = effective_contract_tokens.as_ref() {
+        let contract = &tokens.contract_name;
+        quote! {
+            impl #sdk::authoring::AdaptableSystemDefinition for #system_name {
+                type RealizationContract = #system_mod::raw::#contract;
+                fn realization_requirement() -> #sdk::core::ContractRequirement<Self::RealizationContract> {
+                    let key = #system_mod::raw::effective_realization_contract_key();
+                    match key.identity() {
+                        #sdk::core::ContractIdentity::Provisional => #sdk::core::ContractRequirement::provisional(key.id().clone()),
+                        #sdk::core::ContractIdentity::Versioned(version) => #sdk::core::ContractRequirement::versioned(key.id().clone(), #sdk::core::ContractVersionRequirement::parse(format!("={version}")).expect("system! generated an exact effective realization requirement")),
+                    }
                 }
             }
         }
@@ -173,16 +279,39 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
     let runtime_methods = input.runtime_methods.as_deref().unwrap_or(&[]);
     let runtime_inherent_methods = runtime_methods.iter().map(runtime_method_tokens);
-    let runtime_trait_methods = runtime_methods.iter().map(|method| {
-        let signature = &method.signature;
-        let name = &signature.ident;
-        let args = method_call_args(signature);
-        quote! {
-            #signature {
-                Self::#name(self, #(#args),*)
-            }
-        }
-    });
+    let runtime_trait_methods = if let Some(differential) = differential {
+        api.methods
+            .iter()
+            .map(|method| {
+                let signature = &method.signature;
+                let name = &signature.ident;
+                let args = method_call_args(signature);
+                if differential
+                    .mediated
+                    .iter()
+                    .any(|mediated| mediated == name)
+                {
+                    quote!(#signature { Self::#name(self, #(#args),*) })
+                } else {
+                    quote!(#signature { self.realization.#name(#(#args),*) })
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        runtime_methods
+            .iter()
+            .map(|method| {
+                let signature = &method.signature;
+                let name = &signature.ident;
+                let args = method_call_args(signature);
+                quote! {
+                    #signature {
+                        Self::#name(self, #(#args),*)
+                    }
+                }
+            })
+            .collect::<Vec<_>>()
+    };
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
         quote!(state: #sdk::authoring::RuntimeState<#ty>,)
@@ -244,6 +373,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 #runtime_state_field
                 #(#dependency_fields)*
                 #realization_field
+                #differential_field
             }
 
             impl Runtime {
@@ -259,6 +389,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                         #runtime_state_value
                         #(#dependency_initializers)*
                         #realization_initializer
+                        #differential_initializer
                     }
                 }
 
@@ -291,6 +422,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                         #(#dependency_declarations),*
                     ];
                     #realization_declaration
+                    #differential_declaration
                     declarations
                 }
 
@@ -314,6 +446,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 ) -> ::std::result::Result<(), #sdk::core::ModuleError> {
                     #(#dependency_bindings)*
                     #realization_binding
+                    #differential_binding
                     Ok(())
                 }
 
@@ -353,13 +486,18 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             #select_method
 
             #[doc(hidden)]
-            pub fn __fabric_canonical_adapter_builder() -> #system_mod::raw::#canonical_adapter_builder_name {
-                #system_mod::raw::#canonical_adapter_builder_name::new()
+            pub fn __fabric_canonical_adapter_builder() -> #target_builder_type {
+                #target_builder_type::new()
             }
 
             #[doc(hidden)]
-            pub fn __fabric_canonical_adapter_contract_key() -> #sdk::core::ContractKey<#system_mod::raw::#contract_name> {
-                #system_mod::raw::primary_contract_key()
+            pub fn __fabric_canonical_adapter_contract_key() -> #sdk::core::ContractKey<#target_contract_type> {
+                #target_contract_key
+            }
+
+            #[doc(hidden)]
+            pub fn __fabric_canonical_adapter_bridge_mode() -> #sdk::authoring::AdapterBridgeMode {
+                #target_bridge_mode
             }
         }
 
@@ -401,6 +539,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             ) -> #sdk::core::ModuleDeclaration {
                 let mut required = ::std::vec![#(#declaration_requirements),*];
                 #realization_requirement_declaration
+                #differential_requirement_declaration
                 #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
                     .with_provided_contracts(::std::vec![#system_mod::raw::primary_contract_key().declaration()])
                     .with_required_contracts(required)
@@ -451,6 +590,14 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
             #canonical_adapter_bridge_definition
 
+            pub fn effective_realization_contract_id() -> #sdk::core::ContractId {
+                #sdk::core::ContractId::new(concat!("fabric.system.realization.", #system_id))
+                    .expect("system! generated a static effective realization contract id")
+            }
+            #differential_effective_key_definition
+            #differential_contract_definition
+            #differential_bridge_definition
+
             #self_runtime_definition
         }
 
@@ -459,7 +606,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             pub mod raw {
                 pub use super::super::#raw_impl_mod::{
                     #canonical_adapter_builder_name, #contract_name, #service_name, #raw_runtime_reexport
-                    primary_contract_id, primary_contract_key, system_id,
+                    primary_contract_id, primary_contract_key, system_id, #differential_raw_reexports
                 };
             }
 
@@ -488,6 +635,29 @@ fn system_requirement_expr(sdk: &TokenStream, dependency: &RelationDefinition) -
                     .expect("system! generated a static relation version requirement"),
             )
         ),
+    }
+}
+
+fn effective_api(
+    api: &ApiDefinition,
+    differential: &DifferentialRealizationDefinition,
+) -> ApiDefinition {
+    let mut methods = api
+        .methods
+        .iter()
+        .filter(|method| !differential.mediated.contains(&method.signature.ident))
+        .map(|method| ContractMethod {
+            signature: method.signature.clone(),
+        })
+        .collect::<Vec<_>>();
+    methods.extend(differential.operations.iter().map(|method| ContractMethod {
+        signature: method.signature.clone(),
+    }));
+    ApiDefinition {
+        name: format_ident!("EffectiveRealization"),
+        identity: ApiIdentity::OwnerDerived,
+        version: api.version.clone(),
+        methods,
     }
 }
 

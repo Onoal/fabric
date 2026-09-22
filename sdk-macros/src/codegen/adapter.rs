@@ -455,7 +455,7 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
             }
 
             fn bridge_mode(&self) -> #sdk::authoring::AdapterBridgeMode {
-                #sdk::authoring::AdapterBridgeMode::SemanticApi
+                <#target>::__fabric_canonical_adapter_bridge_mode()
             }
 
             fn host_requirement(&self) -> #sdk::host::HostRequirement {

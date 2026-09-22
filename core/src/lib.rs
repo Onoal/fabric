@@ -1,6 +1,7 @@
 mod block;
 mod composition;
 mod contract;
+mod derived_provider;
 mod error;
 mod export;
 mod health;
@@ -25,6 +26,7 @@ pub use contract::{
     ContractRequirementDeclaration, ContractVersion, ContractVersionRequirement, ModuleContract,
     ProvidedContractDeclaration,
 };
+pub use derived_provider::{DerivedContractFactory, DerivedContractProvider};
 pub use error::{
     CompositionError, InstanceError, ModuleCleanupFailure, ModuleError, RuntimeCleanupError,
 };

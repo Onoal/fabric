@@ -2,6 +2,10 @@
 //! exported by the separate macro-context fixture crate.
 
 use fabric::*;
+use fabric_test_macro_context::{
+    DifferentialImportedStore as ImportedDifferentialStore,
+    DifferentialImportedSystem as ImportedDifferentialSystem,
+};
 use fabric_test_macro_context::{ImportedCanonicalStore as ImportedStore, ImportedCanonicalSystem};
 use fabric_test_macro_context::{
     ImportedValue, RootKey, RootVersionedStore, RootVersionedStoreRealization, RootVersionedSystem,
@@ -21,6 +25,28 @@ struct ImportedReadInput;
 struct ImportedReadOutput {
     store: u64,
     system: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+struct DifferentialReadInput;
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DifferentialReadOutput {
+    read: u64,
+    write: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Clone)]
+struct DifferentialClockInput;
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DifferentialClockOutput {
+    now: u64,
+    label: u64,
 }
 
 component! {
@@ -51,6 +77,54 @@ component! {
     }
 }
 
+component! {
+    DifferentialImportedResourceProbe {
+        id: "fabric.test.macro-context.differential-imported-resource-probe";
+
+        requires {
+            store: ImportedDifferentialStore(provisional);
+        }
+
+        operations {
+            read {
+                id: "fabric.test.macro-context.differential-imported-resource-probe.read";
+                input: DifferentialReadInput = "fabric.test.macro-context.differential-imported-resource-probe.read.input";
+                output: DifferentialReadOutput = "fabric.test.macro-context.differential-imported-resource-probe.read.output";
+                handler |dependencies, _input: DifferentialReadInput| async move {
+                    Ok(DifferentialReadOutput {
+                        read: dependencies.store.read(4),
+                        write: dependencies.store.write(4, 9),
+                    })
+                };
+            }
+        }
+    }
+}
+
+component! {
+    DifferentialImportedSystemProbe {
+        id: "fabric.test.macro-context.differential-imported-system-probe";
+
+        system {
+            clock: ImportedDifferentialSystem(provisional);
+        }
+
+        operations {
+            read {
+                id: "fabric.test.macro-context.differential-imported-system-probe.read";
+                input: DifferentialClockInput = "fabric.test.macro-context.differential-imported-system-probe.read.input";
+                output: DifferentialClockOutput = "fabric.test.macro-context.differential-imported-system-probe.read.output";
+                handler |dependencies, _input: DifferentialClockInput| async move {
+                    Ok(DifferentialClockOutput {
+                        now: dependencies.clock.now(),
+                        label: dependencies.clock.label(),
+                    })
+                };
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 use fabric_test_macro_context::{
     RootStatefulStore, reset_root_adapter_stop, root_adapter_stopped, root_api_identities,
@@ -67,6 +141,24 @@ adapter! {
             fn get(&self, key: RootKey) -> ImportedValue {
                 ImportedValue(key.0 + 1)
             }
+        }
+    }
+}
+
+adapter! {
+    ImportedDifferentialStoreAdapter for ImportedDifferentialStore {
+        runtime {
+            fn write(&self, _key: u64, value: u64) -> u64 { value }
+            fn read_raw(&self, key: u64) -> u64 { key }
+        }
+    }
+}
+
+adapter! {
+    ImportedDifferentialSystemAdapter for ImportedDifferentialSystem {
+        runtime {
+            fn label(&self) -> u64 { 7 }
+            fn raw_now(&self) -> u64 { 41 }
         }
     }
 }
@@ -177,6 +269,18 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
         .clone()
         .using(ImportedSystemAdapter::new())
         .expect("imported canonical system adapter");
+    let differential_resource_selection =
+        ImportedDifferentialStore::select("differential").expect("differential resource selection");
+    let differential_resource = differential_resource_selection
+        .clone()
+        .using(ImportedDifferentialStoreAdapter::new())
+        .expect("imported differential resource adapter");
+    let differential_system_selection =
+        ImportedDifferentialSystem::select().expect("differential system selection");
+    let differential_system = differential_system_selection
+        .clone()
+        .using(ImportedDifferentialSystemAdapter::new())
+        .expect("imported differential system adapter");
     let built = Fabric::new("fabric.test.macro-context.imported-canonical")
         .expect("fabric")
         .component(
@@ -184,8 +288,18 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
                 .select_resource_provider(&resource_selection)
                 .select_system_provider(&system_selection),
         )
+        .component(
+            DifferentialImportedResourceProbe::define(DifferentialImportedResourceProbeConfig {})
+                .select_resource_provider(&differential_resource_selection),
+        )
+        .component(
+            DifferentialImportedSystemProbe::define(DifferentialImportedSystemProbeConfig {})
+                .select_system_provider(&differential_system_selection),
+        )
         .resource(resource)
         .system(system)
+        .resource(differential_resource)
+        .system(differential_system)
         .build()
         .expect("build");
     let host = HostDescriptor::new(
@@ -214,6 +328,30 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
             store: 17,
             system: 23,
         }
+    );
+    components
+        .materialize::<DifferentialImportedResourceProbe>()
+        .expect("materialize imported differential resource consumer");
+    let differential_resource_output = futures::executor::block_on(components.invoke_external(
+        &differential_imported_resource_probe::operations::read(),
+        DifferentialReadInput,
+    ))
+    .expect("invoke mediated and delegated Resource API methods");
+    assert_eq!(
+        differential_resource_output,
+        DifferentialReadOutput { read: 5, write: 9 }
+    );
+    components
+        .materialize::<DifferentialImportedSystemProbe>()
+        .expect("materialize imported differential System consumer");
+    let differential_system_output = futures::executor::block_on(components.invoke_external(
+        &differential_imported_system_probe::operations::read(),
+        DifferentialClockInput,
+    ))
+    .expect("invoke mediated and delegated System API methods");
+    assert_eq!(
+        differential_system_output,
+        DifferentialClockOutput { now: 42, label: 7 }
     );
     instance.stop().expect("stop imported canonical targets");
 

@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.8" }
+fabric = { package = "onoal-fabric", version = "0.4.9" }
 ```
 
 ```rust
@@ -114,13 +114,14 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.8 supersedes the defective imported-target path in 0.4.7 canonical
-Adapter authoring. Resource and System are semantic subjects: an API-only
-definition does not silently own a live runtime. `runtime`, `state`, and
-`lifecycle` explicitly describe a self-realization or semantic mediation layer.
-For a normal adapted subject, its API is the realization contract and the
-selected Adapter owns state, lifecycle, health, and concrete machinery without
-a Resource/System forwarding proxy.
+Fabric 0.4.9 adds typed provider composition and differential realization.
+Resource and System are semantic subjects: an API-only definition does not
+silently own a live runtime. `runtime`, `state`, and `lifecycle` explicitly
+describe a self-realization or semantic mediation layer. For a normal adapted
+subject, its API is the realization contract and the selected Adapter owns
+state, lifecycle, health, and concrete machinery without a Resource/System
+forwarding proxy. A semantic owner may instead mediate selected API methods
+while its Adapter supplies a derived effective realization contract.
 Canonical Adapter targets follow normal Rust type resolution, so local,
 imported, aliased, and re-exported target types are equivalent.
 

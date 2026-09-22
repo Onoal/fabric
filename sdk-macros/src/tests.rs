@@ -247,11 +247,12 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
         codegen.contains("type Target = #target;")
             && codegen.contains("type Compatibility = #schema_support_ty;")
             && codegen.contains("CanonicalAdapterSupport<#target>")
-            && codegen.contains("AdapterBridgeMode::SemanticApi")
+            && codegen.contains("AdapterBridgeMode")
+            && codegen.contains("__fabric_canonical_adapter_bridge_mode")
             && codegen.contains("impl #target_service for Runtime")
             && codegen.contains("<#raw_impl_mod::Runtime as #interface>::realization_contract")
             && codegen.contains("relation_requirement_versioned"),
-        "adapter! should lower into AdapterDefinition, explicit typed realization interfaces, and canonical relations"
+        "adapter! should lower into AdapterDefinition, target-owned typed bridge modes, explicit realization interfaces, and canonical relations"
     );
     assert!(
         !codegen.contains("target_api_raw_path")
@@ -360,6 +361,50 @@ fn self_realization_sections_require_an_explicit_runtime_owner() {
         .expect_err("lifecycle hooks cannot exist without a self-realizing runtime")
         .to_string();
     assert!(system_error.contains("lifecycle { ... }` requires `runtime { ... }"));
+}
+
+#[test]
+fn differential_realization_reports_semantic_authoring_errors() {
+    fn resource_error(source: &str) -> String {
+        match syn::parse_str::<crate::ast::ResourceInput>(source) {
+            Ok(_) => panic!("differential resource input should fail to parse"),
+            Err(error) => error.to_string(),
+        }
+    }
+
+    assert!(
+        resource_error(
+            r#"Thing {
+            id: "example.thing";
+            api { fn read(&self) -> u64; }
+            realization { mediate missing; }
+        }"#
+        )
+        .contains("realization mediates `missing`, but that method is not in the semantic API")
+    );
+    assert!(
+        resource_error(
+            r#"Thing {
+            id: "example.thing";
+            api { fn read(&self) -> u64; }
+            realization { mediate read; }
+        }"#
+        )
+        .contains(
+            "semantic method `read` is mediated and requires a matching `runtime` implementation"
+        )
+    );
+    assert!(
+        resource_error(
+            r#"Thing {
+            id: "example.thing";
+            api { fn read(&self) -> u64; }
+            realization { mediate read; }
+            runtime { fn read(&self) -> String { String::new() } }
+        }"#
+        )
+        .contains("mediation implementation `read` must match its semantic API signature")
+    );
 }
 
 #[test]

@@ -12,6 +12,8 @@ and the generic Instance runtime boundary used to materialize that grammar.
   global contract resolution and lifecycle ordering
 - `Instance`: one concrete materialization of a Composition
 - `ModuleRuntime`: one concrete runtime participant materialized from a Module
+- derived provider: a provider which exports one typed Contract assembled from
+  ordinary typed required Contracts
 - `Block`: current structural grouping machinery inside a Composition
 - `InstanceId`: stable semantic identity for that materialized runtime
 - `InstanceGeneration`: fresh ephemeral runtime-generation fence for one
@@ -79,6 +81,19 @@ it does not silently pick a highest version. Resolution stays authoritative:
 If no provider exists, the contract is missing. If providers exist but none
 satisfy compatibility, Core reports an incompatible-provider failure. If
 multiple compatible providers exist, the result remains ambiguous.
+
+## Derived providers
+
+Core can also compose typed capability providers. A derived provider declares
+one exported Contract and ordinary typed Contract requirements, receives those
+requirements through normal `ModuleBindings`, and constructs its exported typed
+value from them. Resolution still selects exactly one provider for each
+Contract; Core does not select providers method by method.
+
+A derived provider need not own independently live machinery. The generic
+`DerivedContractProvider` has no stateful lifecycle work of its own, while a
+provider with live state remains an ordinary `ModuleRuntime`. Composition still
+orders, binds, starts, and cleans the complete provider graph uniformly.
 
 ## Non-ownership
 

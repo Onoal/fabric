@@ -21,6 +21,9 @@ use fabric_system::{
 pub enum AdapterBridgeMode {
     LegacyRealization,
     SemanticApi,
+    /// The Adapter provides a target-owned effective realization contract;
+    /// the semantic target composes its public API from that contract.
+    DifferentialSemanticApi,
 }
 
 /// Target-derived support used by canonical `adapter! { Name for Target }`

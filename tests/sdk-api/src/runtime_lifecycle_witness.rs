@@ -150,12 +150,160 @@ fabric::adapter! {
     }
 }
 
+// Differential realization keeps `read` semantic while the Adapter owns the
+// lower-level `read_bytes` operation and the direct `write` operation.
+fabric::resource! {
+    DifferentialDocumentStore {
+        id: "fabric.test.lifecycle.differential-document-store";
+
+        api {
+            fn read(&self, key: String) -> String;
+            fn write(&self, key: String, value: String) -> usize;
+        }
+
+        realization {
+            mediate read;
+            fn read_bytes(&self, key: String) -> Vec<u8>;
+        }
+
+        runtime {
+            fn read(&self, key: String) -> String {
+                String::from_utf8(self.realization.read_bytes(key)).expect("utf8")
+            }
+        }
+    }
+}
+
+fabric::adapter! {
+    DifferentialDocumentAdapter for DifferentialDocumentStore {
+        runtime {
+            fn write(&self, _key: String, value: String) -> usize { value.len() }
+            fn read_bytes(&self, key: String) -> Vec<u8> { key.into_bytes() }
+        }
+    }
+}
+
+fabric::system! {
+    DifferentialClock {
+        id: "fabric.test.lifecycle.differential-clock";
+        api { fn now(&self) -> u64; fn label(&self) -> String; }
+        realization {
+            mediate now;
+            fn raw_now(&self) -> u64;
+        }
+        runtime {
+            fn now(&self) -> u64 { self.realization.raw_now() + 1 }
+        }
+    }
+}
+
+fabric::adapter! {
+    DifferentialClockAdapter for DifferentialClock {
+        runtime {
+            fn label(&self) -> String { "direct".to_owned() }
+            fn raw_now(&self) -> u64 { 41 }
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CanonicalAdapterObservation {
     first_resource: usize,
     second_resource: usize,
     system: usize,
     label: String,
+}
+
+type DifferentialObservation = (String, usize, u64, String);
+
+#[derive(Clone)]
+struct DifferentialConsumer {
+    module_id: ModuleId,
+    document: ContractDependency<differential_document_store::raw::ApiContract>,
+    clock: ContractDependency<differential_clock::raw::ApiContract>,
+    observation: Arc<Mutex<Option<DifferentialObservation>>>,
+}
+
+impl DifferentialConsumer {
+    fn new(observation: Arc<Mutex<Option<DifferentialObservation>>>) -> Self {
+        Self {
+            module_id: ModuleId::new("fabric.test.lifecycle.differential.consumer")
+                .expect("module id"),
+            document: ContractDependency::new(
+                Requires::<DifferentialDocumentStore>::provisional()
+                    .as_contract_requirement()
+                    .clone(),
+            ),
+            clock: ContractDependency::new(
+                SystemRequires::<DifferentialClock>::provisional()
+                    .as_contract_requirement()
+                    .clone(),
+            ),
+            observation,
+        }
+    }
+}
+
+impl ModuleRuntime for DifferentialConsumer {
+    fn id(&self) -> &ModuleId {
+        &self.module_id
+    }
+    fn required_contract_declarations(&self) -> Vec<fabric::core::ContractRequirementDeclaration> {
+        vec![
+            self.document.declaration().clone(),
+            self.clock.declaration().clone(),
+        ]
+    }
+    fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
+        Ok(Vec::new())
+    }
+    fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError> {
+        self.document
+            .bind(bindings)
+            .map_err(|error| ModuleError::new(error.to_string()))?;
+        self.clock
+            .bind(bindings)
+            .map_err(|error| ModuleError::new(error.to_string()))?;
+        Ok(())
+    }
+    fn initialize(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn start(&mut self) -> Result<(), ModuleError> {
+        *self.observation.lock().expect("observation") = Some((
+            self.document.read("read".to_owned()),
+            self.document.write("key".to_owned(), "value".to_owned()),
+            self.clock.now(),
+            self.clock.label(),
+        ));
+        Ok(())
+    }
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn health(&self) -> Health {
+        Health::Healthy
+    }
+}
+
+#[derive(Clone)]
+struct DifferentialConsumerModule {
+    observation: Arc<Mutex<Option<DifferentialObservation>>>,
+}
+impl DifferentialConsumerModule {
+    fn new(observation: Arc<Mutex<Option<DifferentialObservation>>>) -> Self {
+        Self { observation }
+    }
+}
+impl Module for DifferentialConsumerModule {
+    fn declaration(&self) -> ModuleDeclaration {
+        ModuleDeclaration::from_runtime(&DifferentialConsumer::new(Arc::clone(&self.observation)))
+    }
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(DifferentialConsumer::new(Arc::clone(
+            &self.observation,
+        ))))
+    }
 }
 
 #[derive(Clone)]
@@ -711,6 +859,40 @@ fn canonical_adapters_export_the_target_semantic_api_without_subject_forwarding(
         })
     );
     fresh_generation.stop().expect("fresh stop");
+}
+
+#[test]
+fn differential_realizations_compose_one_semantic_provider_from_one_effective_adapter_provider() {
+    let observation = Arc::new(Mutex::new(None));
+    let composition = Fabric::new("fabric.test.lifecycle.differential")
+        .expect("fabric")
+        .resource(
+            DifferentialDocumentStore::select("documents")
+                .expect("selection")
+                .using(DifferentialDocumentAdapter::new())
+                .expect("adapter"),
+        )
+        .system(
+            DifferentialClock::select()
+                .expect("selection")
+                .using(DifferentialClockAdapter::new())
+                .expect("adapter"),
+        )
+        .block("consumer", |block| {
+            block.module(DifferentialConsumerModule::new(Arc::clone(&observation)))
+        })
+        .expect("consumer")
+        .build()
+        .expect("differential composition");
+    let mut instance = composition
+        .materialize_named_on("differential", &host())
+        .expect("materialize differential providers");
+    instance.start().expect("start");
+    assert_eq!(
+        observation.lock().expect("observation").clone(),
+        Some(("read".to_owned(), 5, 42, "direct".to_owned()))
+    );
+    instance.stop().expect("stop");
 }
 
 #[test]

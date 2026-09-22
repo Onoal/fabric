@@ -45,6 +45,37 @@ system! {
     }
 }
 
+resource! {
+    pub DifferentialImportedStore {
+        id: "fabric.test.macro-context.differential-imported-store";
+        api {
+            fn read(&self, key: u64) -> u64;
+            fn write(&self, key: u64, value: u64) -> u64;
+        }
+        realization {
+            mediate read;
+            fn read_raw(&self, key: u64) -> u64;
+        }
+        runtime {
+            fn read(&self, key: u64) -> u64 { self.realization.read_raw(key) + 1 }
+        }
+    }
+}
+
+system! {
+    pub DifferentialImportedSystem {
+        id: "fabric.test.macro-context.differential-imported-system";
+        api { fn now(&self) -> u64; fn label(&self) -> u64; }
+        realization {
+            mediate now;
+            fn raw_now(&self) -> u64;
+        }
+        runtime {
+            fn now(&self) -> u64 { self.realization.raw_now() + 1 }
+        }
+    }
+}
+
 #[derive(Default)]
 struct RootStoreState;
 

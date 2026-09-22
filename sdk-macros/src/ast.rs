@@ -8,6 +8,10 @@ pub struct ResourceInput {
     pub config: ConfigDefinition,
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
+    /// Optional delta from the public API to the Adapter's effective
+    /// realization contract.  This is distinct from the legacy explicit
+    /// whole-contract realization declaration below.
+    pub differential_realization: Option<DifferentialRealizationDefinition>,
     pub realization: Option<RealizationDefinition>,
     /// Present only when this semantic Resource explicitly owns a live
     /// self-realization or mediation layer.
@@ -24,6 +28,7 @@ pub struct SystemInput {
     pub config: ConfigDefinition,
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
+    pub differential_realization: Option<DifferentialRealizationDefinition>,
     pub realization: Option<RealizationDefinition>,
     /// Present only when this semantic System explicitly owns a live
     /// self-realization or mediation layer.
@@ -98,6 +103,7 @@ pub enum ApiIdentity {
     LegacyExplicit(LitStr),
 }
 
+#[derive(Clone)]
 pub struct ContractMethod {
     pub signature: syn::Signature,
 }
@@ -173,6 +179,13 @@ pub struct RealizationDefinition {
     pub contract_id: LitStr,
     pub compatibility: RequirementLiteral,
     pub methods: Vec<ContractMethod>,
+}
+
+/// The authored delta used when a semantic owner mediates part of its API.
+/// Unlisted API methods remain direct Adapter requirements.
+pub struct DifferentialRealizationDefinition {
+    pub mediated: Vec<Ident>,
+    pub operations: Vec<ContractMethod>,
 }
 
 #[derive(Clone, Copy)]

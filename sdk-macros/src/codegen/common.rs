@@ -30,8 +30,25 @@ pub fn canonical_adapter_bridge_tokens(
     service_name: &Ident,
     contract_name: &Ident,
 ) -> CanonicalAdapterBridgeTokens {
-    let builder_name = format_ident!("CanonicalAdapterBuilder");
-    let service_name_bridge = format_ident!("CanonicalAdapterService");
+    canonical_adapter_bridge_tokens_named(api, service_name, contract_name, "")
+}
+
+pub fn canonical_adapter_bridge_tokens_named(
+    api: &ApiDefinition,
+    service_name: &Ident,
+    contract_name: &Ident,
+    prefix: &str,
+) -> CanonicalAdapterBridgeTokens {
+    let builder_name = if prefix.is_empty() {
+        format_ident!("CanonicalAdapterBuilder")
+    } else {
+        format_ident!("{prefix}CanonicalAdapterBuilder")
+    };
+    let service_name_bridge = if prefix.is_empty() {
+        format_ident!("CanonicalAdapterService")
+    } else {
+        format_ident!("{prefix}CanonicalAdapterService")
+    };
     let method_names = api
         .methods
         .iter()
@@ -43,7 +60,12 @@ pub fn canonical_adapter_bridge_tokens(
         .collect::<Vec<_>>();
     let missing_names = method_names
         .iter()
-        .map(|name| format_ident!("CanonicalAdapterMethodMissing{}", to_upper_camel_case(name)))
+        .map(|name| {
+            format_ident!(
+                "{prefix}CanonicalAdapterMethodMissing{}",
+                to_upper_camel_case(name)
+            )
+        })
         .collect::<Vec<_>>();
 
     let builder_ty = |types: &[TokenStream]| {

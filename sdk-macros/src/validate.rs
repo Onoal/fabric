@@ -74,7 +74,25 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
     }
 
     if let Some(runtime_methods) = &input.runtime_methods {
-        validate_runtime_method_integrity(Some(&input.api.methods), runtime_methods, &mut errors);
+        let required_methods = input.differential_realization.as_ref().map(|differential| {
+            input
+                .api
+                .methods
+                .iter()
+                .filter(|method| {
+                    differential
+                        .mediated
+                        .iter()
+                        .any(|name| name == &method.signature.ident)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        });
+        validate_runtime_method_integrity(
+            required_methods.as_ref().or(Some(&input.api.methods)),
+            runtime_methods,
+            &mut errors,
+        );
     }
     validate_self_realization_sections(
         input.runtime_methods.is_some(),
@@ -141,7 +159,25 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
     }
 
     if let Some(runtime_methods) = &input.runtime_methods {
-        validate_runtime_method_integrity(Some(&input.api.methods), runtime_methods, &mut errors);
+        let required_methods = input.differential_realization.as_ref().map(|differential| {
+            input
+                .api
+                .methods
+                .iter()
+                .filter(|method| {
+                    differential
+                        .mediated
+                        .iter()
+                        .any(|name| name == &method.signature.ident)
+                })
+                .cloned()
+                .collect::<Vec<_>>()
+        });
+        validate_runtime_method_integrity(
+            required_methods.as_ref().or(Some(&input.api.methods)),
+            runtime_methods,
+            &mut errors,
+        );
     }
     validate_self_realization_sections(
         input.runtime_methods.is_some(),

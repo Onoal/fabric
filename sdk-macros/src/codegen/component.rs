@@ -434,7 +434,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         }
     );
     let component_realization_contract_id = quote!(#sdk::core::ContractId::new(format!("{}.realization", #component_id)).expect("component! generated a static realization contract id"));
-    let adaptable_component_impl = input.api.is_some().then(|| quote!(
+    let adaptable_component_impl = input.legacy_operations.is_none().then(|| quote!(
         impl #sdk::authoring::AdaptableComponentDefinition for #component_name {
             fn realization_requirement() -> #sdk::core::ContractRequirement<#sdk::authoring::ComponentRealizationContract<Self>> {
                 #sdk::core::ContractRequirement::provisional(#component_realization_contract_id)

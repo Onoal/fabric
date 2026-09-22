@@ -28,6 +28,9 @@ struct RuntimeLifecycleConfig {
 #[derive(Default)]
 struct RuntimeLifecycleState(std::sync::atomic::AtomicUsize);
 
+#[derive(Clone)]
+struct AdapterPreparationConfig(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+
 resource! {
     DeclarationStore {
         id: "fabric.test.component-declaration.store";
@@ -90,6 +93,25 @@ adapter! {
                 format!("{}:{name}:{}", self.component_config().prefix, self.config().suffix)
             }
             prepare { Ok(()) }
+            teardown { Ok(()) }
+        }
+    }
+}
+
+component! {
+    AdapterPreparedAutonomous {
+        id: "fabric.test.component-declaration.adapter-prepared-autonomous";
+    }
+}
+
+adapter! {
+    AdapterPreparedAutonomousRuntime for AdapterPreparedAutonomous {
+        config: AdapterPreparationConfig;
+        runtime {
+            prepare {
+                self.config().0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
             teardown { Ok(()) }
         }
     }
@@ -527,5 +549,34 @@ fn explicit_component_adapter_replaces_the_default_self_realization() {
         .expect("invoke"),
         "adapter"
     );
+    instance.stop().expect("stop");
+}
+
+#[test]
+fn api_less_component_adapter_can_prepare_one_participation() {
+    let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let selected = AdapterPreparedAutonomous::define()
+        .using(AdapterPreparedAutonomousRuntime::new(
+            AdapterPreparationConfig(std::sync::Arc::clone(&prepared)),
+        ))
+        .expect("select autonomous Adapter realization");
+    let built = Fabric::new("fabric.test.component-declaration.adapter-prepared-autonomous")
+        .expect("fabric")
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.adapter-prepared-autonomous.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    instance
+        .components()
+        .expect("component host")
+        .materialize::<AdapterPreparedAutonomous>()
+        .expect("prepare autonomous participation");
+    assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
     instance.stop().expect("stop");
 }

@@ -114,13 +114,13 @@ live runtime.
 
 ## Project status
 
-The 0.4.6 source line retains lifecycle, Config, Relations, and canonical
-`api { ... }` authoring. Resource and System are semantic subjects: an API-only
+Fabric 0.4.7 joins the source-only 0.4.6 ownership correction with canonical
+Adapter authoring. Resource and System are semantic subjects: an API-only
 definition does not silently own a live runtime. `runtime`, `state`, and
-`lifecycle` explicitly describe a self-realization or semantic mediation layer;
-Adapter realizations use the same live-ownership model. This source line is not
-published independently; the install snippet above remains the latest public
-release.
+`lifecycle` explicitly describe a self-realization or semantic mediation layer.
+For a normal adapted subject, its API is the realization contract and the
+selected Adapter owns state, lifecycle, health, and concrete machinery without
+a Resource/System forwarding proxy.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

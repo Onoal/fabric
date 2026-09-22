@@ -39,3 +39,9 @@ fn system_target_adapters_cannot_use_resource_schema_support() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/ui/system_target_adapter_with_resource_schema_support.rs");
 }
+
+#[test]
+fn canonical_component_runtime_contract_errors_are_diagnostic() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/component_runtime_*.rs");
+}

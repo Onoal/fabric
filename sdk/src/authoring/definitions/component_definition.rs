@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use super::{AdapterDefinition, AdapterProviderModule};
-use super::{PrimaryResourceContract, Requires, ResourceSelection};
+use super::{PrimaryResourceContract, RelationTarget, Requires, ResourceSelection};
 use crate::authoring::{
     ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
     PrimarySystemContract, SystemRequires, SystemSelection,
@@ -14,8 +14,8 @@ use fabric_component::{
     component_system_dependency_contract_key,
 };
 use fabric_core::{
-    ContractProviderSelection, ContractRequirement, Health, Module, ModuleBindings, ModuleContract,
-    ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
+    ContractProviderSelection, ContractRequirement, ContractVersionRequirement, Health, Module,
+    ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
 };
 
 /// Typed Resource access for a Component self realization. The requirement
@@ -450,6 +450,36 @@ pub trait ComponentDefinition: Sized + Send + Sync + 'static {
     }
 }
 
+/// Internal target-driven lowering for canonical Component relations.
+///
+/// Resource and System targets retain their distinct carrier machinery; this
+/// trait prevents that distinction from leaking into `component!` authoring.
+#[doc(hidden)]
+pub trait ComponentRelationTarget: RelationTarget {
+    fn add_component_relation<C>(
+        spec: ComponentSpec<C>,
+        name: ComponentResourceRequirementName,
+        compatibility: ComponentRelationCompatibility,
+    ) -> ComponentSpec<C>
+    where
+        C: ComponentDefinition;
+
+    fn resolve_component_relation(
+        scope: &fabric_component::ComponentRuntimeScope,
+        name: &ComponentResourceRequirementName,
+        compatibility: &ComponentRelationCompatibility,
+    ) -> Result<Arc<Self::Contract>, ComponentError>;
+}
+
+/// Version compatibility supplied by canonical Component relation syntax.
+/// The target definition reconstructs its own typed requirement from it.
+#[doc(hidden)]
+#[derive(Clone)]
+pub enum ComponentRelationCompatibility {
+    Provisional,
+    Versioned(ContractVersionRequirement),
+}
+
 pub trait SelfRealizingComponentDefinition: ComponentDefinition {
     fn self_realization(config: &Self::Config) -> ComponentRuntimeDefinition;
 }
@@ -718,6 +748,18 @@ where
         });
         self.system_contributions.push(contribution);
         self
+    }
+
+    #[doc(hidden)]
+    pub fn requires_relation<T>(
+        self,
+        name: ComponentResourceRequirementName,
+        compatibility: ComponentRelationCompatibility,
+    ) -> Self
+    where
+        T: ComponentRelationTarget,
+    {
+        T::add_component_relation(self, name, compatibility)
     }
 
     pub fn select_system_provider<S>(mut self, provider: &SystemSelection<S>) -> Self

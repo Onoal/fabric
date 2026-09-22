@@ -29,11 +29,10 @@ providers and a realization path creates participation.
 | `ComponentSpec` | One configured declarative use, such as `Greeter::define(GreeterConfig { ... })`, including composition-facing requirement/provider-selection lowering. |
 | `ComponentParticipation` | One active runtime incarnation, scoped to an Instance generation and participation identity. |
 
-`component!` normally implements only the semantic definition. A declaration
-is authoring convenience rather than ontology; handwritten definitions use the
-same public machinery. The older `operations { ... handler ... }` frontend
-temporarily remains as an explicit legacy self-realizing path while canonical
-Component runtime authoring is converged separately.
+`component!` normally implements the semantic definition. Adding its optional
+`runtime` section supplies a default self realization; omitting it remains a
+declaration-only Component. The older `operations { ... handler ... }`
+frontend remains transitional legacy self-realizing authoring.
 
 A Component may be declaration-only or explicitly own native runtime
 participation. Component realization internals are distinct from the canonical
@@ -102,13 +101,46 @@ fabric::component! {
 }
 ```
 
-Each section after `id` is optional. This macro declares semantic truth only:
-it does not attach handlers, state, health, cleanup, or a runtime
-participation. `api` describes callable behavior; it is not an implementation.
-A local materialization therefore requires a separate realization path. Until
-canonical Component runtime authoring arrives, the existing `operations`
-frontend is the transitional self-realizing path and is not the recommended
-declaration syntax.
+Each section after `id` is optional. Without `runtime`, this macro declares
+semantic truth only: it does not attach handlers, state, health, cleanup, or a
+runtime participation. `api` describes callable behavior; it is not an
+implementation. A declaration-only Component therefore requires a separate
+realization path before local materialization.
+
+## Canonical self realization
+
+When a Component owns its default participation realization, add `runtime`.
+It implements the already-declared API; it does not declare another API or
+manually register Operations.
+
+```rust
+component! {
+    NotesIndexer {
+        id: "example.notes-indexer";
+        config { prefix: String; }
+        relations { requires { storage: NoteStore; } }
+        api { fn index(&self, note: Note) -> IndexResult; }
+        runtime {
+            fn index(&self, note: Note) -> IndexResult {
+                let _store = &self.relations().storage;
+                let _prefix = &self.config().prefix;
+                index(note)
+            }
+        }
+    }
+}
+```
+
+The generated realization receives immutable Component Config and typed,
+Core-resolved local relation roles. It creates no registry lookup, Adapter
+lookup, or service locator. `runtime` may optionally contain a single
+participation-local `state { Type = initializer; }`, `prepare { ... }`, and
+`teardown { ... }`. State is created per participation; teardown is owned by
+that participation and is run after its authority has been revoked.
+
+`runtime` absent means declaration only. `runtime` present means this
+Component supplies a default self realization. External Component Adapter
+authoring remains the next convergence slice.
 
 A Component requires semantic Resources and Systems, not Adapters:
 
@@ -127,10 +159,10 @@ coherent normal typed occurrence per `SystemId`.
 Relation roles are Component-local semantic names. `primary_store` and
 `cache_store` remain distinct requirements even when both target `NoteStore`.
 The target itself determines whether it is a Resource or System; canonical
-authoring does not make the author repeat that fact. The existing lower-level
-Resource/System carrier and binding machinery remains available to the
-transitional realization path. Canonical declaration relations deliberately do
-not create a runtime scope or a local binding by themselves.
+authoring does not make the author repeat that fact. Lower-level
+Resource/System carrier and binding machinery is generated only when a
+realization needs the relation. Canonical declaration relations deliberately
+do not create a runtime scope or a local binding by themselves.
 
 When a realization is present, the runtime flow is:
 
@@ -142,7 +174,7 @@ Component declares requirements
 ```
 
 There is no Component registry lookup, Adapter search, or arbitrary service
-lookup. The legacy self-realizing frontend generates typed dependency fields:
+lookup. The legacy self-realizing frontend still generates typed dependency fields:
 
 ```rust
 handler |dependencies, input: Input| async move { /* typed contracts */ }
@@ -159,8 +191,9 @@ operation or type-identity strings. That metadata remains invocation lowering,
 not a second public Component authoring language.
 
 The current `operations { ... }` block is legacy runtime authoring. It joins a
-declaration to handler closures and therefore creates a self realization. It
-remains supported only until a canonical realization language replaces it.
+declaration to handler closures and therefore creates a self realization. New
+authoring should use `api` plus `runtime`; legacy operations remain supported
+only during the transition.
 
 An Operation has an `OperationId`, semantic input/output type identities, typed
 Rust input/output, and a runtime handler. `OperationDefinition` is not a
@@ -213,12 +246,12 @@ zero-operation Components—are valid semantic truth. They are known to the
 Component environment, but native local materialization without a realization
 fails with the existing `MissingComponentRuntimeAttachment` error.
 
-Canonical `component!` never generates that attachment. The legacy
-`operations` frontend does: it obtains Core-resolved dependencies, constructs
-the typed dependencies value, registers operations, and reports initial health
-when materialized. This lower-level preparation occurs when that legacy
-self-realizing Component is materialized, not when its declaration is added to
-Composition.
+Canonical `component!` generates that attachment only when it contains
+`runtime`. The generated self realization obtains Core-resolved dependencies,
+constructs participation-local state, registers operations, and reports the
+default initial health only when materialized—not when the declaration is
+added to Composition. The legacy `operations` frontend remains supported but
+is not the canonical path.
 
 After an Instance is running, activate Component participation explicitly:
 

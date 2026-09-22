@@ -7,8 +7,8 @@ use syn::{
 
 use crate::ast::{
     AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext,
-    ComponentOperationDefinition, ConfigDefinition, ConfigField, ContractMethod,
-    DifferentialRealizationDefinition, RelationDefinition, RequirementDefinition,
+    ComponentOperationDefinition, ComponentRuntimeDefinition, ConfigDefinition, ConfigField,
+    ContractMethod, DifferentialRealizationDefinition, RelationDefinition, RequirementDefinition,
     RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
     RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
 };
@@ -35,6 +35,7 @@ mod kw {
     syn::custom_keyword!(operations);
     syn::custom_keyword!(output);
     syn::custom_keyword!(primary);
+    syn::custom_keyword!(prepare);
     syn::custom_keyword!(provisional);
     syn::custom_keyword!(realization);
     syn::custom_keyword!(relations);
@@ -495,6 +496,7 @@ impl Parse for ComponentInput {
         let mut config = None;
         let mut relations = None;
         let mut api = None;
+        let mut runtime = None;
         let mut requires = None;
         let mut systems = None;
         let mut operations = None;
@@ -533,6 +535,14 @@ impl Parse for ComponentInput {
                     return Err(content.error("component! supports only one `api { ... }` section"));
                 }
                 api = Some(parse_api(&content)?);
+            } else if content.peek(kw::runtime) {
+                content.parse::<kw::runtime>()?;
+                if runtime.is_some() {
+                    return Err(
+                        content.error("component! supports only one `runtime { ... }` section")
+                    );
+                }
+                runtime = Some(parse_component_runtime(&content)?);
             } else if content.peek(kw::requires) {
                 content.parse::<kw::requires>()?;
                 if requires.is_some() {
@@ -578,6 +588,12 @@ impl Parse for ComponentInput {
                 "component! cannot combine canonical `api { ... }` with transitional `operations { ... }`; api declares semantics while operations remains the legacy self-realizing path",
             ));
         }
+        if runtime.is_some() && operations.is_some() {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "component! cannot combine canonical `runtime { ... }` with transitional `operations { ... }`",
+            ));
+        }
         if relations.is_some() && (requires.is_some() || systems.is_some()) {
             return Err(Error::new(
                 name_for_errors.span(),
@@ -607,12 +623,61 @@ impl Parse for ComponentInput {
                 version: VersionLiteral::Provisional,
                 methods: api.methods,
             }),
+            runtime,
             legacy_requires: requires.unwrap_or_default(),
             legacy_systems: systems.unwrap_or_default(),
             legacy_operations: operations,
             teardown,
         })
     }
+}
+
+fn parse_component_runtime(input: ParseStream<'_>) -> Result<ComponentRuntimeDefinition> {
+    let content;
+    braced!(content in input);
+    let mut methods = Vec::new();
+    let mut state = None;
+    let mut prepare = None;
+    let mut teardown = None;
+    while !content.is_empty() {
+        if content.peek(kw::state) {
+            content.parse::<kw::state>()?;
+            if state.is_some() {
+                return Err(
+                    content.error("component runtime supports only one `state { ... }` section")
+                );
+            }
+            state = Some(parse_runtime_state(&content)?);
+        } else if content.peek(kw::prepare) {
+            content.parse::<kw::prepare>()?;
+            if prepare.is_some() {
+                return Err(
+                    content.error("component runtime supports only one `prepare { ... }` hook")
+                );
+            }
+            prepare = Some(content.parse::<syn::Block>()?);
+        } else if content.peek(kw::teardown) {
+            content.parse::<kw::teardown>()?;
+            if teardown.is_some() {
+                return Err(
+                    content.error("component runtime supports only one `teardown { ... }` hook")
+                );
+            }
+            teardown = Some(content.parse::<syn::Block>()?);
+        } else {
+            let method = content.parse::<syn::ImplItemFn>()?;
+            methods.push(RuntimeMethod {
+                signature: method.sig,
+                body: method.block,
+            });
+        }
+    }
+    Ok(ComponentRuntimeDefinition {
+        methods,
+        state,
+        prepare,
+        teardown,
+    })
 }
 
 fn parse_version_literal(input: ParseStream<'_>) -> Result<VersionLiteral> {

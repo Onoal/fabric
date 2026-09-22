@@ -1,0 +1,5 @@
+error: runtime method `ping` does not match the declared contract signature
+ --> tests/ui/component_runtime_mismatch.rs:6:18
+  |
+6 |         api { fn ping(&self, value: usize) -> usize; }
+  |                  ^^^^

@@ -1,0 +1,11 @@
+error: missing runtime implementation for API method `ping`
+ --> tests/ui/component_runtime_undeclared.rs:6:18
+  |
+6 |         api { fn ping(&self); }
+  |                  ^^^^
+
+error: runtime method `pong` has no matching contract declaration
+ --> tests/ui/component_runtime_undeclared.rs:7:22
+  |
+7 |         runtime { fn pong(&self) {} }
+  |                      ^^^^

@@ -498,6 +498,36 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             }
         }
 
+        impl #sdk::authoring::ComponentRelationTarget for #resource_name {
+            fn add_component_relation<C>(
+                spec: #sdk::authoring::ComponentSpec<C>,
+                name: #sdk::component::ComponentResourceRequirementName,
+                compatibility: #sdk::authoring::ComponentRelationCompatibility,
+            ) -> #sdk::authoring::ComponentSpec<C>
+            where C: #sdk::authoring::ComponentDefinition {
+                let requirement = match compatibility {
+                    #sdk::authoring::ComponentRelationCompatibility::Provisional => #sdk::authoring::Requires::<Self>::provisional(),
+                    #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => #sdk::authoring::Requires::<Self>::versioned(requirement),
+                };
+                spec.requires_named_resource(#sdk::authoring::ComponentResourceRequirement::new(
+                    name,
+                    requirement,
+                ))
+            }
+
+            fn resolve_component_relation(
+                scope: &#sdk::component::ComponentRuntimeScope,
+                name: &#sdk::component::ComponentResourceRequirementName,
+                compatibility: &#sdk::authoring::ComponentRelationCompatibility,
+            ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {
+                let requirement = match compatibility {
+                    #sdk::authoring::ComponentRelationCompatibility::Provisional => <Self as #sdk::authoring::RelationTarget>::relation_requirement(),
+                    #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => <Self as #sdk::authoring::RelationTarget>::relation_requirement_versioned(requirement.clone()),
+                };
+                scope.named_resource_dependency(name, &requirement)
+            }
+        }
+
         impl #sdk::authoring::ResourceDefinition for #resource_name {
             type Config = #config_ty;
 

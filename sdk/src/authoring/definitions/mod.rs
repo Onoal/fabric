@@ -26,8 +26,9 @@ pub use component_augmentation::{
 pub(crate) use component_definition::ComponentSpecParts;
 pub use component_definition::{
     AdaptableComponentDefinition, ComponentDefinition, ComponentRealization,
-    ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
-    ComponentSpec, ComponentSystemScope, SelfRealizingComponentDefinition,
+    ComponentRealizationContract, ComponentRelationCompatibility, ComponentRelationTarget,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
+    SelfRealizingComponentDefinition,
 };
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;

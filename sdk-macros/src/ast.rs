@@ -60,11 +60,21 @@ pub struct ComponentInput {
     /// Canonical Component callable declaration.  It has no handler or
     /// realization attachment.
     pub api: Option<ApiDefinition>,
+    /// Canonical self-realization authoring. Unlike the legacy operations
+    /// frontend, this is an implementation of the already-declared API.
+    pub runtime: Option<ComponentRuntimeDefinition>,
     /// Transitional 0.5.0 self-realizing frontend.  It remains isolated so
     /// canonical declaration lowering never depends on it.
     pub legacy_requires: Vec<RequirementDefinition>,
     pub legacy_systems: Vec<SystemDependencyDefinition>,
     pub legacy_operations: Option<Vec<ComponentOperationDefinition>>,
+    pub teardown: Option<Block>,
+}
+
+pub struct ComponentRuntimeDefinition {
+    pub methods: Vec<RuntimeMethod>,
+    pub state: Option<RuntimeStateDefinition>,
+    pub prepare: Option<Block>,
     pub teardown: Option<Block>,
 }
 

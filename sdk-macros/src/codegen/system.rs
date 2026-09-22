@@ -471,6 +471,33 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             }
         }
 
+        impl #sdk::authoring::ComponentRelationTarget for #system_name {
+            fn add_component_relation<C>(
+                spec: #sdk::authoring::ComponentSpec<C>,
+                _name: #sdk::component::ComponentResourceRequirementName,
+                compatibility: #sdk::authoring::ComponentRelationCompatibility,
+            ) -> #sdk::authoring::ComponentSpec<C>
+            where C: #sdk::authoring::ComponentDefinition {
+                let requirement = match compatibility {
+                    #sdk::authoring::ComponentRelationCompatibility::Provisional => #sdk::authoring::SystemRequires::<Self>::provisional(),
+                    #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => #sdk::authoring::SystemRequires::<Self>::versioned(requirement),
+                };
+                spec.requires_system(requirement)
+            }
+
+            fn resolve_component_relation(
+                scope: &#sdk::component::ComponentRuntimeScope,
+                _name: &#sdk::component::ComponentResourceRequirementName,
+                compatibility: &#sdk::authoring::ComponentRelationCompatibility,
+            ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {
+                let requirement = match compatibility {
+                    #sdk::authoring::ComponentRelationCompatibility::Provisional => <Self as #sdk::authoring::RelationTarget>::relation_requirement(),
+                    #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => <Self as #sdk::authoring::RelationTarget>::relation_requirement_versioned(requirement.clone()),
+                };
+                scope.system_dependency(&requirement)
+            }
+        }
+
         impl #sdk::authoring::SystemDefinition for #system_name {
             type Config = #config_ty;
 

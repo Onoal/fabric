@@ -1,0 +1,5 @@
+error: component! cannot combine canonical `runtime { ... }` with transitional `operations { ... }`
+ --> tests/ui/component_runtime_mixed_legacy.rs:4:5
+  |
+4 |     MixedRuntime {
+  |     ^^^^^^^^^^^^

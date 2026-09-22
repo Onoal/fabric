@@ -1,0 +1,5 @@
+error: component runtime must implement an API method or declare `prepare { ... }`
+ --> tests/ui/component_runtime_empty.rs:4:5
+  |
+4 |     EmptyRuntime {
+  |     ^^^^^^^^^^^^

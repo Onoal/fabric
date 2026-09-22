@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Expr, PatType, parse_quote};
+use syn::{Expr, FnArg, PatType, parse_quote};
 
 use crate::ast::{
     ComponentInput, ComponentOperationContext, ComponentOperationDefinition, ContractMethod,
@@ -8,7 +8,8 @@ use crate::ast::{
 };
 
 use super::common::{
-    config_type_tokens, fabric_path, has_config, inline_config_definition_tokens, to_snake_case,
+    config_type_tokens, fabric_path, has_config, inline_config_definition_tokens, method_call_args,
+    to_snake_case,
 };
 
 pub fn expand_component(input: &ComponentInput) -> TokenStream {
@@ -20,6 +21,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let component_mod = format_ident!("{}", to_snake_case(component_name));
     let component_id = &input.component_id;
     let legacy_self_realization = input.legacy_operations.is_some();
+    let canonical_runtime = input.runtime.as_ref();
     // Preserve the old operations frontend's empty Config type temporarily.
     // Canonical declaration authoring never takes this branch.
     let config_ty = if legacy_self_realization && !has_config(&input.config) {
@@ -75,6 +77,42 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     } else {
         quote!(.with_relations(::std::vec![#(#relation_declarations),*]))
     };
+    let canonical_relation_spec_additions = input
+        .relations
+        .iter()
+        .map(|relation| {
+            let target = &relation.target;
+            let compatibility = component_relation_compatibility_tokens(&sdk, relation);
+            let name = relation.field.to_string();
+            quote!(
+                .requires_relation::<#target>(
+                    #sdk::component::ComponentResourceRequirementName::new(#name)
+                        .expect("component! generated a non-empty relation role"),
+                    #compatibility,
+                )
+            )
+        })
+        .collect::<Vec<_>>();
+    let canonical_relations_name = format_ident!("{}Relations", component_name);
+    let canonical_relation_fields = input.relations.iter().map(|relation| {
+        let field = &relation.field;
+        let target = &relation.target;
+        quote!(pub #field: ::std::sync::Arc<<#target as #sdk::authoring::RelationTarget>::Contract>,)
+    }).collect::<Vec<_>>();
+    let canonical_relation_initializers = input.relations.iter().map(|relation| {
+        let field = &relation.field;
+        let target = &relation.target;
+        let compatibility = component_relation_compatibility_tokens(&sdk, relation);
+        let name = relation.field.to_string();
+        quote!(
+            #field: <#target as #sdk::authoring::ComponentRelationTarget>::resolve_component_relation(
+                scope,
+                &#sdk::component::ComponentResourceRequirementName::new(#name)
+                    .expect("component! generated a non-empty relation role"),
+                &#compatibility,
+            )?,
+        )
+    }).collect::<Vec<_>>();
     let resource_requirements = input
         .legacy_requires
         .iter()
@@ -249,6 +287,136 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         }
     };
 
+    let canonical_self_realization = canonical_runtime.map(|runtime| {
+        let runtime_name = format_ident!("__Fabric{}Runtime", component_name);
+        let runtime_methods = runtime.methods.iter().map(|method| {
+            let signature = &method.signature;
+            let body = &method.body;
+            quote!(#signature #body)
+        }).collect::<Vec<_>>();
+        let state_field = runtime.state.as_ref().map(|state| {
+            let ty = &state.ty;
+            quote!(state: #sdk::authoring::RuntimeState<#ty>,)
+        });
+        let state_initializer = runtime.state.as_ref().map(|state| {
+            let initializer = &state.initializer;
+            quote! {
+                let state = #sdk::authoring::RuntimeState::new({
+                    let config = &config;
+                    #initializer
+                });
+            }
+        });
+        let state_value = runtime.state.as_ref().map(|_| quote!(state,));
+        let state_accessor = runtime.state.as_ref().map(|state| {
+            let ty = &state.ty;
+            quote!(pub fn state(&self) -> &#sdk::authoring::RuntimeState<#ty> { &self.state })
+        });
+        let prepare_body = runtime.prepare.as_ref().map(|body| {
+            let statements = &body.stmts;
+            quote!(#(#statements)*)
+        }).unwrap_or_else(|| quote!(Ok(())));
+        let teardown_body = runtime.teardown.as_ref().map(|body| {
+            let statements = &body.stmts;
+            quote!(#(#statements)*)
+        }).unwrap_or_else(|| quote!(Ok(())));
+        let operation_registrations = input.api.as_ref().map(|api| {
+            api.methods.iter().map(|method| {
+                let signature = &method.signature;
+                let name = &signature.ident;
+                let operation = quote!(#component_mod::operations::#name());
+                let arguments = method_call_args(signature);
+                let argument_types = signature.inputs.iter().filter_map(|input| match input {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(argument) => Some(&argument.ty),
+                }).collect::<Vec<_>>();
+                match argument_types.as_slice() {
+                    [] => quote! {
+                        {
+                            let runtime = ::std::sync::Arc::clone(&runtime);
+                            scope.operation(#operation, move |(): ()| {
+                                let runtime = ::std::sync::Arc::clone(&runtime);
+                                async move { Ok(runtime.#name()) }
+                            })?;
+                        }
+                    },
+                    [only] => quote! {
+                        {
+                            let runtime = ::std::sync::Arc::clone(&runtime);
+                            scope.operation(#operation, move |input: #only| {
+                                let runtime = ::std::sync::Arc::clone(&runtime);
+                                async move { Ok(runtime.#name(input)) }
+                            })?;
+                        }
+                    },
+                    many => quote! {
+                        {
+                            let runtime = ::std::sync::Arc::clone(&runtime);
+                            scope.operation(#operation, move |input: (#(#many),*)| {
+                                let runtime = ::std::sync::Arc::clone(&runtime);
+                                async move {
+                                    let (#(#arguments),*) = input;
+                                    Ok(runtime.#name(#(#arguments),*))
+                                }
+                            })?;
+                        }
+                    },
+                }
+            }).collect::<Vec<_>>()
+        }).unwrap_or_default();
+        quote! {
+            #[derive(Clone)]
+            struct #runtime_name {
+                config: #config_ty,
+                relations: #canonical_relations_name,
+                #state_field
+            }
+
+            impl #runtime_name {
+                pub fn config(&self) -> &#config_ty { &self.config }
+                pub fn relations(&self) -> &#canonical_relations_name { &self.relations }
+                #state_accessor
+                #(#runtime_methods)*
+                fn __fabric_prepare(&self) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    #prepare_body
+                }
+                fn __fabric_teardown(&self) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    #teardown_body
+                }
+            }
+
+            impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
+                fn self_realization(config: &Self::Config) -> #sdk::component::ComponentRuntimeDefinition {
+                    let config = config.clone();
+                    #sdk::component::ComponentRuntimeDefinition::new_with_teardown(
+                        <Self as #sdk::authoring::ComponentDefinition>::component_id(),
+                        move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
+                            #sdk::component::ComponentRuntimePreparation,
+                            #sdk::component::ComponentError,
+                        > {
+                            let relations = #canonical_relations_name {
+                                #(#canonical_relation_initializers)*
+                            };
+                            #state_initializer
+                            let runtime = ::std::sync::Arc::new(#runtime_name {
+                                config: config.clone(),
+                                relations,
+                                #state_value
+                            });
+                            #(#operation_registrations)*
+                            runtime.__fabric_prepare()?;
+                            let teardown_runtime = ::std::sync::Arc::clone(&runtime);
+                            Ok(#sdk::component::ComponentRuntimePreparation::with_teardown(
+                                #sdk::core::Health::Healthy,
+                                move || teardown_runtime.__fabric_teardown(),
+                            ))
+                        },
+                    )
+                }
+            }
+        }
+    });
+
     let define_method = if legacy_self_realization {
         quote! {
             pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> {
@@ -258,6 +426,18 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                     #(.requires_system(#system_requirements))*
             }
         }
+    } else if canonical_runtime.is_some() && has_config(&input.config) {
+        quote!(pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> {
+            #sdk::authoring::ComponentSpec::<Self>::self_realizing(config)
+                .expect("component! generated a matching self realization")
+                #(#canonical_relation_spec_additions)*
+        })
+    } else if canonical_runtime.is_some() {
+        quote!(pub fn define() -> #sdk::authoring::ComponentSpec<Self> {
+            #sdk::authoring::ComponentSpec::<Self>::self_realizing(())
+                .expect("component! generated a matching self realization")
+                #(#canonical_relation_spec_additions)*
+        })
     } else if has_config(&input.config) {
         quote!(pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> { #sdk::authoring::ComponentSpec::<Self>::new(config) })
     } else {
@@ -283,6 +463,11 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         #[derive(Clone)]
         #visibility struct #dependencies_name {
             #(#dependency_fields)*
+        }
+
+        #[derive(Clone)]
+        #visibility struct #canonical_relations_name {
+            #(#canonical_relation_fields)*
         }
 
         #visibility struct #component_name;
@@ -311,6 +496,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         }
 
         #self_realizing_impl
+        #canonical_self_realization
 
         #visibility mod #component_mod {
             use super::*;
@@ -517,6 +703,23 @@ fn relation_requirement_tokens(sdk: &TokenStream, relation: &RelationDefinition)
         ),
         Some(RequirementLiteral::Versioned(version)) => quote!(
             <#target as #sdk::authoring::RelationTarget>::relation_requirement_versioned(
+                #sdk::core::ContractVersionRequirement::parse(#version)
+                    .expect("component! generated a static relation version requirement"),
+            )
+        ),
+    }
+}
+
+fn component_relation_compatibility_tokens(
+    sdk: &TokenStream,
+    relation: &RelationDefinition,
+) -> TokenStream {
+    match &relation.compatibility {
+        None | Some(RequirementLiteral::Provisional) => {
+            quote!(#sdk::authoring::ComponentRelationCompatibility::Provisional)
+        }
+        Some(RequirementLiteral::Versioned(version)) => quote!(
+            #sdk::authoring::ComponentRelationCompatibility::Versioned(
                 #sdk::core::ContractVersionRequirement::parse(#version)
                     .expect("component! generated a static relation version requirement"),
             )

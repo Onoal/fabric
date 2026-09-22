@@ -447,7 +447,8 @@ fn config_codegen_is_shared_and_keeps_no_config_out_of_normal_apis() {
 }
 
 #[test]
-fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_and_component_uses_teardown() {
+fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_and_component_uses_participation_runtime()
+ {
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
     let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
     let resource =
@@ -485,13 +486,16 @@ fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_and_component_us
         );
     }
     assert!(
-        !component.contains("RuntimeState") && !component.contains("RuntimeContext"),
-        "component teardown must not inherit the Resource/System runtime lifecycle vocabulary"
+        component.contains("RuntimeState")
+            && !component.contains("RuntimeContext")
+            && parse.contains("component runtime supports only one `state { ... }` section")
+            && parse.contains("component runtime supports only one `prepare { ... }` hook"),
+        "Component state and preparation belong to a participation realization, not the Resource/System lifecycle vocabulary"
     );
     assert!(
         component.contains("new_with_teardown")
-            && parse.contains("component! supports only one `teardown { ... }` section"),
-        "component! should expose participation-scoped teardown without lifecycle DSL"
+            && parse.contains("component runtime supports only one `teardown { ... }` hook"),
+        "component! should expose participation-scoped teardown inside canonical runtime authoring"
     );
 }
 

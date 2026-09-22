@@ -1,0 +1,5 @@
+error: missing runtime implementation for API method `ping`
+ --> tests/ui/component_runtime_missing.rs:6:18
+  |
+6 |         api { fn ping(&self) -> usize; }
+  |                  ^^^^

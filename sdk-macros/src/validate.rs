@@ -241,6 +241,46 @@ pub fn validate_component(input: &ComponentInput) -> Result<()> {
             &mut errors,
         );
     }
+    if let Some(runtime) = &input.runtime {
+        if runtime.methods.is_empty() && runtime.prepare.is_none() {
+            push_error(
+                &mut errors,
+                Error::new(
+                    input.name.span(),
+                    "component runtime must implement an API method or declare `prepare { ... }`",
+                ),
+            );
+        }
+        for method in &runtime.methods {
+            if method.signature.asyncness.is_some() {
+                push_error(
+                    &mut errors,
+                    Error::new(
+                        method.signature.ident.span(),
+                        "async component runtime methods are not supported yet",
+                    ),
+                );
+            }
+            validate_supported_signature(
+                &method.signature,
+                "component runtime methods",
+                "generic component runtime methods are not supported",
+                &mut errors,
+            );
+        }
+        let required = input.api.as_ref().map(|api| &api.methods);
+        if let Some(required) = required {
+            validate_runtime_method_integrity(Some(required), &runtime.methods, &mut errors);
+        } else if !runtime.methods.is_empty() {
+            push_error(
+                &mut errors,
+                Error::new(
+                    input.name.span(),
+                    "component runtime methods require a canonical `api { ... }` declaration",
+                ),
+            );
+        }
+    }
     let dependencies_required =
         !input.legacy_requires.is_empty() || !input.legacy_systems.is_empty();
 

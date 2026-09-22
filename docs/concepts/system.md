@@ -71,7 +71,7 @@ fabric::system! {
             id: "example.operations.api";
             fn marker(&self) -> u64;
         }}
-        runtime { fn marker(&self) -> u64 { self.config.seed } }
+        runtime { fn marker(&self) -> u64 { self.config().seed } }
     }
 }
 
@@ -99,8 +99,10 @@ no custom sections keeps the stateless successful defaults.
 
 For normal `system!` authoring, `version: "...";` is the semantic version
 word. Omit it for provisional semantics; an omitted primary contract version
-inherits the enclosing System version, and an empty `config {}` may be
-omitted. `schema:` remains available as the legacy explicit form for advanced
+inherits the enclosing System version. No Config declaration means
+`System::select()` with no generated empty Config value. Inline `config { ...
+}` generates a public typed Config; `config: MyConfig;` uses a creator-owned
+Rust type directly. `schema:` remains available as the legacy explicit form for advanced
 compatibility-oriented authoring rather than normal package code.
 
 An Adapter defaults to exact compatibility with the System definition named in

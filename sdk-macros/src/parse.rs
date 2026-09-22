@@ -5,10 +5,10 @@ use syn::{
 
 use crate::ast::{
     AdapterInput, AdapterTargetKind, ComponentInput, ComponentOperationContext,
-    ComponentOperationDefinition, ConfigField, ContractDefinition, ContractMethod,
-    RealizationDefinition, RequirementDefinition, RequirementLiteral, ResourceInput,
-    RuntimeLifecycleDefinition, RuntimeMethod, RuntimeStateDefinition, SystemDependencyDefinition,
-    SystemInput, VersionLiteral,
+    ComponentOperationDefinition, ConfigDefinition, ConfigField, ContractDefinition,
+    ContractMethod, RealizationDefinition, RequirementDefinition, RequirementLiteral,
+    ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod, RuntimeStateDefinition,
+    SystemDependencyDefinition, SystemInput, VersionLiteral,
 };
 
 mod kw {
@@ -62,7 +62,7 @@ impl Parse for ResourceInput {
 
         let mut resource_id = None;
         let mut schema = None;
-        let mut config_fields = None;
+        let mut config = None;
         let mut requires = None;
         let mut contracts = None;
         let mut realization = None;
@@ -101,12 +101,12 @@ impl Parse for ResourceInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::config) {
                 content.parse::<kw::config>()?;
-                if config_fields.is_some() {
+                if config.is_some() {
                     return Err(
                         content.error("resource! supports only one `config { ... }` section")
                     );
                 }
-                config_fields = Some(parse_config_fields(&content)?);
+                config = Some(parse_config_definition(&content)?);
             } else if content.peek(kw::requires) {
                 content.parse::<kw::requires>()?;
                 if requires.is_some() {
@@ -182,7 +182,7 @@ impl Parse for ResourceInput {
                 )
             })?,
             schema,
-            config_fields: config_fields.unwrap_or_default(),
+            config: config.unwrap_or(ConfigDefinition::None),
             requires: requires.unwrap_or_default(),
             contracts,
             realization,
@@ -207,7 +207,7 @@ impl Parse for SystemInput {
 
         let mut system_id = None;
         let mut schema = None;
-        let mut config_fields = None;
+        let mut config = None;
         let mut systems = None;
         let mut contracts = None;
         let mut realization = None;
@@ -246,10 +246,10 @@ impl Parse for SystemInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::config) {
                 content.parse::<kw::config>()?;
-                if config_fields.is_some() {
+                if config.is_some() {
                     return Err(content.error("system! supports only one `config { ... }` section"));
                 }
-                config_fields = Some(parse_config_fields(&content)?);
+                config = Some(parse_config_definition(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
                 if systems.is_some() {
@@ -321,7 +321,7 @@ impl Parse for SystemInput {
                 )
             })?,
             schema,
-            config_fields: config_fields.unwrap_or_default(),
+            config: config.unwrap_or(ConfigDefinition::None),
             systems: systems.unwrap_or_default(),
             contracts,
             realization,
@@ -359,7 +359,7 @@ impl Parse for AdapterInput {
 
         let mut schema = None;
         let mut realization = None;
-        let mut config_fields = None;
+        let mut config = None;
         let mut systems = None;
         let mut host_requirement = None;
         let mut runtime_methods = None;
@@ -409,12 +409,12 @@ impl Parse for AdapterInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::config) {
                 content.parse::<kw::config>()?;
-                if config_fields.is_some() {
+                if config.is_some() {
                     return Err(
                         content.error("adapter! supports only one `config { ... }` section")
                     );
                 }
-                config_fields = Some(parse_config_fields(&content)?);
+                config = Some(parse_config_definition(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
                 if systems.is_some() {
@@ -468,7 +468,7 @@ impl Parse for AdapterInput {
             realization_interface,
             schema,
             realization: realization.unwrap_or(VersionLiteral::Provisional),
-            config_fields: config_fields.unwrap_or_default(),
+            config: config.unwrap_or(ConfigDefinition::None),
             systems: systems.unwrap_or_default(),
             host_requirement,
             runtime_methods: runtime_methods.ok_or_else(|| {
@@ -601,6 +601,19 @@ fn parse_config_fields(input: ParseStream<'_>) -> Result<Vec<ConfigField>> {
         fields.push(ConfigField { name, ty });
     }
     Ok(fields)
+}
+
+fn parse_config_definition(input: ParseStream<'_>) -> Result<ConfigDefinition> {
+    if input.peek(Token![:]) {
+        input.parse::<Token![:]>()?;
+        let ty = input.parse::<Type>()?;
+        input.parse::<Token![;]>()?;
+        Ok(ConfigDefinition::Type(ty))
+    } else if input.peek(syn::token::Brace) {
+        parse_config_fields(input).map(ConfigDefinition::Inline)
+    } else {
+        Err(input.error("expected `config { ... }` or `config: RustConfigType;`"))
+    }
 }
 
 fn parse_contracts(

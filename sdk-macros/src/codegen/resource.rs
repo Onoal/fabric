@@ -4,7 +4,8 @@ use quote::{format_ident, quote};
 use crate::ast::{RealizationDefinition, RequirementDefinition, ResourceInput};
 
 use super::common::{
-    PrimaryContractTokens, SubjectKind, fabric_path, method_call_args, primary_contract_tokens,
+    PrimaryContractTokens, SubjectKind, config_type_tokens, fabric_path, has_config,
+    inline_config_definition_tokens, method_call_args, primary_contract_tokens,
     requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
@@ -13,6 +14,33 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let visibility = &input.visibility;
     let resource_name = &input.name;
     let config_name = format_ident!("{}Config", resource_name);
+    let config_ty = config_type_tokens(&input.config, &config_name);
+    let config_definition =
+        inline_config_definition_tokens(&input.config, visibility, &config_name);
+    let select_method = if has_config(&input.config) {
+        quote! {
+            pub fn select(
+                name: impl #sdk::authoring::IntoResourceName,
+                config: #config_ty,
+            ) -> ::std::result::Result<
+                #sdk::authoring::ResourceSelection<Self>,
+                #sdk::resource::ResourceError,
+            > {
+                <Self as #sdk::authoring::ResourceDefinition>::select(name, config)
+            }
+        }
+    } else {
+        quote! {
+            pub fn select(
+                name: impl #sdk::authoring::IntoResourceName,
+            ) -> ::std::result::Result<
+                #sdk::authoring::ResourceSelection<Self>,
+                #sdk::resource::ResourceError,
+            > {
+                <Self as #sdk::authoring::ResourceDefinition>::select(name, ())
+            }
+        }
+    };
     let resource_mod = format_ident!("{}", to_snake_case(resource_name));
     let raw_impl_mod = format_ident!("__fabric_raw_{}", to_snake_case(resource_name));
     let contract = input
@@ -32,12 +60,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let resource_id = &input.resource_id;
     let schema_expr =
         version_literal_expr(&sdk, &resource_mod, &input.schema, SubjectKind::Resource);
-    let config_fields = input.config_fields.iter().map(|field| {
-        let name = &field.name;
-        let ty = &field.ty;
-        quote!(pub #name: #ty,)
-    });
-
     let dependency_fields = input.requires.iter().map(|requirement| {
         let field = &requirement.field;
         let contract_ty = requirement_contract_type(&sdk, requirement);
@@ -177,23 +199,12 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         .unwrap_or_else(|| quote!(#sdk::core::Health::Healthy));
 
     quote! {
-        #[derive(Clone)]
-        #visibility struct #config_name {
-            #(#config_fields)*
-        }
+        #config_definition
 
         #visibility struct #resource_name;
 
         impl #resource_name {
-            pub fn select(
-                name: impl #sdk::authoring::IntoResourceName,
-                config: #config_name,
-            ) -> ::std::result::Result<
-                #sdk::authoring::ResourceSelection<Self>,
-                #sdk::resource::ResourceError,
-            > {
-                <Self as #sdk::authoring::ResourceDefinition>::select(name, config)
-            }
+            #select_method
         }
 
         impl #sdk::authoring::PrimaryResourceContract for #resource_name {
@@ -205,7 +216,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         }
 
         impl #sdk::authoring::ResourceDefinition for #resource_name {
-            type Config = #config_name;
+            type Config = #config_ty;
 
             fn resource_id() -> #sdk::resource::ResourceId {
                 #resource_mod::raw::resource_id()
@@ -275,7 +286,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             #[derive(Clone)]
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
-                config: #config_name,
+                config: #config_ty,
                 runtime_context: #sdk::authoring::RuntimeContext,
                 #runtime_state_field
                 #(#dependency_fields)*
@@ -283,7 +294,10 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             }
 
             impl Runtime {
-                pub fn new(module_id: #sdk::core::ModuleId, config: #config_name) -> Self {
+                pub fn new(
+                    module_id: #sdk::core::ModuleId,
+                    config: #config_ty,
+                ) -> Self {
                     #runtime_state_initializer
                     Self {
                         module_id,
@@ -293,6 +307,10 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                         #(#dependency_initializers)*
                         #realization_initializer
                     }
+                }
+
+                pub fn config(&self) -> &#config_ty {
+                    &self.config
                 }
 
                 #(#runtime_inherent_methods)*

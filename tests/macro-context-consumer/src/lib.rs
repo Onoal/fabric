@@ -8,10 +8,7 @@ use fabric_test_macro_context::{
 };
 
 #[cfg(test)]
-use fabric_test_macro_context::{
-    RootStatefulStore, RootStatefulStoreConfig, RootVersionedStoreConfig,
-    RootVersionedSystemConfig, reset_root_adapter_stop, root_adapter_stopped,
-};
+use fabric_test_macro_context::{RootStatefulStore, reset_root_adapter_stop, root_adapter_stopped};
 
 adapter! {
     ExternalRootStore
@@ -47,13 +44,13 @@ adapter! {
 fn external_adapters_consume_crate_root_adaptable_definitions() {
     reset_root_adapter_stop();
 
-    let store = RootVersionedStore::select("primary", RootVersionedStoreConfig {})
+    let store = RootVersionedStore::select("primary")
         .expect("store selection")
-        .using(RootStatefulStore::new(RootStatefulStoreConfig {}))
+        .using(RootStatefulStore::new())
         .expect("stateful root adapter selection");
-    let system = RootVersionedSystem::select(RootVersionedSystemConfig {})
+    let system = RootVersionedSystem::select()
         .expect("system selection")
-        .using(ExternalRootSystem::new(ExternalRootSystemConfig {}))
+        .using(ExternalRootSystem::new())
         .expect("external system adapter selection");
 
     let built = Fabric::new("fabric.test.macro-context.external")
@@ -74,5 +71,5 @@ fn external_adapters_consume_crate_root_adaptable_definitions() {
 
     assert!(root_adapter_stopped());
 
-    let _ = ExternalRootStore::new(ExternalRootStoreConfig {});
+    let _ = ExternalRootStore::new();
 }

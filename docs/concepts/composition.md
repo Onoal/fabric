@@ -161,7 +161,7 @@ fabric::resource! {
             }
         }
         runtime {
-            fn label(&self) -> String { self.config.label.clone() }
+            fn label(&self) -> String { self.config().label.clone() }
         }
     }
 }

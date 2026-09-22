@@ -4,13 +4,32 @@ use syn::Path;
 
 use crate::ast::{AdapterInput, AdapterTargetKind, SystemDependencyDefinition};
 
-use super::common::{fabric_path, method_call_args, runtime_method_tokens, to_snake_case};
+use super::common::{
+    config_type_tokens, fabric_path, has_config, inline_config_definition_tokens, method_call_args,
+    runtime_method_tokens, to_snake_case,
+};
 
 pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
     let sdk = fabric_path();
     let visibility = &input.visibility;
     let adapter_name = &input.name;
     let config_name = format_ident!("{}Config", adapter_name);
+    let config_ty = config_type_tokens(&input.config, &config_name);
+    let config_definition =
+        inline_config_definition_tokens(&input.config, visibility, &config_name);
+    let constructor = if has_config(&input.config) {
+        quote! {
+            pub fn new(config: #config_ty) -> Self {
+                Self { config }
+            }
+        }
+    } else {
+        quote! {
+            pub fn new() -> Self {
+                Self { config: () }
+            }
+        }
+    };
     let adapter_mod = format_ident!("{}", to_snake_case(adapter_name));
     let raw_impl_mod = format_ident!("__fabric_adapter_raw_{}", to_snake_case(adapter_name));
     let target = &input.target;
@@ -28,11 +47,6 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
     let realization_contract_expr = quote!(<#raw_impl_mod::Runtime as #interface>::realization_contract(
         ::std::sync::Arc::new(self.clone())
     ));
-    let config_fields = input.config_fields.iter().map(|field| {
-        let name = &field.name;
-        let ty = &field.ty;
-        quote!(pub #name: #ty,)
-    });
     let dependency_fields = input.systems.iter().map(|dependency| {
         let field = &dependency.field;
         let contract_ty = dependency_contract_type(&sdk, dependency);
@@ -127,19 +141,18 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
         .unwrap_or_else(|| quote!(#sdk::host::HostRequirement::new()));
 
     quote! {
-        #[derive(Clone)]
-        #visibility struct #config_name {
-            #(#config_fields)*
-        }
+        #config_definition
 
         #[derive(Clone)]
         #visibility struct #adapter_name {
-            config: #config_name,
+            config: #config_ty,
         }
 
         impl #adapter_name {
-            pub fn new(config: #config_name) -> Self {
-                Self { config }
+            #constructor
+
+            pub fn config(&self) -> &#config_ty {
+                &self.config
             }
         }
 
@@ -184,14 +197,17 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
             #[derive(Clone)]
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
-                config: #config_name,
+                config: #config_ty,
                 runtime_context: #sdk::authoring::RuntimeContext,
                 #runtime_state_field
                 #(#dependency_fields)*
             }
 
             impl Runtime {
-                pub fn new(module_id: #sdk::core::ModuleId, config: #config_name) -> Self {
+                pub fn new(
+                    module_id: #sdk::core::ModuleId,
+                    config: #config_ty,
+                ) -> Self {
                     #runtime_state_initializer
                     Self {
                         module_id,
@@ -200,6 +216,10 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
                         #runtime_state_value
                         #(#dependency_initializers)*
                     }
+                }
+
+                pub fn config(&self) -> &#config_ty {
+                    &self.config
                 }
 
                 #(#runtime_inherent_methods)*

@@ -4,7 +4,8 @@ use quote::{format_ident, quote};
 use syn::{FnArg, Pat, PatIdent};
 
 use crate::ast::{
-    ContractDefinition, ContractMethod, RequirementLiteral, RuntimeMethod, VersionLiteral,
+    ConfigDefinition, ContractDefinition, ContractMethod, RequirementLiteral, RuntimeMethod,
+    VersionLiteral,
 };
 
 pub struct PrimaryContractTokens {
@@ -14,6 +15,39 @@ pub struct PrimaryContractTokens {
     pub service_methods: Vec<TokenStream>,
     pub contract_methods: Vec<TokenStream>,
     pub contract_key_expr: TokenStream,
+}
+
+pub fn config_type_tokens(config: &ConfigDefinition, generated_name: &Ident) -> TokenStream {
+    match config {
+        ConfigDefinition::None => quote!(()),
+        ConfigDefinition::Inline(_) => quote!(#generated_name),
+        ConfigDefinition::Type(ty) => quote!(#ty),
+    }
+}
+
+pub fn inline_config_definition_tokens(
+    config: &ConfigDefinition,
+    visibility: &syn::Visibility,
+    generated_name: &Ident,
+) -> TokenStream {
+    let ConfigDefinition::Inline(fields) = config else {
+        return TokenStream::new();
+    };
+    let fields = fields.iter().map(|field| {
+        let name = &field.name;
+        let ty = &field.ty;
+        quote!(pub #name: #ty,)
+    });
+    quote! {
+        #[derive(Clone)]
+        #visibility struct #generated_name {
+            #(#fields)*
+        }
+    }
+}
+
+pub fn has_config(config: &ConfigDefinition) -> bool {
+    !matches!(config, ConfigDefinition::None)
 }
 
 pub fn primary_contract_tokens(

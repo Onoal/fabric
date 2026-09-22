@@ -25,6 +25,9 @@ declared system.
 **[Adapter](adapter.md)** realizes an adaptable Component, Resource, or System
 through an explicit public realization interface.
 
+**[Config](config.md)** is the typed creator-to-consumer declaration input for
+Resource, System, and Adapter occurrences.
+
 **[Augmentation](augmentation.md)** is independently owned semantic meaning
 attached to a selected Resource, System, or Component without changing the
 base definition.

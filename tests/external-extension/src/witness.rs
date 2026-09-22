@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fabric::authoring::CompositionExt;
@@ -69,6 +71,260 @@ fabric::resource! {
                 self.adapter.current()
             }
         }
+    }
+}
+
+fn config_events() -> &'static Mutex<Vec<String>> {
+    static EVENTS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+    EVENTS.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+#[derive(Clone, Debug)]
+enum Backend {
+    Memory,
+    Sqlite { path: PathBuf },
+    Redis { endpoint: String, database: u32 },
+}
+
+#[derive(Clone, Debug)]
+struct BackendDefaults {
+    label: String,
+}
+
+/// A creator-owned Config type can expose constructors and nested Rust choices
+/// without a Fabric wrapper or a second configuration language.
+#[derive(Clone)]
+struct LocalKeyValueConfig {
+    backend: Backend,
+    defaults: BackendDefaults,
+}
+
+impl LocalKeyValueConfig {
+    fn redis(endpoint: impl Into<String>, database: u32) -> Self {
+        Self {
+            backend: Backend::Redis {
+                endpoint: endpoint.into(),
+                database,
+            },
+            defaults: BackendDefaults {
+                label: "local".to_owned(),
+            },
+        }
+    }
+
+    fn backend_label(&self) -> String {
+        match &self.backend {
+            Backend::Memory => "memory".to_owned(),
+            Backend::Sqlite { path } => format!("sqlite:{}", path.display()),
+            Backend::Redis { endpoint, database } => format!("redis:{endpoint}/{database}"),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ResourceCreatorConfig {
+    namespace: String,
+}
+
+impl ResourceCreatorConfig {
+    fn new(namespace: impl Into<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SystemCreatorConfig {
+    label: String,
+    defaults: BackendDefaults,
+}
+
+impl SystemCreatorConfig {
+    fn new(label: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            defaults: BackendDefaults {
+                label: "system".to_owned(),
+            },
+        }
+    }
+}
+
+fabric::resource! {
+    ConfiguredKeyValue {
+        id: "fabric.test.external.configured-key-value";
+        config: ResourceCreatorConfig;
+
+        contracts {
+            primary Api {
+                id: "fabric.test.external.configured-key-value.api";
+                fn namespace(&self) -> String;
+            }
+        }
+
+        adapter Adapter {
+            id: "fabric.test.external.configured-key-value.adapter";
+            compatibility: provisional;
+            fn namespace(&self) -> String;
+        }
+
+        runtime {
+            fn namespace(&self) -> String {
+                self.config().namespace.clone()
+            }
+        }
+
+        lifecycle {
+            initialize {
+                config_events().lock().expect("events").push(format!(
+                    "resource.initialize:{}",
+                    self.config().namespace,
+                ));
+                Ok(())
+            }
+
+            start {
+                config_events().lock().expect("events").push(format!(
+                    "resource.start:{}",
+                    self.config().namespace,
+                ));
+                Ok(())
+            }
+
+            stop {
+                config_events().lock().expect("events").push(format!(
+                    "resource.stop:{}",
+                    self.config().namespace,
+                ));
+                Ok(())
+            }
+
+            health: Health::Healthy;
+        }
+    }
+}
+
+fabric::adapter! {
+    LocalKeyValue
+        for resource ConfiguredKeyValue
+        implements ConfiguredKeyValueRealization
+    {
+        config: LocalKeyValueConfig;
+
+        runtime {
+            fn namespace(&self) -> String {
+                format!(
+                    "{}:{}",
+                    self.config().defaults.label,
+                    self.config().backend_label(),
+                )
+            }
+        }
+
+        lifecycle {
+            initialize {
+                config_events().lock().expect("events").push(format!(
+                    "adapter.initialize:{}",
+                    self.config().backend_label(),
+                ));
+                Ok(())
+            }
+
+            health: Health::Healthy;
+        }
+    }
+}
+
+fabric::system! {
+    ConfiguredSystem {
+        id: "fabric.test.external.configured-system";
+        config: SystemCreatorConfig;
+
+        contracts {
+            primary Api {
+                id: "fabric.test.external.configured-system.api";
+                fn label(&self) -> String;
+            }
+        }
+
+        adapter Adapter {
+            id: "fabric.test.external.configured-system.adapter";
+            compatibility: provisional;
+            fn label(&self) -> String;
+        }
+
+        runtime {
+            fn label(&self) -> String {
+                self.config().label.clone()
+            }
+        }
+
+        lifecycle {
+            initialize {
+                config_events().lock().expect("events").push(format!(
+                    "system.initialize:{}:{}",
+                    self.config().defaults.label,
+                    self.config().label,
+                ));
+                Ok(())
+            }
+        }
+    }
+}
+
+fabric::adapter! {
+    ConfiguredSystemAdapter
+        for system ConfiguredSystem
+        implements ConfiguredSystemRealization
+    {
+        config {
+            endpoint: String;
+        }
+
+        runtime {
+            fn label(&self) -> String {
+                self.config().endpoint.clone()
+            }
+        }
+
+        lifecycle {
+            initialize {
+                config_events().lock().expect("events").push(format!(
+                    "system-adapter.initialize:{}",
+                    self.config().endpoint,
+                ));
+                Ok(())
+            }
+        }
+    }
+}
+
+fabric::system! {
+    UnconfiguredSystem {
+        id: "fabric.test.external.unconfigured-system";
+
+        contracts {
+            primary Api {
+                id: "fabric.test.external.unconfigured-system.api";
+            }
+        }
+
+        adapter Adapter {
+            id: "fabric.test.external.unconfigured-system.adapter";
+            compatibility: provisional;
+        }
+
+        runtime {}
+    }
+}
+
+fabric::adapter! {
+    UnconfiguredSystemAdapter
+        for system UnconfiguredSystem
+        implements UnconfiguredSystemRealization
+    {
+        runtime {}
     }
 }
 
@@ -288,20 +544,16 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
 
 #[test]
 fn external_clean_normal_authoring_derives_schema_support_and_provisional_defaults() {
-    let key_value = CleanKeyValueStore::select("primary", CleanKeyValueStoreConfig {})
+    let key_value = CleanKeyValueStore::select("primary")
         .expect("selection")
-        .using(CleanMemoryStore::new(CleanMemoryStoreConfig {}))
+        .using(CleanMemoryStore::new())
         .expect("adapter support derives from target schema");
     let implicit =
-        ImplicitProvisionalResource::select("implicit", ImplicitProvisionalResourceConfig {})
-            .expect("implicit provisional selection");
-    let explicit_support =
-        CleanKeyValueStore::select("explicit-support", CleanKeyValueStoreConfig {})
-            .expect("selection")
-            .using(ExplicitSupportMemoryStore::new(
-                ExplicitSupportMemoryStoreConfig {},
-            ))
-            .expect("explicit support");
+        ImplicitProvisionalResource::select("implicit").expect("implicit provisional selection");
+    let explicit_support = CleanKeyValueStore::select("explicit-support")
+        .expect("selection")
+        .using(ExplicitSupportMemoryStore::new())
+        .expect("explicit support");
     let built = Fabric::new("fabric.test.external.clean-normal-authoring")
         .expect("fabric")
         .resource(key_value)
@@ -319,6 +571,90 @@ fn external_clean_normal_authoring_derives_schema_support_and_provisional_defaul
             "fabric.test.external.clean-normal-authoring.instance",
             &test_host(),
         )
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop().expect("stop");
+}
+
+#[test]
+fn external_config_authoring_keeps_semantic_and_realization_config_separate() {
+    config_events().lock().expect("events").clear();
+    let _memory = Backend::Memory;
+    let _sqlite = Backend::Sqlite {
+        path: PathBuf::from("/tmp/key-value.sqlite"),
+    };
+
+    let resource = ConfiguredKeyValue::select("users", ResourceCreatorConfig::new("users"))
+        .expect("configured resource")
+        .using(LocalKeyValue::new(LocalKeyValueConfig::redis(
+            "redis.internal",
+            4,
+        )))
+        .expect("configured adapter");
+    let system = ConfiguredSystem::select(SystemCreatorConfig::new("telemetry"))
+        .expect("configured system")
+        .using(ConfiguredSystemAdapter::new(
+            ConfiguredSystemAdapterConfig {
+                endpoint: "https://metrics.internal".to_owned(),
+            },
+        ))
+        .expect("configured system adapter");
+    let unconfigured_system = UnconfiguredSystem::select()
+        .expect("unconfigured system")
+        .using(UnconfiguredSystemAdapter::new())
+        .expect("unconfigured system adapter");
+
+    let built = Fabric::new("fabric.test.external.universal-config")
+        .expect("fabric")
+        .resource(resource)
+        .system(system)
+        .system(unconfigured_system)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.external.universal-config.instance",
+            &test_host(),
+        )
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop().expect("stop");
+
+    let events = config_events().lock().expect("events");
+    for expected in [
+        "resource.initialize:users",
+        "resource.start:users",
+        "resource.stop:users",
+        "adapter.initialize:redis:redis.internal/4",
+        "system.initialize:system:telemetry",
+        "system-adapter.initialize:https://metrics.internal",
+    ] {
+        assert!(
+            events.iter().any(|event| event == expected),
+            "missing {expected}"
+        );
+    }
+}
+
+#[test]
+fn no_config_normal_authoring_needs_no_config_value() {
+    let resource = CleanKeyValueStore::select("memory")
+        .expect("unconfigured resource")
+        .using(CleanMemoryStore::new())
+        .expect("unconfigured adapter");
+    let system = UnconfiguredSystem::select()
+        .expect("unconfigured system")
+        .using(UnconfiguredSystemAdapter::new())
+        .expect("unconfigured system adapter");
+
+    let built = Fabric::new("fabric.test.external.no-config")
+        .expect("fabric")
+        .resource(resource)
+        .system(system)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on("fabric.test.external.no-config.instance", &test_host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");

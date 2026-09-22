@@ -61,7 +61,7 @@ fabric::resource! {
             id: "example.note-store.api";
             fn label(&self) -> String;
         }}
-        runtime { fn label(&self) -> String { self.config.label.clone() } }
+        runtime { fn label(&self) -> String { self.config().label.clone() } }
     }
 }
 
@@ -117,7 +117,9 @@ initialize/start/stop defaults and Healthy health.
 Normal authors declare a semantic `version: "...";` only when the definition
 is deliberately versioned. Omitting it means provisional semantics; the
 primary contract inherits that enclosing version unless it declares its own.
-An empty `config {}` is optional. `schema:` remains a legacy explicit spelling
+No Config declaration means `NoteStore::select("primary")` with no generated
+empty Config value. Inline `config { ... }` generates a public typed Config;
+`config: MyConfig;` uses a creator-owned Rust type directly. `schema:` remains a legacy explicit spelling
 for compatibility-focused code, but is not part of the normal path.
 
 The internal `ResourceSchemaDescriptor` still carries the identity/version that

@@ -4,6 +4,11 @@ use fabric_resource::{ResourceError, ResourceId, ResourceName, ResourceSchemaDes
 use super::ResourceSelection;
 
 pub trait ResourceDefinition: Sized + Send + Sync + 'static {
+    /// Declarative input for one Resource selection.
+    ///
+    /// A Composition is reusable and each materialization receives its own
+    /// Config value, so Config remains `Clone` even though normal no-Config
+    /// macro authoring does not expose an empty Config object.
     type Config: Clone + Send + Sync + 'static;
 
     fn resource_id() -> ResourceId;

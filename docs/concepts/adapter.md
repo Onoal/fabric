@@ -38,8 +38,9 @@ realize its semantics.
 the interface. Target support is inferred exactly from `Store` by default. Use
 `supports: "^0.4";` only for deliberate broader target support. The former
 `schema: ...;` and `realization: ...;` spellings remain valid as explicit
-legacy/advanced compatibility forms. Omit `config {}` when the Adapter has no
-configuration.
+legacy/advanced compatibility forms. A no-Config Adapter is constructed as
+`Adapter::new()`; inline `config { ... }` generates a public Config type, while
+`config: MyConfig;` uses a creator-owned Rust type directly.
 
 Adapter Config configures the implementation—for example, a directory or
 endpoint—not Resource/System semantic Config, Component Config, or a Host

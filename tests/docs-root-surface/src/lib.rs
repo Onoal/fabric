@@ -60,10 +60,10 @@ mod root_wildcard {
 
     #[test]
     fn wildcard_root_supports_normal_authoring() {
-        let store = RootStore::select("primary", RootStoreConfig {}).expect("selection");
+        let store = RootStore::select("primary").expect("selection");
         let augmentation =
             ResourceAugmentation::<RootStore, Readback>::attach(&store, ()).expect("attachment");
-        let system = RootSystem::select(RootSystemConfig {}).expect("selection");
+        let system = RootSystem::select().expect("selection");
         let component = RootComponent::define(RootComponentConfig {});
 
         let built = Fabric::new("docs.root")

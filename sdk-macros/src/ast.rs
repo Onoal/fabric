@@ -5,7 +5,7 @@ pub struct ResourceInput {
     pub name: Ident,
     pub resource_id: LitStr,
     pub schema: VersionLiteral,
-    pub config_fields: Vec<ConfigField>,
+    pub config: ConfigDefinition,
     pub requires: Vec<RequirementDefinition>,
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
@@ -19,7 +19,7 @@ pub struct SystemInput {
     pub name: Ident,
     pub system_id: LitStr,
     pub schema: VersionLiteral,
-    pub config_fields: Vec<ConfigField>,
+    pub config: ConfigDefinition,
     pub systems: Vec<SystemDependencyDefinition>,
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
@@ -38,7 +38,7 @@ pub struct AdapterInput {
     /// is absent, adapter support is derived exactly from the target's schema.
     pub schema: Option<RequirementLiteral>,
     pub realization: VersionLiteral,
-    pub config_fields: Vec<ConfigField>,
+    pub config: ConfigDefinition,
     pub systems: Vec<SystemDependencyDefinition>,
     pub host_requirement: Option<Expr>,
     pub runtime_methods: Vec<RuntimeMethod>,
@@ -60,6 +60,17 @@ pub struct ComponentInput {
 pub struct ConfigField {
     pub name: Ident,
     pub ty: Type,
+}
+
+/// The creator-owned, typed configuration contract for a definition.
+///
+/// `None` is intentionally distinct from an inline declaration with zero
+/// fields: the former has no author-facing configuration API, while the latter
+/// remains accepted as an explicit legacy declaration.
+pub enum ConfigDefinition {
+    None,
+    Inline(Vec<ConfigField>),
+    Type(Type),
 }
 
 pub struct ContractDefinition {

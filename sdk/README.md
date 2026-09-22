@@ -99,7 +99,7 @@ fabric::adapter! {
         config { value: u64; }
         runtime {
             fn current_value(&self) -> ExampleValue {
-                ExampleValue::new(self.config.value)
+                ExampleValue::new(self.config().value)
             }
         }
     }

@@ -4,7 +4,8 @@ use quote::{format_ident, quote};
 use crate::ast::{RealizationDefinition, SystemDependencyDefinition, SystemInput};
 
 use super::common::{
-    PrimaryContractTokens, SubjectKind, fabric_path, method_call_args, primary_contract_tokens,
+    PrimaryContractTokens, SubjectKind, config_type_tokens, fabric_path, has_config,
+    inline_config_definition_tokens, method_call_args, primary_contract_tokens,
     requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
@@ -13,6 +14,30 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
     let visibility = &input.visibility;
     let system_name = &input.name;
     let config_name = format_ident!("{}Config", system_name);
+    let config_ty = config_type_tokens(&input.config, &config_name);
+    let config_definition =
+        inline_config_definition_tokens(&input.config, visibility, &config_name);
+    let select_method = if has_config(&input.config) {
+        quote! {
+            pub fn select(
+                config: #config_ty,
+            ) -> ::std::result::Result<
+                #sdk::authoring::SystemSelection<Self>,
+                #sdk::system::SystemCompatibilityError,
+            > {
+                <Self as #sdk::authoring::SystemDefinition>::select(config)
+            }
+        }
+    } else {
+        quote! {
+            pub fn select() -> ::std::result::Result<
+                #sdk::authoring::SystemSelection<Self>,
+                #sdk::system::SystemCompatibilityError,
+            > {
+                <Self as #sdk::authoring::SystemDefinition>::select(())
+            }
+        }
+    };
     let system_mod = format_ident!("{}", to_snake_case(system_name));
     let raw_impl_mod = format_ident!("__fabric_raw_{}", to_snake_case(system_name));
     let contract = input
@@ -31,12 +56,6 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
     } = contract_tokens;
     let system_id = &input.system_id;
     let schema_expr = version_literal_expr(&sdk, &system_mod, &input.schema, SubjectKind::System);
-    let config_fields = input.config_fields.iter().map(|field| {
-        let name = &field.name;
-        let ty = &field.ty;
-        quote!(pub #name: #ty,)
-    });
-
     let dependency_fields = input.systems.iter().map(|dependency| {
         let field = &dependency.field;
         let contract_ty = dependency_contract_type(&sdk, dependency);
@@ -176,22 +195,12 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         .unwrap_or_else(|| quote!(#sdk::core::Health::Healthy));
 
     quote! {
-        #[derive(Clone)]
-        #visibility struct #config_name {
-            #(#config_fields)*
-        }
+        #config_definition
 
         #visibility struct #system_name;
 
         impl #system_name {
-            pub fn select(
-                config: #config_name,
-            ) -> ::std::result::Result<
-                #sdk::authoring::SystemSelection<Self>,
-                #sdk::system::SystemCompatibilityError,
-            > {
-                <Self as #sdk::authoring::SystemDefinition>::select(config)
-            }
+            #select_method
         }
 
         impl #sdk::authoring::PrimarySystemContract for #system_name {
@@ -203,7 +212,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         }
 
         impl #sdk::authoring::SystemDefinition for #system_name {
-            type Config = #config_name;
+            type Config = #config_ty;
 
             fn system_id() -> #sdk::system::SystemId {
                 #system_mod::raw::system_id()
@@ -273,7 +282,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             #[derive(Clone)]
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
-                config: #config_name,
+                config: #config_ty,
                 runtime_context: #sdk::authoring::RuntimeContext,
                 #runtime_state_field
                 #(#dependency_fields)*
@@ -281,7 +290,10 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             }
 
             impl Runtime {
-                pub fn new(module_id: #sdk::core::ModuleId, config: #config_name) -> Self {
+                pub fn new(
+                    module_id: #sdk::core::ModuleId,
+                    config: #config_ty,
+                ) -> Self {
                     #runtime_state_initializer
                     Self {
                         module_id,
@@ -291,6 +303,10 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                         #(#dependency_initializers)*
                         #realization_initializer
                     }
+                }
+
+                pub fn config(&self) -> &#config_ty {
+                    &self.config
                 }
 
                 #(#runtime_inherent_methods)*

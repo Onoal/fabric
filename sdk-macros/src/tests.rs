@@ -86,9 +86,10 @@ fn macro_codegen_uses_resource_scoped_raw_namespaces_and_strong_module_ids() {
         "PrimaryResourceContract should point through the resource-scoped raw namespace"
     );
     assert!(
-        codegen
-            .contains("pub fn new(module_id: #sdk::core::ModuleId, config: #config_name) -> Self"),
-        "generated Runtime::new should require a strong ModuleId"
+        codegen.contains("pub fn new(")
+            && codegen.contains("module_id: #sdk::core::ModuleId")
+            && codegen.contains("config: #config_ty"),
+        "generated Runtime should retain a strong ModuleId and typed Config constructor"
     );
     assert!(
         codegen.contains("#visibility mod #resource_mod {")
@@ -264,7 +265,8 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
 }
 
 #[test]
-fn normal_authoring_defaults_version_support_and_empty_config_without_removing_explicit_forms() {
+fn normal_authoring_defaults_version_support_and_universal_config_without_removing_explicit_forms()
+{
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
     let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
     let adapter =
@@ -273,9 +275,14 @@ fn normal_authoring_defaults_version_support_and_empty_config_without_removing_e
     assert!(
         ast.contains("pub schema: Option<RequirementLiteral>")
             && parse.contains("schema.unwrap_or(VersionLiteral::Provisional)")
-            && parse.contains("config_fields: config_fields.unwrap_or_default()")
+            && ast.contains("pub enum ConfigDefinition")
+            && ast.contains("None,")
+            && ast.contains("Inline(Vec<ConfigField>)")
+            && ast.contains("Type(Type)")
+            && parse.contains("config: config.unwrap_or(ConfigDefinition::None)")
+            && parse.contains("expected `config { ... }` or `config: RustConfigType;`")
             && parse.contains("resolve_contract_versions"),
-        "resource and system normal authoring should derive provisional version, empty config, and contract version"
+        "resource and system normal authoring should derive provisional version, model no/inline/type Config explicitly, and inherit contract version"
     );
     assert!(
         parse.contains("supports: ...;")
@@ -289,6 +296,36 @@ fn normal_authoring_defaults_version_support_and_empty_config_without_removing_e
             && adapter.contains("exact target resource schema requirement")
             && adapter.contains("exact target system schema requirement"),
         "an adapter without an explicit support override must derive exact target compatibility"
+    );
+}
+
+#[test]
+fn config_codegen_is_shared_and_keeps_no_config_out_of_normal_apis() {
+    let common =
+        fs::read_to_string(crate_root().join("src/codegen/common.rs")).expect("read common");
+    for file in [
+        "src/codegen/resource.rs",
+        "src/codegen/system.rs",
+        "src/codegen/adapter.rs",
+    ] {
+        let codegen = fs::read_to_string(crate_root().join(file)).expect("read codegen");
+        assert!(
+            codegen.contains("config_type_tokens")
+                && codegen.contains("inline_config_definition_tokens")
+                && codegen.contains("has_config"),
+            "{file} must lower Config through the shared authoring model"
+        );
+        assert!(
+            codegen.contains("config: #config_ty")
+                && codegen.contains("pub fn config(&self) -> &#config_ty")
+                && codegen.contains("&self.config"),
+            "{file} must give authored runtime code typed read-only Config access"
+        );
+    }
+    assert!(
+        common.contains("ConfigDefinition::None => quote!(())")
+            && common.contains("ConfigDefinition::Type(ty) => quote!(#ty)"),
+        "no-config and creator-owned Rust Config types must not require generated wrappers"
     );
 }
 

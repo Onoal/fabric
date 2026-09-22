@@ -73,6 +73,43 @@ component! {
 }
 
 component! {
+    AdapterRealizedDeclaration {
+        id: "fabric.test.component-declaration.adapter-realized";
+        config { prefix: String; }
+        api { fn greet(&self, name: String) -> String; }
+    }
+}
+
+adapter! {
+    AdapterRealizedDeclarationMemory for AdapterRealizedDeclaration {
+        config { suffix: String; }
+        runtime {
+            state { RuntimeState = RuntimeState::default(); }
+            fn greet(&self, name: String) -> String {
+                self.state().get().0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                format!("{}:{name}:{}", self.component_config().prefix, self.config().suffix)
+            }
+            prepare { Ok(()) }
+            teardown { Ok(()) }
+        }
+    }
+}
+
+component! {
+    DefaultOrAdapter {
+        id: "fabric.test.component-declaration.default-or-adapter";
+        api { fn source(&self) -> &'static str; }
+        runtime { fn source(&self) -> &'static str { "self" } }
+    }
+}
+
+adapter! {
+    DefaultOrAdapterExternal for DefaultOrAdapter {
+        runtime { fn source(&self) -> &'static str { "adapter" } }
+    }
+}
+
+component! {
     CanonicalLifecycleRuntime {
         id: "fabric.test.component-declaration.lifecycle-runtime";
         config: RuntimeLifecycleConfig;
@@ -422,4 +459,73 @@ fn canonical_component_runtime_state_is_participation_local_and_tears_down_once(
     );
     instance.stop().expect("host stop");
     assert_eq!(teardowns.load(std::sync::atomic::Ordering::SeqCst), 2);
+}
+
+#[test]
+fn canonical_component_adapter_realizes_a_declaration_through_participation() {
+    let selected = AdapterRealizedDeclaration::define(AdapterRealizedDeclarationConfig {
+        prefix: "component".to_owned(),
+    })
+    .using(AdapterRealizedDeclarationMemory::new(
+        AdapterRealizedDeclarationMemoryConfig {
+            suffix: "adapter".to_owned(),
+        },
+    ))
+    .expect("canonical Component adapter selection");
+    let built = Fabric::new("fabric.test.component-declaration.adapter-realized")
+        .expect("fabric")
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.adapter-realized.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    let components = instance.components().expect("component host");
+    components
+        .materialize::<AdapterRealizedDeclaration>()
+        .expect("adapter realization");
+    assert_eq!(
+        futures::executor::block_on(components.invoke_external(
+            &adapter_realized_declaration::operations::greet(),
+            "Ada".to_owned(),
+        ))
+        .expect("invoke"),
+        "component:Ada:adapter"
+    );
+    instance.stop().expect("stop");
+}
+
+#[test]
+fn explicit_component_adapter_replaces_the_default_self_realization() {
+    let selected = DefaultOrAdapter::define()
+        .using(DefaultOrAdapterExternal::new())
+        .expect("explicit Adapter replaces the default");
+    let built = Fabric::new("fabric.test.component-declaration.default-or-adapter")
+        .expect("fabric")
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.default-or-adapter.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    let components = instance.components().expect("component host");
+    components
+        .materialize::<DefaultOrAdapter>()
+        .expect("selected Adapter realization");
+    assert_eq!(
+        futures::executor::block_on(
+            components.invoke_external(&default_or_adapter::operations::source(), (),)
+        )
+        .expect("invoke"),
+        "adapter"
+    );
+    instance.stop().expect("stop");
 }

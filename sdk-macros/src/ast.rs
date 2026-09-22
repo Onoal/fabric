@@ -46,6 +46,10 @@ pub struct AdapterInput {
     pub host_requirement: Option<Expr>,
     pub runtime_methods: Vec<RuntimeMethod>,
     pub runtime_state: Option<RuntimeStateDefinition>,
+    /// Participation-owned hooks used only when the resolved target is a
+    /// Component. Resource/System provider lifecycle remains separate.
+    pub component_prepare: Option<Block>,
+    pub component_teardown: Option<Block>,
     pub lifecycle: RuntimeLifecycleDefinition,
 }
 

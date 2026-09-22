@@ -78,7 +78,8 @@ where
 impl<C, A> IntoFabricComponent for ComponentRealization<C, A>
 where
     C: AdaptableComponentDefinition,
-    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+    A: AdapterDefinition<Target = C>,
+    A::Compatibility: crate::authoring::ComponentAdapterCompatibility<C>,
 {
     fn into_fabric_component(
         self,

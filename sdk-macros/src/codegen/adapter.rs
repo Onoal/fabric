@@ -38,6 +38,7 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         }
     };
     let adapter_mod = format_ident!("{}", to_snake_case(adapter_name));
+    let adapter_relations_name = format_ident!("{}Relations", adapter_name);
     let raw_impl_mod = format_ident!("__fabric_adapter_raw_{}", to_snake_case(adapter_name));
     let target = &input.target;
     let target_key = quote!(<#target>::__fabric_canonical_adapter_contract_key());
@@ -87,6 +88,10 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                 .map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
         }
     });
+    let dependency_clones = input.relations.iter().map(|dependency| {
+        let field = &dependency.field;
+        quote!(#field: self.#field.clone(),)
+    });
     let runtime_inherent_methods = input.runtime_methods.iter().map(runtime_method_tokens);
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
@@ -102,6 +107,36 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         }
     });
     let runtime_state_value = input.runtime_state.as_ref().map(|_| quote!(state,));
+    let runtime_provider_state = runtime_state_value.clone();
+    let runtime_state_accessor = input.runtime_state.as_ref().map(|state| {
+        let ty = &state.ty;
+        quote!(pub fn state(&self) -> &#sdk::authoring::RuntimeState<#ty> { &self.state })
+    });
+    let adapter_relation_fields = input.relations.iter().map(|dependency| {
+        let field = &dependency.field;
+        let contract_ty = dependency_contract_type(&sdk, dependency);
+        quote!(pub #field: ::std::sync::Arc<#contract_ty>,)
+    });
+    let adapter_relation_values = input.relations.iter().map(|dependency| {
+        let field = &dependency.field;
+        quote!(#field: self.#field.value(),)
+    });
+    let component_prepare_hook = input
+        .component_prepare
+        .as_ref()
+        .map(|body| {
+            let statements = &body.stmts;
+            quote!(#(#statements)*)
+        })
+        .unwrap_or_else(|| quote!(Ok(())));
+    let component_teardown_hook = input
+        .component_teardown
+        .as_ref()
+        .map(|body| {
+            let statements = &body.stmts;
+            quote!(#(#statements)*)
+        })
+        .unwrap_or_else(|| quote!(Ok(())));
     let initialize_hook = input
         .lifecycle
         .initialize
@@ -190,10 +225,17 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
             use super::*;
 
             #[derive(Clone)]
+            pub struct #adapter_relations_name {
+                #(#adapter_relation_fields)*
+            }
+
+            #[derive(Clone)]
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
                 config: #config_ty,
                 runtime_context: #sdk::authoring::RuntimeContext,
+                component_config: ::std::option::Option<<#target as #sdk::authoring::ComponentAdapterTarget>::ComponentConfig>,
+                component_relations: ::std::option::Option<<#target as #sdk::authoring::ComponentAdapterTarget>::ComponentRelations>,
                 #runtime_state_field
                 #(#dependency_fields)*
             }
@@ -205,7 +247,9 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                         module_id,
                         config,
                         runtime_context: #sdk::authoring::RuntimeContext::default(),
-                        #runtime_state_value
+                        component_config: ::std::option::Option::None,
+                        component_relations: ::std::option::Option::None,
+                        #runtime_provider_state
                         #(#dependency_initializers)*
                     }
                 }
@@ -214,7 +258,65 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                     &self.config
                 }
 
+                pub fn relations(&self) -> #adapter_relations_name {
+                    #adapter_relations_name { #(#adapter_relation_values)* }
+                }
+
+                pub fn component_config(&self) -> &<#target as #sdk::authoring::ComponentAdapterTarget>::ComponentConfig {
+                    self.component_config.as_ref().expect("Component config exists only for a prepared Component participation")
+                }
+
+                pub fn component_relations(&self) -> &<#target as #sdk::authoring::ComponentAdapterTarget>::ComponentRelations {
+                    self.component_relations.as_ref().expect("Component relations exist only for a prepared Component participation")
+                }
+
+                #runtime_state_accessor
+
                 #(#runtime_inherent_methods)*
+
+                fn __fabric_component_prepare(&self) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    #component_prepare_hook
+                }
+
+                fn __fabric_component_teardown(&self) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    #component_teardown_hook
+                }
+            }
+
+            impl #sdk::authoring::CanonicalComponentAdapterRuntime<#target> for Runtime {
+                type ParticipationRuntime = Runtime;
+
+                fn provider_runtime(&self) -> ::std::sync::Arc<Self::ParticipationRuntime> {
+                    ::std::sync::Arc::new(self.clone())
+                }
+
+                fn prepare_component_runtime(
+                    &self,
+                    component_config: <#target as #sdk::authoring::ComponentAdapterTarget>::ComponentConfig,
+                    component_relations: <#target as #sdk::authoring::ComponentAdapterTarget>::ComponentRelations,
+                ) -> ::std::result::Result<Self::ParticipationRuntime, #sdk::component::ComponentError> {
+                    let config = &self.config;
+                    #runtime_state_initializer
+                    Ok(Self {
+                        module_id: self.module_id.clone(),
+                        config: self.config.clone(),
+                        runtime_context: self.runtime_context.clone(),
+                        component_config: ::std::option::Option::Some(component_config),
+                        component_relations: ::std::option::Option::Some(component_relations),
+                        #runtime_state_value
+                        #(#dependency_clones)*
+                    })
+                }
+
+                fn component_prepare(&self, runtime: &Self::ParticipationRuntime) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    let _ = self;
+                    runtime.__fabric_component_prepare()
+                }
+
+                fn component_teardown(&self, runtime: &Self::ParticipationRuntime) -> ::std::result::Result<(), #sdk::component::ComponentError> {
+                    let _ = self;
+                    runtime.__fabric_component_teardown()
+                }
             }
 
             impl #sdk::core::ModuleRuntime for Runtime {

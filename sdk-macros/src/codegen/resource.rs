@@ -498,6 +498,18 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             }
         }
 
+        impl #sdk::authoring::ComponentAdapterTarget for #resource_name {
+            type ComponentConfig = ();
+            type ComponentRelations = ();
+
+            fn component_adapter_context(
+                _config: &Self::ComponentConfig,
+                _scope: &#sdk::component::ComponentRuntimeScope,
+            ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
+                Ok(((), ()))
+            }
+        }
+
         impl #sdk::authoring::ComponentRelationTarget for #resource_name {
             fn add_component_relation<C>(
                 spec: #sdk::authoring::ComponentSpec<C>,

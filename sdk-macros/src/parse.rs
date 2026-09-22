@@ -324,8 +324,6 @@ impl Parse for SystemInput {
             "system",
         )?;
 
-        let name_for_errors = name.clone();
-
         Ok(Self {
             visibility,
             name,
@@ -377,7 +375,7 @@ impl Parse for AdapterInput {
         let mut config = None;
         let mut relations = None;
         let mut host_requirement = None;
-        let mut runtime_methods = None;
+        let mut runtime = None;
         let mut runtime_state = None;
         let mut lifecycle = None;
 
@@ -438,12 +436,12 @@ impl Parse for AdapterInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::runtime) {
                 content.parse::<kw::runtime>()?;
-                if runtime_methods.is_some() {
+                if runtime.is_some() {
                     return Err(
                         content.error("adapter! supports only one `runtime { ... }` section")
                     );
                 }
-                runtime_methods = Some(parse_runtime_methods(&content)?);
+                runtime = Some(parse_component_runtime(&content)?);
             } else if content.peek(kw::state) {
                 content.parse::<kw::state>()?;
                 if runtime_state.is_some() {
@@ -465,6 +463,19 @@ impl Parse for AdapterInput {
 
         let name_for_errors = name.clone();
 
+        let runtime = runtime.ok_or_else(|| {
+            Error::new(
+                name_for_errors.span(),
+                "adapter! requires a `runtime { ... }` section",
+            )
+        })?;
+        if runtime_state.is_some() && runtime.state.is_some() {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "adapter! cannot combine top-level `state { ... }` with `runtime { state { ... } }`",
+            ));
+        }
+
         Ok(Self {
             visibility,
             name,
@@ -473,13 +484,10 @@ impl Parse for AdapterInput {
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
             host_requirement,
-            runtime_methods: runtime_methods.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "adapter! requires a `runtime { ... }` section",
-                )
-            })?,
-            runtime_state,
+            runtime_methods: runtime.methods,
+            runtime_state: runtime.state.or(runtime_state),
+            component_prepare: runtime.prepare,
+            component_teardown: runtime.teardown,
             lifecycle: lifecycle.unwrap_or_default(),
         })
     }

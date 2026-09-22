@@ -140,7 +140,30 @@ that participation and is run after its authority has been revoked.
 
 `runtime` absent means declaration only. `runtime` present means this
 Component supplies a default self realization. External Component Adapter
-authoring remains the next convergence slice.
+authoring uses the same participation realization boundary:
+
+```rust
+adapter! {
+    RemoteNotesIndexer for NotesIndexer {
+        config { endpoint: Url; }
+        runtime {
+            fn index(&self, note: Note) -> IndexResult { /* ... */ }
+            prepare { Ok(()) }
+            teardown { Ok(()) }
+        }
+    }
+}
+```
+
+`NotesIndexer::define(...).using(RemoteNotesIndexer::new(...))?` selects the
+Adapter as the one base realization. If `NotesIndexer` also has a self
+`runtime`, that self realization is its default only: explicit Adapter
+selection replaces it rather than running both. `self.config()` is Adapter
+configuration; `self.component_config()` is the Component's semantic input.
+Likewise `self.relations()` is Adapter-owned realization requirements and
+`self.component_relations()` is the Component's semantic roles. Adapter
+provider lifecycle remains Core provider lifecycle; `prepare` and `teardown`
+above belong to one ComponentParticipation.
 
 A Component requires semantic Resources and Systems, not Adapters:
 

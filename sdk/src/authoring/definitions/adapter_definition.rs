@@ -11,6 +11,61 @@ use fabric_system::{
     SystemSchemaRequirement,
 };
 
+use crate::authoring::ComponentDefinition;
+use fabric_component::{ComponentError, ComponentRuntimeScope};
+
+/// Target-owned context needed only when a canonical Adapter realizes a
+/// Component participation. Resource and System targets provide an empty
+/// implementation so `adapter!` remains one type-driven language.
+#[doc(hidden)]
+pub trait ComponentAdapterTarget: Send + Sync + 'static {
+    type ComponentConfig: Clone + Send + Sync + 'static;
+    type ComponentRelations: Clone + Send + Sync + 'static;
+
+    fn component_adapter_context(
+        config: &Self::ComponentConfig,
+        scope: &ComponentRuntimeScope,
+    ) -> Result<(Self::ComponentConfig, Self::ComponentRelations), ComponentError>;
+}
+
+/// Factory implemented by generated canonical Adapter provider runtimes.
+/// Its Component path creates a fresh participation runtime rather than
+/// reusing the provider module's lifetime state.
+#[doc(hidden)]
+pub trait CanonicalComponentAdapterRuntime<T>: Send + Sync + 'static
+where
+    T: ComponentAdapterTarget,
+{
+    type ParticipationRuntime: Send + Sync + 'static;
+
+    fn provider_runtime(&self) -> std::sync::Arc<Self::ParticipationRuntime>;
+
+    fn prepare_component_runtime(
+        &self,
+        config: T::ComponentConfig,
+        relations: T::ComponentRelations,
+    ) -> Result<Self::ParticipationRuntime, ComponentError>;
+
+    fn component_prepare(&self, runtime: &Self::ParticipationRuntime)
+    -> Result<(), ComponentError>;
+
+    fn component_teardown(
+        &self,
+        runtime: &Self::ParticipationRuntime,
+    ) -> Result<(), ComponentError>;
+}
+
+/// Compatibility accepted by `ComponentSpec::using`. Canonical adapters are
+/// inferred from the Component target; handwritten advanced adapters retain
+/// their exact `ComponentId` compatibility.
+#[doc(hidden)]
+pub trait ComponentAdapterCompatibility<C>: Clone + Send + Sync + 'static
+where
+    C: ComponentDefinition,
+{
+    fn accepts_component(&self) -> Result<(), ComponentError>;
+}
+
 /// Internal bridge selection for an Adapter definition.
 ///
 /// `SemanticApi` means the Adapter provider itself exports the target's
@@ -184,6 +239,31 @@ where
             }
         };
         support.accepts_schema(schema)
+    }
+}
+
+impl<C> ComponentAdapterCompatibility<C> for fabric_component::ComponentId
+where
+    C: ComponentDefinition,
+{
+    fn accepts_component(&self) -> Result<(), ComponentError> {
+        if self == &C::component_id() {
+            Ok(())
+        } else {
+            Err(ComponentError::Unavailable)
+        }
+    }
+}
+
+impl<C> ComponentAdapterCompatibility<C> for CanonicalAdapterSupport<C>
+where
+    C: ComponentDefinition,
+{
+    fn accepts_component(&self) -> Result<(), ComponentError> {
+        match self.requirement {
+            CanonicalAdapterSupportRequirement::Inferred => Ok(()),
+            _ => Err(ComponentError::Unavailable),
+        }
     }
 }
 

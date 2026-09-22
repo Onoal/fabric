@@ -416,6 +416,31 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             }
         }
     });
+    let component_adapter_methods = input
+        .api
+        .as_ref()
+        .map(|api| api.methods.as_slice())
+        .unwrap_or(&[]);
+    let component_adapter_bridge = component_adapter_bridge_tokens(
+        &sdk,
+        component_name,
+        &component_mod,
+        component_adapter_methods,
+    );
+    let component_adapter_builder_method = quote!(
+        #[doc(hidden)]
+        pub fn __fabric_canonical_adapter_builder() -> #component_mod::ComponentAdapterBuilder {
+            #component_mod::ComponentAdapterBuilder::new()
+        }
+    );
+    let component_realization_contract_id = quote!(#sdk::core::ContractId::new(format!("{}.realization", #component_id)).expect("component! generated a static realization contract id"));
+    let adaptable_component_impl = input.api.is_some().then(|| quote!(
+        impl #sdk::authoring::AdaptableComponentDefinition for #component_name {
+            fn realization_requirement() -> #sdk::core::ContractRequirement<#sdk::authoring::ComponentRealizationContract<Self>> {
+                #sdk::core::ContractRequirement::provisional(#component_realization_contract_id)
+            }
+        }
+    ));
 
     let define_method = if legacy_self_realization {
         quote! {
@@ -495,6 +520,34 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
 
         }
 
+        impl #sdk::authoring::ComponentAdapterTarget for #component_name {
+            type ComponentConfig = #config_ty;
+            type ComponentRelations = #canonical_relations_name;
+
+            fn component_adapter_context(
+                config: &Self::ComponentConfig,
+                scope: &#sdk::component::ComponentRuntimeScope,
+            ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
+                Ok((config.clone(), #canonical_relations_name { #(#canonical_relation_initializers)* }))
+            }
+        }
+
+        #adaptable_component_impl
+
+        impl #component_name {
+            #[doc(hidden)]
+            pub fn __fabric_canonical_adapter_contract_key() -> #sdk::core::ContractKey<#sdk::authoring::ComponentRealizationContract<Self>> {
+                #sdk::core::ContractKey::provisional(#component_realization_contract_id)
+            }
+
+            #[doc(hidden)]
+            pub fn __fabric_canonical_adapter_bridge_mode() -> #sdk::authoring::AdapterBridgeMode {
+                #sdk::authoring::AdapterBridgeMode::ExplicitContract
+            }
+
+            #component_adapter_builder_method
+        }
+
         #self_realizing_impl
         #canonical_self_realization
 
@@ -516,6 +569,8 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 use super::*;
                 #(#requirement_accessors)*
             }
+
+            #component_adapter_bridge
         }
     }
 }
@@ -543,6 +598,120 @@ fn component_handler_tokens(
         type_handler_input(&mut closure, index, parse_quote!(#dependencies_name));
     }
     quote!(#closure)
+}
+
+fn component_adapter_bridge_tokens(
+    sdk: &TokenStream,
+    component: &syn::Ident,
+    component_mod: &syn::Ident,
+    methods: &[ContractMethod],
+) -> TokenStream {
+    let method_names = methods
+        .iter()
+        .map(|method| method.signature.ident.clone())
+        .collect::<Vec<_>>();
+    let function_names = method_names
+        .iter()
+        .map(|name| format_ident!("F{}", upper_camel(name)))
+        .collect::<Vec<_>>();
+    let missing_names = method_names
+        .iter()
+        .map(|name| format_ident!("ComponentAdapterMethodMissing{}", upper_camel(name)))
+        .collect::<Vec<_>>();
+    let builder_ty = |types: &[TokenStream]| {
+        if types.is_empty() {
+            quote!(ComponentAdapterBuilder)
+        } else {
+            quote!(ComponentAdapterBuilder<#(#types),*>)
+        }
+    };
+    let builder_type = builder_ty(
+        &function_names
+            .iter()
+            .map(|name| quote!(#name))
+            .collect::<Vec<_>>(),
+    );
+    let missing_type = builder_ty(
+        &missing_names
+            .iter()
+            .map(|name| quote!(#name))
+            .collect::<Vec<_>>(),
+    );
+    let builder_generics =
+        (!function_names.is_empty()).then(|| quote!(<#(#function_names = #missing_names),*>));
+    let builder_impl_generics =
+        (!function_names.is_empty()).then(|| quote!(<#(#function_names),*>));
+    let fields = method_names
+        .iter()
+        .zip(function_names.iter())
+        .map(|(name, ty)| quote!(#name: #ty,))
+        .collect::<Vec<_>>();
+    let missing_fields = method_names
+        .iter()
+        .zip(missing_names.iter())
+        .map(|(name, ty)| quote!(#name: #ty,))
+        .collect::<Vec<_>>();
+    let setters = method_names.iter().enumerate().map(|(index, name)| {
+        let replacement = function_names.iter().enumerate().map(|(candidate, ty)| if candidate == index { quote!(Next) } else { quote!(#ty) }).collect::<Vec<_>>();
+        let ret = builder_ty(&replacement);
+        let values = method_names.iter().map(|field| if field == name { quote!(#field: #field,) } else { quote!(#field: self.#field,) });
+        quote!(pub fn #name<Next>(self, #name: Next) -> #ret { ComponentAdapterBuilder { #(#values)* } })
+    }).collect::<Vec<_>>();
+    let bounds = methods.iter().zip(function_names.iter()).map(|(method, function)| {
+        let inputs = method.signature.inputs.iter().filter_map(|arg| match arg { FnArg::Receiver(_) => None, FnArg::Typed(arg) => Some(&arg.ty) }).collect::<Vec<_>>();
+        let output = match &method.signature.output { syn::ReturnType::Default => quote!(()), syn::ReturnType::Type(_, ty) => quote!(#ty) };
+        quote!(#function: ::std::ops::Fn(&R::ParticipationRuntime, #(#inputs),*) -> #output + Send + Sync + 'static,)
+    }).collect::<Vec<_>>();
+    let registrations = methods.iter().map(|method| {
+        let signature = &method.signature;
+        let name = &signature.ident;
+        let args = method_call_args(signature);
+        let arg_types = signature.inputs.iter().filter_map(|arg| match arg { FnArg::Receiver(_) => None, FnArg::Typed(arg) => Some(&arg.ty) }).collect::<Vec<_>>();
+        match arg_types.as_slice() {
+            [] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |(): ()| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime)) } })?; }),
+            [only] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |input: #only| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime, input)) } })?; }),
+            many => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |input: (#(#many),*)| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { let (#(#args),*) = input; Ok(call(&runtime, #(#args),*)) } })?; }),
+        }
+    }).collect::<Vec<_>>();
+    quote! {
+        #[doc(hidden)] pub struct ComponentAdapterBuilder #builder_generics { #(#fields)* }
+        #(#[doc(hidden)] pub struct #missing_names;)*
+        impl #missing_type { #[doc(hidden)] pub fn new() -> Self { Self { #(#missing_fields)* } } }
+        impl #builder_impl_generics #builder_type { #(#setters)*
+            #[doc(hidden)] pub fn build<R>(self, provider: ::std::sync::Arc<R>) -> #sdk::authoring::ComponentRealizationContract<#component>
+            where R: #sdk::authoring::CanonicalComponentAdapterRuntime<#component>, #(#bounds)* {
+                let ComponentAdapterBuilder { #(#method_names),* } = self;
+                #(let #method_names = ::std::sync::Arc::new(#method_names);)*
+                #sdk::authoring::ComponentRealizationContract::new_with_teardown(move |config, scope| {
+                    let (component_config, component_relations) = <#component as #sdk::authoring::ComponentAdapterTarget>::component_adapter_context(config, scope)?;
+                    let runtime = ::std::sync::Arc::new(provider.prepare_component_runtime(component_config, component_relations)?);
+                    #(#registrations)*
+                    provider.component_prepare(&runtime)?;
+                    let provider = ::std::sync::Arc::clone(&provider); let teardown_runtime = ::std::sync::Arc::clone(&runtime);
+                    Ok(#sdk::component::ComponentRuntimePreparation::with_teardown(#sdk::core::Health::Healthy, move || provider.component_teardown(&teardown_runtime)))
+                })
+            }
+        }
+    }
+}
+
+fn upper_camel(identifier: &syn::Ident) -> String {
+    let mut upper = true;
+    identifier
+        .to_string()
+        .chars()
+        .filter_map(|ch| {
+            if ch == '_' {
+                upper = true;
+                None
+            } else if upper {
+                upper = false;
+                Some(ch.to_ascii_uppercase())
+            } else {
+                Some(ch)
+            }
+        })
+        .collect()
 }
 
 fn type_handler_input(closure: &mut syn::ExprClosure, index: usize, ty: syn::Type) {

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use super::{AdapterDefinition, AdapterProviderModule};
+use super::{AdapterDefinition, AdapterProviderModule, ComponentAdapterCompatibility};
 use super::{PrimaryResourceContract, RelationTarget, Requires, ResourceSelection};
 use crate::authoring::{
     ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
@@ -576,7 +576,8 @@ pub trait AdaptableComponentDefinition: ComponentDefinition {
 pub struct ComponentRealization<C, A>
 where
     C: AdaptableComponentDefinition,
-    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+    A: AdapterDefinition<Target = C>,
+    A::Compatibility: ComponentAdapterCompatibility<C>,
 {
     pub(crate) component: ComponentSpec<C>,
     adapter: AdapterProviderModule<A>,
@@ -864,11 +865,10 @@ where
 {
     pub fn using<A>(self, adapter: A) -> Result<ComponentRealization<C, A>, ComponentError>
     where
-        A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+        A: AdapterDefinition<Target = C>,
+        A::Compatibility: ComponentAdapterCompatibility<C>,
     {
-        if adapter.compatibility() != C::component_id() {
-            return Err(ComponentError::Unavailable);
-        }
+        adapter.compatibility().accepts_component()?;
         let component_module_id =
             ModuleId::new(format!("{}.component", C::component_id().as_str()))
                 .map_err(|error| ComponentError::InvalidComponentId(error.to_string()))?;
@@ -883,9 +883,6 @@ where
             requirement.id().clone(),
             provider_module_id.clone(),
         );
-        if self.self_realization.is_some() {
-            return Err(ComponentError::Unavailable);
-        }
         let config = self.config.clone();
         let realization_contract = Arc::new(Mutex::new(None::<ComponentRealizationContract<C>>));
         let forwarded = Arc::clone(&realization_contract);
@@ -918,7 +915,8 @@ where
 impl<C, A> ComponentRealization<C, A>
 where
     C: AdaptableComponentDefinition,
-    A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
+    A: AdapterDefinition<Target = C>,
+    A::Compatibility: ComponentAdapterCompatibility<C>,
 {
     pub fn component(&self) -> &ComponentSpec<C> {
         &self.component

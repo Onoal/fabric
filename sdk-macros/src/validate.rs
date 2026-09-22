@@ -55,7 +55,7 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
         );
     }
 
-    for method in &input.runtime_methods {
+    for method in input.runtime_methods.iter().flatten() {
         if method.signature.asyncness.is_some() {
             push_error(
                 &mut errors,
@@ -73,9 +73,14 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
         );
     }
 
-    validate_runtime_method_integrity(
-        Some(&input.api.methods),
-        &input.runtime_methods,
+    if let Some(runtime_methods) = &input.runtime_methods {
+        validate_runtime_method_integrity(Some(&input.api.methods), runtime_methods, &mut errors);
+    }
+    validate_self_realization_sections(
+        input.runtime_methods.is_some(),
+        input.runtime_state.is_some(),
+        !input.lifecycle.is_empty(),
+        "resource",
         &mut errors,
     );
 
@@ -117,7 +122,7 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
         );
     }
 
-    for method in &input.runtime_methods {
+    for method in input.runtime_methods.iter().flatten() {
         if method.signature.asyncness.is_some() {
             push_error(
                 &mut errors,
@@ -135,9 +140,14 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
         );
     }
 
-    validate_runtime_method_integrity(
-        Some(&input.api.methods),
-        &input.runtime_methods,
+    if let Some(runtime_methods) = &input.runtime_methods {
+        validate_runtime_method_integrity(Some(&input.api.methods), runtime_methods, &mut errors);
+    }
+    validate_self_realization_sections(
+        input.runtime_methods.is_some(),
+        input.runtime_state.is_some(),
+        !input.lifecycle.is_empty(),
+        "system",
         &mut errors,
     );
 
@@ -221,6 +231,37 @@ fn finish(errors: Option<Error>) -> Result<()> {
         Err(error)
     } else {
         Ok(())
+    }
+}
+
+fn validate_self_realization_sections(
+    owns_runtime: bool,
+    has_state: bool,
+    has_lifecycle: bool,
+    subject: &str,
+    errors: &mut Option<Error>,
+) {
+    if !owns_runtime && has_state {
+        push_error(
+            errors,
+            Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "{subject}! `state {{ ... }}` requires `runtime {{ ... }}` because state belongs to a self-realizing live layer"
+                ),
+            ),
+        );
+    }
+    if !owns_runtime && has_lifecycle {
+        push_error(
+            errors,
+            Error::new(
+                proc_macro2::Span::call_site(),
+                format!(
+                    "{subject}! `lifecycle {{ ... }}` requires `runtime {{ ... }}` because lifecycle hooks belong to a self-realizing live layer"
+                ),
+            ),
+        );
     }
 }
 

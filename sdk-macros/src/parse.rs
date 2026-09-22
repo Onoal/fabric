@@ -218,12 +218,7 @@ impl Parse for ResourceInput {
             relations: relations.unwrap_or_default(),
             api,
             realization,
-            runtime_methods: runtime_methods.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "resource! requires a `runtime { ... }` section",
-                )
-            })?,
+            runtime_methods,
             runtime_state,
             lifecycle: lifecycle.unwrap_or_default(),
         })
@@ -383,12 +378,7 @@ impl Parse for SystemInput {
             relations: relations.unwrap_or_default(),
             api,
             realization,
-            runtime_methods: runtime_methods.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "system! requires a `runtime { ... }` section",
-                )
-            })?,
+            runtime_methods,
             runtime_state,
             lifecycle: lifecycle.unwrap_or_default(),
         })

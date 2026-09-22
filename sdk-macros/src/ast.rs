@@ -9,7 +9,9 @@ pub struct ResourceInput {
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
     pub realization: Option<RealizationDefinition>,
-    pub runtime_methods: Vec<RuntimeMethod>,
+    /// Present only when this semantic Resource explicitly owns a live
+    /// self-realization or mediation layer.
+    pub runtime_methods: Option<Vec<RuntimeMethod>>,
     pub runtime_state: Option<RuntimeStateDefinition>,
     pub lifecycle: RuntimeLifecycleDefinition,
 }
@@ -23,7 +25,9 @@ pub struct SystemInput {
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
     pub realization: Option<RealizationDefinition>,
-    pub runtime_methods: Vec<RuntimeMethod>,
+    /// Present only when this semantic System explicitly owns a live
+    /// self-realization or mediation layer.
+    pub runtime_methods: Option<Vec<RuntimeMethod>>,
     pub runtime_state: Option<RuntimeStateDefinition>,
     pub lifecycle: RuntimeLifecycleDefinition,
 }
@@ -132,6 +136,15 @@ pub struct RuntimeLifecycleDefinition {
     pub start: Option<Block>,
     pub stop: Option<Block>,
     pub health: Option<Expr>,
+}
+
+impl RuntimeLifecycleDefinition {
+    pub fn is_empty(&self) -> bool {
+        self.initialize.is_none()
+            && self.start.is_none()
+            && self.stop.is_none()
+            && self.health.is_none()
+    }
 }
 
 pub struct ComponentOperationDefinition {

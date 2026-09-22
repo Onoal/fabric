@@ -114,11 +114,13 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.5 retains lifecycle, Config, and Relations authoring and establishes
-`api { ... }` as the canonical semantic surface for Resources and Systems.
-Fabric derives the primary contract identity and version from the semantic
-owner. API is separate from Config, Relations, runtime implementation, and the
-explicit realization/Adapter boundary.
+The 0.4.6 source line retains lifecycle, Config, Relations, and canonical
+`api { ... }` authoring. Resource and System are semantic subjects: an API-only
+definition does not silently own a live runtime. `runtime`, `state`, and
+`lifecycle` explicitly describe a self-realization or semantic mediation layer;
+Adapter realizations use the same live-ownership model. This source line is not
+published independently; the install snippet above remains the latest public
+release.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

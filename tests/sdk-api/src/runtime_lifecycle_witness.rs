@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use fabric::authoring::{CompositionExt, FabricBuilder};
-use fabric::core::{CompositionExport, ContractId, ModuleError};
+use fabric::core::{CompositionError, CompositionExport, ContractId, ModuleError};
 use fabric::prelude::*;
 
 #[derive(Clone)]
@@ -19,6 +19,49 @@ struct FixtureState {
     health: AtomicUsize,
     fail_start: bool,
     fail_stop: bool,
+}
+
+// These declarations deliberately own semantic truth only. They prove that an
+// API, Config, and Relations do not silently create a self runtime.
+fabric::resource! {
+    ApiOnlyResource {
+        id: "fabric.test.lifecycle.api-only-resource";
+
+        api {
+            fn read(&self, key: u64) -> u64;
+        }
+    }
+}
+
+fabric::system! {
+    ApiOnlySystem {
+        id: "fabric.test.lifecycle.api-only-system";
+
+        api {
+            fn now(&self) -> u64;
+        }
+    }
+}
+
+fabric::resource! {
+    ApiOnlyConfiguredRelationResource {
+        id: "fabric.test.lifecycle.api-only-configured-relation";
+
+        config {
+            namespace: String;
+        }
+
+        relations {
+            requires {
+                store: ApiOnlyResource;
+                clock: ApiOnlySystem;
+            }
+        }
+
+        api {
+            fn label(&self) -> String;
+        }
+    }
 }
 
 impl FixtureState {
@@ -404,6 +447,67 @@ fn stateful_resource_runtime_is_fresh_shared_and_lifecycle_aware() {
             "resource.stop",
         ]
     );
+}
+
+#[test]
+fn api_only_resource_and_system_are_valid_semantic_definitions_without_self_runtime() {
+    let resource = ApiOnlyResource::select("primary").expect("resource selection");
+    let system = ApiOnlySystem::select().expect("system selection");
+
+    assert!(<ApiOnlyResource as ResourceDefinition>::materialize(&resource).is_none());
+    assert!(<ApiOnlySystem as SystemDefinition>::materialize(&system).is_none());
+
+    let resource_built = Fabric::new("fabric.test.lifecycle.api-only-resource")
+        .expect("fabric")
+        .resource(resource)
+        .build()
+        .expect("semantic resource declaration builds");
+    let resource_error = resource_built
+        .materialize_named_on("api-only-resource", &host())
+        .expect_err("semantic resource without a live realization must not materialize");
+    assert!(matches!(
+        resource_error,
+        CompositionError::MissingRuntimeMaterializer { .. }
+    ));
+
+    let system_built = Fabric::new("fabric.test.lifecycle.api-only-system")
+        .expect("fabric")
+        .system(system)
+        .build()
+        .expect("semantic system declaration builds");
+    let system_error = system_built
+        .materialize_named_on("api-only-system", &host())
+        .expect_err("semantic system without a live realization must not materialize");
+    assert!(matches!(
+        system_error,
+        CompositionError::MissingRuntimeMaterializer { .. }
+    ));
+}
+
+#[test]
+fn config_relations_and_api_do_not_imply_a_resource_owned_runtime() {
+    let built = Fabric::new("fabric.test.lifecycle.api-only-facets")
+        .expect("fabric")
+        .resource(ApiOnlyResource::select("store").expect("store"))
+        .system(ApiOnlySystem::select().expect("clock"))
+        .resource(
+            ApiOnlyConfiguredRelationResource::select(
+                "configured",
+                ApiOnlyConfiguredRelationResourceConfig {
+                    namespace: "users".to_owned(),
+                },
+            )
+            .expect("configured semantic selection"),
+        )
+        .build()
+        .expect("semantic facets resolve declaratively");
+
+    assert_eq!(built.manifest().resources().len(), 2);
+    assert_eq!(built.manifest().systems().len(), 1);
+    assert!(matches!(
+        built.materialize_named_on("api-only-facets", &host()),
+        Err(CompositionError::MissingRuntimeMaterializer { .. })
+    ));
 }
 
 #[test]

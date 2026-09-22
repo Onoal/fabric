@@ -34,8 +34,9 @@ not a statement about infrastructure size.
 ## Definition and selection
 
 `SystemDefinition` is typed authoring for a System kind. It owns its Config
-type, `SystemId`, schema, declaration construction, and optional direct runtime
-materialization. It is not itself the configured contribution.
+type, `SystemId`, schema, declaration construction, and optional
+self-realization. It is semantic definition truth, not itself the configured
+contribution or a concrete implementation.
 
 `SystemSelection<S>` is that one configured contribution:
 
@@ -78,19 +79,27 @@ let operations = Operations::select(OperationsConfig { seed: 7 })?;
 let built = Fabric::new("example.system")?.system(operations).build()?;
 ```
 
-`Fabric::system(...)` adds the System declaration/runtime machinery and a
-semantic `SystemManifestEntry` containing `SystemId` and schema. There is no
+`Fabric::system(...)` adds semantic System declaration truth and, only when
+authored or selected, its live realization participant. The
+`SystemManifestEntry` contains `SystemId` and schema; there is no
 ResourceName-equivalent in that Manifest entry.
 
-### Runtime state and lifecycle authoring
+### Self-realization, runtime state, and lifecycle authoring
 
-A self-realizing System can use the same optional `state` and `lifecycle`
-sections as a Resource. `state` is fresh for each materialized Instance
-generation, while Config remains declarative selection input. Hooks use the
-same lifecycle spine: `initialize` prepares after normal binding, `start`
-activates, `stop` releases occurrence-owned machinery even on abandoned
-startup, and `health` reports ability separately from lifecycle. A System with
-no custom sections keeps the stateless successful defaults.
+A System is a semantic shared capability; Config, Relations, and API do not
+make it a concrete live implementation. A normal adapted System may declare
+only those semantic facets and requires a compatible realization before it can
+materialize.
+
+A System that itself owns executable behavior declares `runtime`; that is an
+explicit self-realization or semantic mediation layer. Only that live owner
+may declare `state` and `lifecycle`. Its state is fresh for each materialized
+Instance generation while Config remains declarative selection input. Hooks
+use Fabric's common lifecycle spine: `initialize` prepares after normal
+binding, `start` activates, `stop` releases occurrence-owned machinery even
+on abandoned startup, and `health` reports ability separately from lifecycle.
+Adapter realizations use the same ownership model without making backend
+health identical to System health.
 
 ## Schema and direct realization
 
@@ -121,10 +130,10 @@ it does not establish safe replacement, migration, or System-state transfer.
 the System identity carried by its schema. A schema for another System cannot
 silently describe this one.
 
-A System may materialize directly; macro-generated Systems normally do. A
-handwritten definition may instead remain declaration-only because
-`SystemDefinition::materialize()` defaults to `None`. It can still define,
-select, and declare semantic truth, but it supplies no native local runtime on
+A self-realizing System may materialize directly. A semantic System with no
+self realization remains declaration-only because
+`SystemDefinition::materialize()` defaults to `None`; it can still define,
+select, and declare semantic truth, but supplies no native local runtime on
 its own.
 
 ## Adapter realization
@@ -190,8 +199,7 @@ explicitly uses external shared state.
 SystemDefinition
       -> select(Config)
 SystemSelection
-      -> optional using(Adapter)
-SystemRealization
+      -> optional self/Adapter realization
       -> Composition
 materialized Instance -> live typed System contract
 ```

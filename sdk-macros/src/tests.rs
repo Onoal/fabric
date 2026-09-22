@@ -128,6 +128,11 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
         "method codegen must not silently discard unsupported parsed arguments"
     );
     assert!(
+        codegen.contains("let materialize_self_runtime = if input.runtime_methods.is_some()")
+            && codegen.contains("let self_runtime_definition = input.runtime_methods.is_some()"),
+        "resource! must generate live runtime machinery only for an explicit self runtime"
+    );
+    assert!(
         common.contains(".skip(1)")
             && common.contains("macro validation guarantees simple argument bindings"),
         "argument forwarding should rely on prior validation rather than dropping inputs"
@@ -170,6 +175,11 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
     assert!(
         codegen.contains("let system_mod = format_ident!(\"{}\", to_snake_case(system_name));"),
         "system! should derive a system-specific namespace from the Rust type name"
+    );
+    assert!(
+        codegen.contains("let materialize_self_runtime = if input.runtime_methods.is_some()")
+            && codegen.contains("let self_runtime_definition = input.runtime_methods.is_some()"),
+        "system! must generate live runtime machinery only for an explicit self runtime"
     );
     assert!(
         codegen.contains("type Contract = #system_mod::raw::#contract_name;")
@@ -324,6 +334,27 @@ fn api_parser_reports_normal_authoring_errors_at_the_api_layer() {
         r#"Thing { id: "example.thing"; api { fn read(&self) {} } runtime { fn read(&self) {} } }"#
     )
     .contains("api methods are signatures and must not include bodies"));
+}
+
+#[test]
+fn self_realization_sections_require_an_explicit_runtime_owner() {
+    let resource = syn::parse_str::<crate::ast::ResourceInput>(
+        r#"Thing { id: "example.thing"; api {} state { State = State; } }"#,
+    )
+    .expect("stateful semantic definition parses before ownership validation");
+    let resource_error = crate::validate::validate_resource(&resource)
+        .expect_err("state cannot exist without a self-realizing runtime")
+        .to_string();
+    assert!(resource_error.contains("state { ... }` requires `runtime { ... }"));
+
+    let system = syn::parse_str::<crate::ast::SystemInput>(
+        r#"Thing { id: "example.thing"; api {} lifecycle { start { Ok(()) } } }"#,
+    )
+    .expect("lifecycle semantic definition parses before ownership validation");
+    let system_error = crate::validate::validate_system(&system)
+        .expect_err("lifecycle hooks cannot exist without a self-realizing runtime")
+        .to_string();
+    assert!(system_error.contains("lifecycle { ... }` requires `runtime { ... }"));
 }
 
 #[test]

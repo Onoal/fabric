@@ -140,8 +140,9 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         }
     });
 
-    let runtime_inherent_methods = input.runtime_methods.iter().map(runtime_method_tokens);
-    let runtime_trait_methods = input.runtime_methods.iter().map(|method| {
+    let runtime_methods = input.runtime_methods.as_deref().unwrap_or(&[]);
+    let runtime_inherent_methods = runtime_methods.iter().map(runtime_method_tokens);
+    let runtime_trait_methods = runtime_methods.iter().map(|method| {
         let signature = &method.signature;
         let name = &signature.ident;
         let args = method_call_args(signature);
@@ -189,105 +190,21 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         .as_ref()
         .map(|expr| quote!(#expr))
         .unwrap_or_else(|| quote!(#sdk::core::Health::Healthy));
-
-    quote! {
-        #config_definition
-
-        #visibility struct #system_name;
-
-        impl #system_name {
-            #select_method
-        }
-
-        impl #sdk::authoring::PrimarySystemContract for #system_name {
-            type Contract = #system_mod::raw::#contract_name;
-
-            fn primary_contract_key() -> #sdk::core::ContractKey<Self::Contract> {
-                #system_mod::raw::primary_contract_key()
-            }
-        }
-
-        impl #sdk::authoring::RelationTarget for #system_name {
-            type Contract = #system_mod::raw::#contract_name;
-            fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
-                let key = <Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key();
-                match key.identity() {
-                    #sdk::core::ContractIdentity::Provisional => #sdk::core::ContractRequirement::provisional(key.id().clone()),
-                    #sdk::core::ContractIdentity::Versioned(version) => #sdk::core::ContractRequirement::versioned(key.id().clone(), #sdk::core::ContractVersionRequirement::parse(format!("={version}")).expect("system! generated a static exact relation requirement")),
-                }
-            }
-            fn relation_requirement_versioned(requirement: #sdk::core::ContractVersionRequirement) -> #sdk::core::ContractRequirement<Self::Contract> {
-                #sdk::core::ContractRequirement::versioned(<Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key().id().clone(), requirement)
-            }
-        }
-
-        impl #sdk::authoring::SystemDefinition for #system_name {
-            type Config = #config_ty;
-
-            fn system_id() -> #sdk::system::SystemId {
-                #system_mod::raw::system_id()
-            }
-
-            fn schema() -> #sdk::system::SystemSchemaDescriptor {
-                #schema_expr
-            }
-
-            fn declaration(
-                selection: &#sdk::authoring::SystemSelection<Self>,
-            ) -> #sdk::core::ModuleDeclaration {
-                let mut required = ::std::vec![#(#declaration_requirements),*];
-                #realization_requirement_declaration
-                #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
-                    .with_provided_contracts(::std::vec![#system_mod::raw::primary_contract_key().declaration()])
-                    .with_required_contracts(required)
-            }
-
-            fn materialize(
-                selection: &#sdk::authoring::SystemSelection<Self>,
-            ) -> ::std::option::Option<::std::boxed::Box<dyn #sdk::core::ModuleRuntime>> {
-                ::std::option::Option::Some(::std::boxed::Box::new(#system_mod::raw::Runtime::new(
+    let materialize_self_runtime = if input.runtime_methods.is_some() {
+        quote! {
+            ::std::option::Option::Some(::std::boxed::Box::new(
+                #system_mod::raw::Runtime::new(
                     selection.module_id().clone(),
                     selection.config().clone(),
-                )))
-            }
+                ),
+            ))
         }
-
-        #adaptable_impl
-
-        #[allow(non_snake_case)]
-        mod #raw_impl_mod {
-            use super::*;
-
-            pub fn system_id() -> #sdk::system::SystemId {
-                #sdk::system::SystemId::new(#system_id)
-                    .expect("system! generated a static system id")
-            }
-
-            pub fn primary_contract_id() -> #sdk::core::ContractId {
-                #api_contract_id
-            }
-
-            pub fn primary_contract_key() -> #sdk::core::ContractKey<#contract_name> {
-                #contract_key_expr
-            }
-
-            pub trait #service_name: Send + Sync {
-                #(#service_methods)*
-            }
-
-            #[derive(Clone)]
-            pub struct #contract_name {
-                inner: ::std::sync::Arc<dyn #service_name>,
-            }
-
-            impl #contract_name {
-                pub fn new(inner: ::std::sync::Arc<dyn #service_name>) -> Self {
-                    Self { inner }
-                }
-
-                #(#contract_methods)*
-            }
-
+    } else {
+        quote!(::std::option::Option::None)
+    };
+    let raw_runtime_reexport = input.runtime_methods.is_some().then(|| quote!(Runtime,));
+    let self_runtime_definition = input.runtime_methods.is_some().then(|| {
+        quote! {
             #[derive(Clone)]
             pub struct Runtime {
                 module_id: #sdk::core::ModuleId,
@@ -394,11 +311,110 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 }
             }
         }
+    });
+
+    quote! {
+        #config_definition
+
+        #visibility struct #system_name;
+
+        impl #system_name {
+            #select_method
+        }
+
+        impl #sdk::authoring::PrimarySystemContract for #system_name {
+            type Contract = #system_mod::raw::#contract_name;
+
+            fn primary_contract_key() -> #sdk::core::ContractKey<Self::Contract> {
+                #system_mod::raw::primary_contract_key()
+            }
+        }
+
+        impl #sdk::authoring::RelationTarget for #system_name {
+            type Contract = #system_mod::raw::#contract_name;
+            fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
+                let key = <Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key();
+                match key.identity() {
+                    #sdk::core::ContractIdentity::Provisional => #sdk::core::ContractRequirement::provisional(key.id().clone()),
+                    #sdk::core::ContractIdentity::Versioned(version) => #sdk::core::ContractRequirement::versioned(key.id().clone(), #sdk::core::ContractVersionRequirement::parse(format!("={version}")).expect("system! generated a static exact relation requirement")),
+                }
+            }
+            fn relation_requirement_versioned(requirement: #sdk::core::ContractVersionRequirement) -> #sdk::core::ContractRequirement<Self::Contract> {
+                #sdk::core::ContractRequirement::versioned(<Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key().id().clone(), requirement)
+            }
+        }
+
+        impl #sdk::authoring::SystemDefinition for #system_name {
+            type Config = #config_ty;
+
+            fn system_id() -> #sdk::system::SystemId {
+                #system_mod::raw::system_id()
+            }
+
+            fn schema() -> #sdk::system::SystemSchemaDescriptor {
+                #schema_expr
+            }
+
+            fn declaration(
+                selection: &#sdk::authoring::SystemSelection<Self>,
+            ) -> #sdk::core::ModuleDeclaration {
+                let mut required = ::std::vec![#(#declaration_requirements),*];
+                #realization_requirement_declaration
+                #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
+                    .with_provided_contracts(::std::vec![#system_mod::raw::primary_contract_key().declaration()])
+                    .with_required_contracts(required)
+            }
+
+            fn materialize(
+                selection: &#sdk::authoring::SystemSelection<Self>,
+            ) -> ::std::option::Option<::std::boxed::Box<dyn #sdk::core::ModuleRuntime>> {
+                #materialize_self_runtime
+            }
+        }
+
+        #adaptable_impl
+
+        #[allow(non_snake_case)]
+        mod #raw_impl_mod {
+            use super::*;
+
+            pub fn system_id() -> #sdk::system::SystemId {
+                #sdk::system::SystemId::new(#system_id)
+                    .expect("system! generated a static system id")
+            }
+
+            pub fn primary_contract_id() -> #sdk::core::ContractId {
+                #api_contract_id
+            }
+
+            pub fn primary_contract_key() -> #sdk::core::ContractKey<#contract_name> {
+                #contract_key_expr
+            }
+
+            pub trait #service_name: Send + Sync {
+                #(#service_methods)*
+            }
+
+            #[derive(Clone)]
+            pub struct #contract_name {
+                inner: ::std::sync::Arc<dyn #service_name>,
+            }
+
+            impl #contract_name {
+                pub fn new(inner: ::std::sync::Arc<dyn #service_name>) -> Self {
+                    Self { inner }
+                }
+
+                #(#contract_methods)*
+            }
+
+            #self_runtime_definition
+        }
 
         #visibility mod #system_mod {
             pub mod raw {
                 pub use super::super::#raw_impl_mod::{
-                    #contract_name, #service_name, Runtime,
+                    #contract_name, #service_name, #raw_runtime_reexport
                     primary_contract_id, primary_contract_key, system_id,
                 };
             }

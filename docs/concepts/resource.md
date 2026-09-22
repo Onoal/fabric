@@ -34,8 +34,8 @@ occurrence. See [Component](component.md) and [Composition](composition.md).
 ## Definition, selection, Config, and contract
 
 `ResourceDefinition` is typed authoring for a Resource kind: Config type,
-`ResourceId`, semantic version/schema compatibility, declaration construction, and optional direct runtime
-materialization. It is not an occurrence.
+`ResourceId`, semantic version/schema compatibility, declaration construction, and optional self-realization.
+It is semantic definition truth, not an occurrence or a concrete implementation.
 
 `ResourceSelection<R>` is a configured named occurrence:
 
@@ -60,7 +60,6 @@ fabric::resource! {
         api {
             fn label(&self) -> String;
         }
-        runtime { fn label(&self) -> String { self.config().label.clone() } }
     }
 }
 
@@ -74,12 +73,18 @@ let built = Fabric::new("example.resources")?.resource(primary).build()?;
 convenience rather than the ontology. Handwritten `ResourceDefinition` remains
 public.
 
-### Runtime state and lifecycle authoring
+### Self-realization, runtime state, and lifecycle authoring
 
-Resource Config remains declarative input. When a self-realizing Resource
-needs live state, `state` constructs a fresh value for each materialized
-runtime occurrence; it is not a shared `Arc<Mutex<_>>` hidden in Config. The
-generated typed service handles for that occurrence share this state.
+A Resource is a semantic capability; it does not inherently own executable
+machinery. A normal adapted Resource can declare Config, Relations, and API
+without `state`, `runtime`, or `lifecycle`. It becomes operational only when a
+compatible realization is selected for materialization.
+
+`runtime` explicitly means that this Resource itself owns a live
+self-realization or semantic mediation layer. Only then may `state` and
+`lifecycle` appear. State is fresh for each materialized live occurrence; it
+is not a shared `Arc<Mutex<_>>` hidden in Config. Typed service handles for
+that occurrence share the same live state.
 
 ```rust
 fabric::resource! {
@@ -99,14 +104,15 @@ fabric::resource! {
 }
 ```
 
-`initialize` runs after context and dependency binding, `start` activates the
-runtime, and `stop` is the one fallible cleanup hook. Fabric calls `stop` even
-when a materialized generation is abandoned before start. `RuntimeContext` is
-bound before normal initialization but may be absent during early cleanup.
-Health is an observation separate from Instance lifecycle: a running Resource
-may be Healthy, Degraded, or Unavailable without changing its lifecycle state.
-All sections are optional; the existing stateless form retains successful
-initialize/start/stop defaults and Healthy health.
+This `LocalCounter` form is a **self-realizing Resource**, not normal Resource
+anatomy. `initialize` runs after context and dependency binding, `start`
+activates its live owner, and `stop` is that owner's fallible cleanup hook.
+Fabric calls `stop` even when a materialized generation is abandoned before
+start. `RuntimeContext` is bound before normal initialization but may be
+absent during early cleanup. Health is an observation separate from Instance
+lifecycle: a running live realization may be Healthy, Degraded, or Unavailable
+without changing its lifecycle state. Adapter realizations use the same Fabric
+lifecycle ownership model; their canonical authoring is documented separately.
 
 ## Schema and realization
 
@@ -137,8 +143,9 @@ Resource identity.
 Schema compatibility establishes that a realization can bind or materialize;
 it does not establish safe replacement, migration, or provider-state transfer.
 
-A Resource may materialize directly, or implement
-`AdaptableResourceDefinition` with a typed [RealizationContract](adapter.md).
+A self-realizing Resource may materialize directly. An adapted Resource uses
+`AdaptableResourceDefinition` with a typed [RealizationContract](adapter.md);
+its concrete live machinery belongs to the selected Adapter realization.
 
 ```text
 ResourceSelection + compatible Adapter = ResourceRealization
@@ -171,7 +178,7 @@ The latter also contributes an Adapter provider and declarative selection.
 `FabricManifest` retains Resource identity, name, schema, and semantic bindings.
 
 ```text
-ResourceDefinition -> ResourceSelection -> optional ResourceRealization
+ResourceDefinition -> ResourceSelection -> optional self/Adapter realization
                    -> Composition -> materialized Instance -> typed contract
 ```
 

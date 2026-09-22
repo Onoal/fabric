@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.2" }
+fabric = { package = "onoal-fabric", version = "0.4.3" }
 ```
 
 ```rust
@@ -114,10 +114,10 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.2 retains the 0.4 lifecycle spine and 0.4.1 normal-authoring
-defaults. It also makes adaptable Resource and System macro expansion
-independent of Rust module depth: crate-root, nested-module, and external-crate
-authoring are equivalent.
+Fabric 0.4.3 retains the 0.4 lifecycle spine and normal-authoring defaults.
+It establishes one typed Config law for Resources, Systems, and Adapters: no
+Config declaration means no Config ceremony; inline Config stays concise; and
+creator-owned Rust types can express richer Config without a Fabric wrapper.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

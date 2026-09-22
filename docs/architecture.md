@@ -108,16 +108,14 @@ Typed Contracts make consumption explicit. Resource, System, Adapter, and
 Component authoring lowers through Core requirements, providers, and provider
 selections. There is no second resolver or general runtime service locator.
 
-A Component, Resource, or adaptable System may expose a public realization trait. An
-Adapter names both sides explicitly:
+A Component may expose a public realization trait for advanced authoring. For a
+normal Resource or System, the target API is the realization contract and the
+Adapter names the target once:
 
 ```rust
 fabric::adapter! {
-    ExampleAdapter
-        for resource ExampleResource
-        implements ExampleResourceRealization
-    {
-        // schema, realization version, typed config, and runtime methods
+    ExampleAdapter for ExampleResource {
+        // optional typed Config and implementation of ExampleResource's API
     }
 }
 ```

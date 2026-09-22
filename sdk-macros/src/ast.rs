@@ -35,9 +35,13 @@ pub struct SystemInput {
 pub struct AdapterInput {
     pub visibility: Visibility,
     pub name: Ident,
-    pub target_kind: AdapterTargetKind,
+    /// Legacy headers carry an explicit target kind. Canonical Adapter
+    /// authoring derives the kind from the target and leaves this absent.
+    pub target_kind: Option<AdapterTargetKind>,
     pub target: Path,
-    pub realization_interface: Path,
+    /// The advanced, legacy realization interface. Canonical Adapter
+    /// authoring derives the normal interface from the target semantic API.
+    pub realization_interface: Option<Path>,
     /// An explicit, advanced target-schema compatibility override.  When it
     /// is absent, adapter support is derived exactly from the target's schema.
     pub schema: Option<RequirementLiteral>,

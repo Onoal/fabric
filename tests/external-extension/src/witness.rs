@@ -74,6 +74,64 @@ fabric::resource! {
     }
 }
 
+// This lives in a genuinely separate workspace crate and uses only the root
+// public authoring API. The target alone determines the normal realization
+// contract; no generated service trait or raw Core runtime is authored here.
+fabric::resource! {
+    pub ExternalCanonicalStore {
+        id: "fabric.test.external.canonical-store";
+
+        api {
+            fn count(&self) -> usize;
+        }
+    }
+}
+
+fabric::adapter! {
+    pub ExternalCanonicalStoreAdapter for ExternalCanonicalStore {
+        runtime {
+            fn count(&self) -> usize { 7 }
+        }
+    }
+}
+
+#[test]
+fn external_canonical_adapter_uses_target_only_authoring() {
+    let store = ExternalCanonicalStore::select("primary")
+        .expect("selection")
+        .using(ExternalCanonicalStoreAdapter::new())
+        .expect("canonical Adapter");
+    let built = Fabric::new("fabric.test.external.canonical-store")
+        .expect("fabric")
+        .resource(store)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.external.canonical-store.instance",
+            &test_host(),
+        )
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop().expect("stop");
+}
+
+#[test]
+fn canonical_external_adapter_authors_no_core_or_generated_contract_plumbing() {
+    let source = include_str!("witness.rs");
+    let canonical = source
+        .split("// This lives in a genuinely separate workspace crate")
+        .nth(1)
+        .expect("canonical target")
+        .split("#[test]")
+        .next()
+        .expect("canonical target end");
+    assert!(canonical.contains("for ExternalCanonicalStore"));
+    assert!(!canonical.contains("ModuleRuntime"));
+    assert!(!canonical.contains("implements"));
+    assert!(!canonical.contains("realization::raw"));
+}
+
 fn config_events() -> &'static Mutex<Vec<String>> {
     static EVENTS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
     EVENTS.get_or_init(|| Mutex::new(Vec::new()))

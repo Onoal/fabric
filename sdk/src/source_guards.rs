@@ -115,7 +115,6 @@ fn sdk_source_stays_generic_and_curated() {
             "third-party.test-clock",
             "macro_rules!",
             "proc_macro",
-            "adapter!",
             "component!",
             "host!",
             "fabric-packages",
@@ -324,10 +323,9 @@ fn resource_selection_owns_total_module_id_derivation() {
         "adapted resource authoring should preserve explicit provider-selection ownership"
     );
     assert!(
-        resource_realization.contains(
-            "A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>"
-        ),
-        "resource realizations must bind adapters through explicit resource-target schema support"
+        resource_realization.contains("A: AdapterDefinition<Target = R>")
+            && resource_realization.contains("ResourceAdapterCompatibility<R>"),
+        "resource realizations must share target-aware compatibility between legacy and canonical adapters"
     );
 }
 
@@ -535,7 +533,7 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         "BuiltFabric should expose Core Composition and read-only manifest views"
     );
     assert!(
-        resource.contains("into_raw_parts()") && system.contains("into_raw_parts()"),
+        resource.contains("into_bridge_parts()") && system.contains("into_bridge_parts()"),
         "typed realization contributions must perform the provider decomposition internally"
     );
     assert!(
@@ -719,10 +717,10 @@ fn sdk_exposes_a_curated_generic_system_surface() {
         "AdaptableSystemDefinition should own the system realization contract anchor"
     );
     assert!(
-        realization.contains(
-            "A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>"
-        ) && realization.contains("ContractProviderSelection"),
-        "SystemRealization should preserve target-neutral adapter typing and raw provider selection"
+        realization.contains("A: AdapterDefinition<Target = S>")
+            && realization.contains("SystemAdapterCompatibility<S>")
+            && realization.contains("ContractProviderSelection"),
+        "SystemRealization should preserve target-aware adapter typing and raw provider selection"
     );
     assert!(
         !selection.contains("name:")
@@ -732,10 +730,9 @@ fn sdk_exposes_a_curated_generic_system_surface() {
     );
     assert!(
         selection.contains("pub fn using<A>(self, adapter: A)")
-            && selection.contains(
-                "A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>"
-            ),
-        "SystemSelection::using should be available only for system-target adapters with system schema support"
+            && selection.contains("A: AdapterDefinition<Target = S>")
+            && selection.contains("SystemAdapterCompatibility<S>"),
+        "SystemSelection::using should be available only for system-target adapters with target-aware support"
     );
     assert!(
         selection.contains("ContractProviderSelection::new")
@@ -791,9 +788,10 @@ fn sdk_docs_describe_the_current_public_contract() {
     let readme = fs::read_to_string(crate_root().join("README.md")).expect("read readme");
 
     assert!(
-        readme.contains("implements ExampleResourceRealization")
-            && readme.contains("for system ExampleSystem implements"),
-        "SDK README must document explicit public realization interfaces for both adapter targets"
+        readme.contains("ExampleAdapter for ExampleResource")
+            && readme.contains("target determines whether it is a Resource or System")
+            && readme.contains("no generated interface"),
+        "SDK README must document target-derived canonical Adapter authoring for both targets"
     );
     assert!(
         readme.contains("Component-local role")

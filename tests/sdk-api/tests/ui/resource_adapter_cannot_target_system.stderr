@@ -12,22 +12,33 @@ note: required by a bound in `fabric::authoring::system::system_selection::Syste
   |     pub fn using<A>(self, adapter: A) -> Result<SystemRealization<S, A>, SystemCompatibilityError>
   |            ----- required by a bound in this associated function
   |     where
-  |         A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+  |         A: AdapterDefinition<Target = S>,
   |                              ^^^^^^^^^^ required by this bound in `SystemSelection::<S>::using`
 
-error[E0271]: type mismatch resolving `<MemoryClock as AdapterDefinition>::Compatibility == AdapterSystemSchemaSupport`
+error[E0277]: the trait bound `fabric_resource::model::requirement::AdapterResourceSchemaSupport: fabric::authoring::definitions::adapter_definition::SystemAdapterCompatibility<AdaptedOperations>` is not satisfied
  --> tests/ui/resource_adapter_cannot_target_system.rs:7:16
   |
 7 |         .using(MemoryClock::default());
-  |          ----- ^^^^^^^^^^^^^^^^^^^^^^ expected `AdapterSystemSchemaSupport`, found `AdapterResourceSchemaSupport`
+  |          ----- ^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
   |          |
   |          required by a bound introduced by this call
   |
+  = help: the trait `fabric::authoring::definitions::adapter_definition::SystemAdapterCompatibility<AdaptedOperations>` is not implemented for `fabric_resource::model::requirement::AdapterResourceSchemaSupport`
+help: the following other types implement trait `fabric::authoring::definitions::adapter_definition::SystemAdapterCompatibility<S>`
+ --> $WORKSPACE/sdk/src/authoring/definitions/adapter_definition.rs
+  |
+  |   impl<S> SystemAdapterCompatibility<S> for AdapterSystemSchemaSupport {
+  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `fabric_system::model::schema::AdapterSystemSchemaSupport`
+...
+  | / impl<S> SystemAdapterCompatibility<S> for CanonicalAdapterSupport<S>
+  | | where
+  | |     S: crate::authoring::SystemDefinition,
+  | |__________________________________________^ `fabric::authoring::definitions::adapter_definition::CanonicalAdapterSupport<S>`
 note: required by a bound in `fabric::authoring::system::system_selection::SystemSelection::<S>::using`
  --> $WORKSPACE/sdk/src/authoring/system/system_selection.rs
   |
   |     pub fn using<A>(self, adapter: A) -> Result<SystemRealization<S, A>, SystemCompatibilityError>
   |            ----- required by a bound in this associated function
-  |     where
-  |         A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
-  |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SystemSelection::<S>::using`
+...
+  |         A::Compatibility: SystemAdapterCompatibility<S>,
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SystemSelection::<S>::using`

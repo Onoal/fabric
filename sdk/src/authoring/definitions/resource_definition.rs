@@ -34,6 +34,14 @@ pub trait AdaptableResourceDefinition: ResourceDefinition {
     type RealizationContract: Send + Sync + 'static;
 
     fn realization_requirement() -> ContractRequirement<Self::RealizationContract>;
+
+    /// Whether the target's primary semantic API is its effective normal
+    /// Adapter contract. Explicit legacy realization declarations return
+    /// `false` and continue through the advanced compatibility path.
+    #[doc(hidden)]
+    fn supports_semantic_api_adapter() -> bool {
+        false
+    }
 }
 
 pub trait IntoResourceName {

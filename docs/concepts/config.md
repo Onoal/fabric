@@ -65,9 +65,9 @@ enum Backend {
 struct LocalStoreConfig { backend: Backend }
 
 fabric::adapter! {
-    LocalStore for resource Store implements StoreRealization {
+    LocalStore for Store {
         config: LocalStoreConfig;
-        runtime { /* realization methods use self.config() */ }
+        runtime { /* Store API methods use self.config() */ }
     }
 }
 ```

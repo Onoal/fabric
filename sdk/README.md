@@ -86,16 +86,12 @@ infrastructure; normal typed Composition has one coherent occurrence per
 `SystemId`. Both macros and handwritten implementations use public definition,
 selection, contract, and realization seams.
 
-Adaptable Resources and Systems expose an intentional public typed realization
-interface. Adapter authors name both target and interface:
+For normal adaptable Resources and Systems, the target semantic API is the
+realization contract. Adapter authors name the target once:
 
 ```rust
 fabric::adapter! {
-    ExampleAdapter
-        for resource ExampleResource
-        implements ExampleResourceRealization
-    {
-        version: "1.0.0";
+    ExampleAdapter for ExampleResource {
         config { value: u64; }
         runtime {
             fn current_value(&self) -> ExampleValue {
@@ -106,11 +102,12 @@ fabric::adapter! {
 }
 ```
 
-For Systems use `for system ExampleSystem implements
-ExampleSystemRealization`. The interface is statically tied to its target;
-normal Adapter code never discovers it through generated module layout. Alias
-imports and ordinary public re-exports work. Adapter config stays normal typed
-Rust, and Adapter selection stays Composition truth.
+The target determines whether it is a Resource or System and supplies the
+generated API machinery internally. Normal Adapter source names no generated
+interface and no `for resource` / `for system` discriminator. Adapter config
+stays normal typed Rust, and Adapter selection stays Composition truth. The
+legacy explicit realization form remains available for a semantic owner that
+intentionally uses a different lower-level contract.
 
 ## Component dependencies and operations
 

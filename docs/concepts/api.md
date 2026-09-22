@@ -67,7 +67,7 @@ These sections answer different questions:
 Config    = which declarative occurrence choices are supplied?
 Relations = which other semantic capabilities are required?
 API       = what callable capability is exposed?
-Runtime   = how does this occurrence provide that capability?
+Runtime   = how does this live realization provide that capability?
 ```
 
 For example, a Postgres-like Resource can use all four independently:
@@ -93,8 +93,9 @@ Relations target this generated semantic API. After normal binding, runtime and
 lifecycle code call it through typed fields such as `self.storage.get(...)` or
 `self.clock.now()`.
 
-Existing `contracts { primary ... }` declarations remain a legacy explicit
+For an API-only Resource/System selected with a canonical Adapter, the Adapter
+provides this API directly. The semantic definition does not grow a forwarding
+runtime merely because it is adapted. Existing `contracts { primary ... }` declarations remain a legacy explicit
 compatibility form in the 0.4 line. New Resource and System definitions should
-use `api { ... }`. Realization/Adapter interface simplification is deliberately
-separate work; an adaptable definition may still use its current explicit
-realization boundary and runtime forwarding where necessary.
+use `api { ... }`. An explicit realization boundary remains available for
+advanced semantic mediation where the lower implementation interface differs.

@@ -2,13 +2,12 @@ use std::marker::PhantomData;
 
 use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration, ModuleId, ModuleRuntime};
 use fabric_resource::{
-    AdapterResourceSchemaSupport, ResourceCompatibilityError, ResourceCompatibilityRole,
-    ResourceError, ResourceId, ResourceName,
+    ResourceCompatibilityError, ResourceCompatibilityRole, ResourceError, ResourceId, ResourceName,
 };
 
 use super::{
-    AdaptableResourceDefinition, AdapterDefinition, AdapterProviderModule, IntoResourceName,
-    ResourceDefinition, ResourceRealization,
+    AdaptableResourceDefinition, AdapterBridgeMode, AdapterDefinition, AdapterProviderModule,
+    IntoResourceName, ResourceAdapterCompatibility, ResourceDefinition, ResourceRealization,
 };
 
 pub struct ResourceSelection<R>
@@ -85,7 +84,8 @@ where
         adapter: A,
     ) -> Result<ResourceRealization<R, A>, ResourceCompatibilityError>
     where
-        A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
+        A: AdapterDefinition<Target = R>,
+        A::Compatibility: ResourceAdapterCompatibility<R>,
     {
         let schema = R::schema();
         if R::resource_id() != *schema.resource() {
@@ -95,18 +95,39 @@ where
                 role: ResourceCompatibilityRole::Schema,
             });
         }
-        adapter.compatibility().accepts_schema(&schema)?;
-        let provider_module_id = derive_realization_provider_module_id(&self.module_id)
-            .expect("static realization suffix must preserve module id validity");
-        let selection = ContractProviderSelection::new(
-            self.module_id.clone(),
-            R::realization_requirement().id().clone(),
-            provider_module_id.clone(),
-        );
+        adapter.compatibility().accepts_resource_schema(&schema)?;
+        let bridge_mode = adapter.bridge_mode();
+        if bridge_mode == AdapterBridgeMode::SemanticApi && !R::supports_semantic_api_adapter() {
+            return Err(
+                ResourceCompatibilityError::CanonicalAdapterRequiresApiRealization {
+                    resource: R::resource_id(),
+                },
+            );
+        }
+        let provider_module_id = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            self.module_id.clone()
+        } else {
+            derive_realization_provider_module_id(&self.module_id)
+                .expect("static realization suffix must preserve module id validity")
+        };
+        let selection = (bridge_mode == AdapterBridgeMode::LegacyRealization).then(|| {
+            ContractProviderSelection::new(
+                self.module_id.clone(),
+                R::realization_requirement().id().clone(),
+                provider_module_id.clone(),
+            )
+        });
+        let semantic_requirements = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            R::declaration(&self).required_contracts().to_vec()
+        } else {
+            Vec::new()
+        };
         Ok(ResourceRealization::new(
             self,
-            AdapterProviderModule::new(provider_module_id, adapter),
+            AdapterProviderModule::new(provider_module_id, adapter)
+                .with_semantic_requirements(semantic_requirements),
             selection,
+            bridge_mode,
         ))
     }
 }

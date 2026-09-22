@@ -11,7 +11,10 @@ mod resource_definition;
 mod resource_realization;
 mod resource_selection;
 
-pub use adapter_definition::AdapterDefinition;
+pub use adapter_definition::{
+    AdapterBridgeMode, AdapterDefinition, CanonicalAdapterSupport, ResourceAdapterCompatibility,
+    SystemAdapterCompatibility,
+};
 pub use adapter_provider_module::AdapterProviderModule;
 pub use component_augmentation::{
     ComponentAugmentation, ComponentAugmentationDefinition, ComponentAugmentationRealization,

@@ -229,7 +229,8 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
         "adapter! should parse an explicit target-plane model"
     );
     assert!(
-        parse.contains("adapter! requires `for resource ...` or `for system ...`")
+        parse.contains("let target_kind = if input.peek(kw::resource)")
+            && parse.contains("let realization_interface = if target_kind.is_some()")
             && parse.contains("adapter! supports only one `relations { ... }` section")
             && parse.contains("legacy `realization: ...;` declaration")
             && parse.contains("legacy `schema: ...;` declaration"),
@@ -245,18 +246,20 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     assert!(
         codegen.contains("type Target = #target;")
             && codegen.contains("type Compatibility = #schema_support_ty;")
+            && codegen.contains("CanonicalAdapterSupport<#target>")
+            && codegen.contains("AdapterBridgeMode::SemanticApi")
             && codegen.contains("impl #target_service for Runtime")
             && codegen.contains("<#raw_impl_mod::Runtime as #interface>::realization_contract")
             && codegen.contains("relation_requirement_versioned"),
         "adapter! should lower into AdapterDefinition, explicit typed realization interfaces, and canonical relations"
     );
     assert!(
-        !codegen.contains("target_namespace_path")
-            && !codegen.contains("to_snake_case(&last.into_value().ident)")
-            && codegen.contains("let interface = &input.realization_interface;")
+        codegen.contains("target_api_raw_path")
+            && codegen.contains("to_snake_case(&final_segment.ident)")
+            && codegen.contains("let interface = input")
             && codegen.contains("realization_target")
             && codegen.contains("host_requirement(&self) -> #sdk::host::HostRequirement"),
-        "adapter! should use an explicit public realization interface rather than derive another crate's module layout"
+        "adapter! should preserve explicit interfaces while deriving canonical target API machinery"
     );
     for forbidden in [
         "fabric-adapter",

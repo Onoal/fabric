@@ -22,8 +22,9 @@ contain distinct occurrences of the same Resource type.
 **[System](system.md)** is an instance-wide shared capability used by the
 declared system.
 
-**[Adapter](adapter.md)** realizes an adaptable Component, Resource, or System
-through an explicit public realization interface.
+**[Adapter](adapter.md)** realizes a Component, Resource, or System. For normal
+Resource/System authoring the target semantic API is the realization contract;
+explicit realization interfaces remain an advanced mediation boundary.
 
 **[Config](config.md)** is the typed creator-to-consumer declaration input for
 Resource, System, and Adapter occurrences.

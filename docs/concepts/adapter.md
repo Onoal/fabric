@@ -10,37 +10,44 @@ Component/Resource/System semantics != Adapter realization
 Adapter = one concrete realization of one Component, Resource, or System target
 ```
 
-## Target, Config, and interface
+## Target, Config, and semantic API bridge
 
 Every `AdapterDefinition` has one explicit `Target`: the Component, Resource,
 or System definition it realizes. Its public responsibilities are `Target`,
 `Compatibility`, `compatibility()`, `host_requirement()`, declaration
 construction, and optional provider-runtime materialization. `adapter!` is the
 normal ergonomic authoring form for Resource and System targets; handwritten
-`AdapterDefinition` remains the public path for Component targets.
+`AdapterDefinition` remains the public advanced path for Component targets.
 
 ```rust
 fabric::adapter! {
-    pub LocalStoreAdapter for resource Store implements StoreRealization {
-        version: "1.0.0";
+    pub LocalStoreAdapter for Store {
         config { directory: String; }
-        runtime { /* realization methods */ }
+        runtime {
+            fn get(&self, key: String) -> Option<String> { let _ = key; None }
+        }
     }
 }
 ```
 
-The target defines the typed `RealizationContract`; the Adapter implements it.
-That realization interface differs from the consumer semantic contract:
-Components consume the latter, while the target runtime uses the former to
-realize its semantics.
+For a normal Resource or System target, its declared `api { ... }` is the
+effective realization contract. The target alone therefore supplies the kind,
+semantic API identity, and default exact schema support. The Adapter implements
+that API directly; Fabric registers the Adapter-owned live provider behind the
+typed semantic API. There is no Resource/System forwarding runtime in this
+path, and consumers still call the semantic methods they declared.
 
-`version` is the Adapter provider-contract version; `implements` already names
-the interface. Target support is inferred exactly from `Store` by default. Use
-`supports: "^0.4";` only for deliberate broader target support. The former
-`schema: ...;` and `realization: ...;` spellings remain valid as explicit
-legacy/advanced compatibility forms. A no-Config Adapter is constructed as
+Target support is inferred exactly from `Store` by default. Use
+`supports: "^0.4";` only for deliberate broader target support. A no-Config Adapter is constructed as
 `Adapter::new()`; inline `config { ... }` generates a public Config type, while
 `config: MyConfig;` uses a creator-owned Rust type directly.
+
+An existing explicit realization boundary remains the advanced compatibility
+form: `for resource Store implements StoreRealization` (or `for system ...`)
+continues to lower through its declared realization contract. Use it when a
+semantic owner deliberately mediates between its public API and a different
+lower-level implementation interface. 0.4.7 does not add a new differential
+realization language.
 
 Adapter Config configures the implementation—for example, a directory or
 endpoint—not Resource/System semantic Config, Component Config, or a Host
@@ -52,9 +59,9 @@ Adapters normally supply one.
 
 ## Compatibility and selection
 
-Resource-targeting Adapters use `AdapterResourceSchemaSupport`; System targets
-use `AdapterSystemSchemaSupport`. Their compatibility says which semantic schema versions
-the implementation understands. `Provisional` matches only `Provisional`;
+Fabric derives Resource versus System compatibility from the target in the
+canonical form. Internally the existing schema support types still enforce
+which semantic schema versions the implementation understands. `Provisional` matches only `Provisional`;
 versioned support uses semantic-version requirements. Target identity must
 also match: compatible-looking methods cannot apply an Adapter for one target
 to another. Component-targeting Adapters use the Component's typed realization
@@ -70,16 +77,17 @@ let realized = MyResource::select("primary", resource_config)?
 target selection + compatible Adapter = declarative realization
 ```
 
-`.using(adapter)` validates target/schema compatibility, creates a provider
-selection, and records declaration truth. It does not connect, start a process,
-discover a service, or change a live Instance.
+`.using(adapter)` validates target/schema compatibility and records declarative
+realization truth. In the canonical path, the selected Adapter itself occupies
+the semantic occurrence's provider slot; it does not add a fake target runtime
+or per-method proxy. It does not connect, start a process, discover a service,
+or change a live Instance.
 
 Compatibility is not selection: compatibility means an Adapter *can* satisfy
-the realization requirement; provider selection means this
-[Composition](composition.md) chooses it. `ResourceRealization` retains its
-`ResourceSelection`, `AdapterProviderModule`, and `ContractProviderSelection`.
-`SystemRealization` retains the analogous System selection, provider carrier,
-and selection. This keeps semantic identity separate from realization.
+the realization requirement; selection means this [Composition](composition.md)
+chooses it. The legacy explicit form retains its provider selection machinery;
+the canonical form directly exports the semantic API from the Adapter-owned
+provider. Both keep semantic identity separate from concrete machinery.
 
 `AdapterProviderModule<A>` is Core-facing typed carrier machinery for the
 Adapter declaration, Host requirement, and optional provider runtime. Its
@@ -114,8 +122,8 @@ and binds that dependency before the Adapter runtime starts; it is not a global
 lookup or a requirement for a concrete System Adapter.
 
 ```text
-Component/Resource/System definition -> realization interface -> selection .using(Adapter)
--> provider selection -> Composition -> materialize on Host -> provider runtime
+Resource/System semantic API -> selection .using(Adapter)
+-> Adapter-owned provider -> Composition -> materialize on Host -> semantic API handle
 ```
 
 Provider runtimes participate in ordinary Core bind, initialize, start, stop,
@@ -133,7 +141,7 @@ state accidentally.
 
 ```rust
 fabric::adapter! {
-    LocalStoreAdapter for resource Store implements StoreRealization {
+    LocalStoreAdapter for Store {
         config { directory: String; }
         state { LocalStoreState = LocalStoreState::new(config.directory.clone()); }
         runtime { /* realization methods can use self.state.get() */ }
@@ -195,7 +203,7 @@ without depending on a concrete realization.
 | schema support | compatibility validation | not discovery |
 | HostRequirement | declared | checked at materialization |
 | provider selection | Composition truth | realized provider |
-| realization contract | declared | live typed implementation |
+| semantic API (normal) | target-derived | Adapter live typed implementation |
 | System requirement | declared | bound typed contract |
 
 Return to the [Concept map](README.md) or [Architecture](../architecture.md).

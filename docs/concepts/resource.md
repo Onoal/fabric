@@ -143,9 +143,11 @@ Resource identity.
 Schema compatibility establishes that a realization can bind or materialize;
 it does not establish safe replacement, migration, or provider-state transfer.
 
-A self-realizing Resource may materialize directly. An adapted Resource uses
-`AdaptableResourceDefinition` with a typed [RealizationContract](adapter.md);
-its concrete live machinery belongs to the selected Adapter realization.
+A self-realizing Resource may materialize directly. For the normal adapted
+form, its semantic `api { ... }` is the Adapter requirement and the selected
+Adapter owns the concrete live machinery. An explicit typed
+[RealizationContract](adapter.md) remains the advanced form for intentional
+semantic mediation with a different lower-level interface.
 
 ```text
 ResourceSelection + compatible Adapter = ResourceRealization
@@ -157,9 +159,10 @@ let realized = resource_selection.using(adapter)?;
 
 `.using(adapter)` is declarative: it does not start an [Adapter](adapter.md), connect to a
 service, or mutate an Instance. It records the occurrence, Adapter provider,
-and provider selection for later Composition materialization. A compatible
-Adapter targets the Resource, supports its schema, and implements its explicit
-realization contract. Not every Resource requires an Adapter.
+and Adapter provider declaration for later Composition materialization. In the
+normal form, a compatible Adapter targets the Resource, supports its schema,
+and implements the Resource API directly. Not every Resource requires an
+Adapter.
 
 ```text
 Resource                         Adapter
@@ -187,7 +190,7 @@ Resolution is Core declaration binding, not runtime service discovery:
 ```text
 Component requires Resource contract
 -> Composition selects occurrence
--> realization may use Adapter
+-> selected Adapter may provide the semantic API directly
 -> Core resolves/binds
 -> Component receives typed contract
 ```

@@ -12,18 +12,20 @@ pub(crate) use augmentation_requirement::requirement_for_key;
 pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
 pub use definitions::{
-    AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterDefinition,
-    AdapterProviderModule, ComponentAugmentation, ComponentAugmentationDefinition,
-    ComponentAugmentationRealization, ComponentAugmentationRequirement, ComponentAugmentationSet,
+    AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterBridgeMode,
+    AdapterDefinition, AdapterProviderModule, CanonicalAdapterSupport, ComponentAugmentation,
+    ComponentAugmentationDefinition, ComponentAugmentationRealization,
+    ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
     ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
     ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
     ComponentSpec, ComponentSystemScope, ContractDependency, IntoResourceName,
-    PrimaryResourceContract, RelationTarget, Requires, ResourceAugmentation,
-    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
-    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
-    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
+    PrimaryResourceContract, RelationTarget, Requires, ResourceAdapterCompatibility,
+    ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,
+    ResourceAugmentationRealization, ResourceAugmentationRequirement,
+    ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
+    ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,

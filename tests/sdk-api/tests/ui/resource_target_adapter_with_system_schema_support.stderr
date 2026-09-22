@@ -1,21 +1,21 @@
-error[E0271]: type mismatch resolving `<WrongSchemaSupportClockAdapter as AdapterDefinition>::Compatibility == AdapterResourceSchemaSupport`
+error[E0277]: the trait bound `AdapterSystemSchemaSupport: fabric::authoring::ResourceAdapterCompatibility<Clock>` is not satisfied
   --> tests/ui/resource_target_adapter_with_system_schema_support.rs:35:16
    |
 35 |         .using(WrongSchemaSupportClockAdapter);
-   |          ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type mismatch resolving `<WrongSchemaSupportClockAdapter as AdapterDefinition>::Compatibility == AdapterResourceSchemaSupport`
+   |          ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `fabric::authoring::ResourceAdapterCompatibility<Clock>` is not implemented for `AdapterSystemSchemaSupport`
    |          |
    |          required by a bound introduced by this call
    |
-note: expected this to be `AdapterResourceSchemaSupport`
-  --> tests/ui/resource_target_adapter_with_system_schema_support.rs:12:26
+help: the trait `fabric::authoring::ResourceAdapterCompatibility<R>` is implemented for `AdapterResourceSchemaSupport`
+  --> $WORKSPACE/sdk/src/authoring/definitions/adapter_definition.rs
    |
-12 |     type Compatibility = AdapterSystemSchemaSupport;
-   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   | impl<R> ResourceAdapterCompatibility<R> for AdapterResourceSchemaSupport {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `ResourceSelection::<R>::using`
   --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
    |
    |     pub fn using<A>(
    |            ----- required by a bound in this associated function
 ...
-   |         A: AdapterDefinition<Target = R, Compatibility = AdapterResourceSchemaSupport>,
-   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`
+   |         A::Compatibility: ResourceAdapterCompatibility<R>,
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`

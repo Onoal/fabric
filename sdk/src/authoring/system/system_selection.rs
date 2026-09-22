@@ -1,10 +1,12 @@
 use std::marker::PhantomData;
 
 use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration, ModuleId, ModuleRuntime};
-use fabric_system::{AdapterSystemSchemaSupport, SystemCompatibilityError, SystemId};
+use fabric_system::{SystemCompatibilityError, SystemId};
 
 use super::{AdaptableSystemDefinition, SystemDefinition, SystemRealization};
-use crate::authoring::definitions::{AdapterDefinition, AdapterProviderModule};
+use crate::authoring::definitions::{
+    AdapterBridgeMode, AdapterDefinition, AdapterProviderModule, SystemAdapterCompatibility,
+};
 
 pub struct SystemSelection<S>
 where
@@ -57,22 +59,44 @@ where
 {
     pub fn using<A>(self, adapter: A) -> Result<SystemRealization<S, A>, SystemCompatibilityError>
     where
-        A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+        A: AdapterDefinition<Target = S>,
+        A::Compatibility: SystemAdapterCompatibility<S>,
     {
         let system_id = S::system_id();
         let schema = S::schema();
         schema.ensure_system(&system_id)?;
-        adapter.compatibility().accepts_schema(&schema)?;
-        let provider_module_id = derive_realization_provider_module_id(&self.module_id)?;
-        let selection = ContractProviderSelection::new(
-            self.module_id.clone(),
-            S::realization_requirement().id().clone(),
-            provider_module_id.clone(),
-        );
+        adapter.compatibility().accepts_system_schema(&schema)?;
+        let bridge_mode = adapter.bridge_mode();
+        if bridge_mode == AdapterBridgeMode::SemanticApi && !S::supports_semantic_api_adapter() {
+            return Err(
+                SystemCompatibilityError::CanonicalAdapterRequiresApiRealization {
+                    system: S::system_id(),
+                },
+            );
+        }
+        let provider_module_id = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            self.module_id.clone()
+        } else {
+            derive_realization_provider_module_id(&self.module_id)?
+        };
+        let selection = (bridge_mode == AdapterBridgeMode::LegacyRealization).then(|| {
+            ContractProviderSelection::new(
+                self.module_id.clone(),
+                S::realization_requirement().id().clone(),
+                provider_module_id.clone(),
+            )
+        });
+        let semantic_requirements = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            S::declaration(&self).required_contracts().to_vec()
+        } else {
+            Vec::new()
+        };
         Ok(SystemRealization::new(
             self,
-            AdapterProviderModule::new(provider_module_id, adapter),
+            AdapterProviderModule::new(provider_module_id, adapter)
+                .with_semantic_requirements(semantic_requirements),
             selection,
+            bridge_mode,
         ))
     }
 }

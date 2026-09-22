@@ -132,7 +132,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 .map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
         }
     });
-    let adaptable_impl = input.realization.as_ref().map(|realization| {
+    let adaptable_impl = if let Some(realization) = input.realization.as_ref() {
         let contract_name = format_ident!("{}Contract", realization.name);
         quote! {
             impl #sdk::authoring::AdaptableResourceDefinition for #resource_name {
@@ -143,7 +143,33 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 }
             }
         }
-    });
+    } else {
+        quote! {
+            impl #sdk::authoring::AdaptableResourceDefinition for #resource_name {
+                type RealizationContract = #resource_mod::raw::#contract_name;
+
+                fn realization_requirement() -> #sdk::core::ContractRequirement<Self::RealizationContract> {
+                    let key = <Self as #sdk::authoring::PrimaryResourceContract>::primary_contract_key();
+                    match key.identity() {
+                        #sdk::core::ContractIdentity::Provisional => {
+                            #sdk::core::ContractRequirement::provisional(key.id().clone())
+                        }
+                        #sdk::core::ContractIdentity::Versioned(version) => {
+                            #sdk::core::ContractRequirement::versioned(
+                                key.id().clone(),
+                                #sdk::core::ContractVersionRequirement::parse(format!("={version}"))
+                                    .expect("resource! generated a static exact API requirement"),
+                            )
+                        }
+                    }
+                }
+
+                fn supports_semantic_api_adapter() -> bool {
+                    true
+                }
+            }
+        }
+    };
 
     let runtime_methods = input.runtime_methods.as_deref().unwrap_or(&[]);
     let runtime_inherent_methods = runtime_methods.iter().map(runtime_method_tokens);
@@ -426,6 +452,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         }
 
         #visibility mod #resource_mod {
+            #[doc(hidden)]
             pub mod raw {
                 pub use super::super::#raw_impl_mod::{
                     #contract_name, #service_name, #raw_runtime_reexport

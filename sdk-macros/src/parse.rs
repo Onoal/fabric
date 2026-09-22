@@ -392,16 +392,20 @@ impl Parse for AdapterInput {
         input.parse::<Token![for]>()?;
         let target_kind = if input.peek(kw::resource) {
             input.parse::<kw::resource>()?;
-            AdapterTargetKind::Resource
+            Some(AdapterTargetKind::Resource)
         } else if input.peek(kw::system) {
             input.parse::<kw::system>()?;
-            AdapterTargetKind::System
+            Some(AdapterTargetKind::System)
         } else {
-            return Err(input.error("adapter! requires `for resource ...` or `for system ...`"));
+            None
         };
         let target = input.parse::<Path>()?;
-        input.parse::<kw::implements>()?;
-        let realization_interface = input.parse::<Path>()?;
+        let realization_interface = if target_kind.is_some() {
+            input.parse::<kw::implements>()?;
+            Some(input.parse::<Path>()?)
+        } else {
+            None
+        };
         let content;
         braced!(content in input);
 
@@ -524,6 +528,19 @@ impl Parse for AdapterInput {
         }
 
         let name_for_errors = name.clone();
+
+        // A canonical adapter implements the target's primary semantic API
+        // directly. Its effective realization-contract version is therefore
+        // the target API version; accepting a separate provider version here
+        // would make a normal declaration appear to select a contract it
+        // cannot actually provide. The explicit legacy form retains
+        // `realization:`/`version:` for custom realization contracts.
+        if target_kind.is_none() && realization.is_some() {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "canonical adapter! authoring derives its realization contract version from the target API; omit `version: ...;` (use the explicit `for resource/system ... implements ...` form for a custom realization contract)",
+            ));
+        }
 
         Ok(Self {
             visibility,

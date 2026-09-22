@@ -18,6 +18,10 @@ pub struct AdapterResourceSchemaSupport {
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum ResourceCompatibilityError {
+    #[error(
+        "resource `{resource}` uses an explicit realization contract; canonical Adapter authoring applies only when the Resource API is its realization contract"
+    )]
+    CanonicalAdapterRequiresApiRealization { resource: ResourceId },
     #[error("resource compatibility expected `{expected}` but {role} named `{actual}`")]
     ResourceIdentityMismatch {
         expected: ResourceId,

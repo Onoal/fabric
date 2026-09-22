@@ -1,12 +1,12 @@
-use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration};
-use fabric_system::AdapterSystemSchemaSupport;
-
 use super::manifest::SystemManifestEntry;
 use super::sealed::Sealed;
-use crate::authoring::definitions::AdapterDefinition;
+use crate::authoring::definitions::{
+    AdapterBridgeMode, AdapterDefinition, SystemAdapterCompatibility,
+};
 use crate::authoring::system::{
     AdaptableSystemDefinition, SystemDefinition, SystemRealization, SystemSelection,
 };
+use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration};
 
 pub trait IntoFabricSystem: Sealed {
     #[doc(hidden)]
@@ -68,24 +68,38 @@ where
 impl<S, A> Sealed for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S>,
+    A::Compatibility: SystemAdapterCompatibility<S>,
 {
 }
 
 impl<S, A> IntoFabricSystem for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S>,
+    A::Compatibility: SystemAdapterCompatibility<S>,
 {
     fn into_fabric_system(self) -> FabricSystemContribution {
-        let (system, adapter, selection) = self.into_raw_parts();
+        let (system, adapter, selection, bridge_mode) = self.into_bridge_parts();
         let entry = SystemManifestEntry::new(S::system_id(), S::schema());
-        let declarations = vec![system.declaration(), adapter.declaration()];
-        FabricSystemContribution::new(
-            entry,
-            vec![Box::new(system), Box::new(adapter)],
-            declarations,
-            vec![selection],
-        )
+        if bridge_mode == AdapterBridgeMode::SemanticApi {
+            // See the Resource equivalent: semantic Relations constrain the
+            // Adapter-owned live participant without reviving a System proxy.
+            let declaration = adapter.declaration();
+            FabricSystemContribution::new(
+                entry,
+                vec![Box::new(adapter)],
+                vec![declaration],
+                Vec::new(),
+            )
+        } else {
+            let declarations = vec![system.declaration(), adapter.declaration()];
+            FabricSystemContribution::new(
+                entry,
+                vec![Box::new(system), Box::new(adapter)],
+                declarations,
+                vec![selection.expect("legacy adapter realization selects its provider")],
+            )
+        }
     }
 }

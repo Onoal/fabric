@@ -1,29 +1,34 @@
 use fabric_core::ContractProviderSelection;
-use fabric_system::AdapterSystemSchemaSupport;
 
 use super::{AdaptableSystemDefinition, SystemSelection};
-use crate::authoring::definitions::{AdapterDefinition, AdapterProviderModule};
+use crate::authoring::definitions::{
+    AdapterBridgeMode, AdapterDefinition, AdapterProviderModule, SystemAdapterCompatibility,
+};
 
 pub struct SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S>,
+    A::Compatibility: SystemAdapterCompatibility<S>,
 {
     system: SystemSelection<S>,
     adapter: AdapterProviderModule<A>,
-    selection: ContractProviderSelection,
+    selection: Option<ContractProviderSelection>,
+    bridge_mode: AdapterBridgeMode,
 }
 
 impl<S, A> Clone for SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S>,
+    A::Compatibility: SystemAdapterCompatibility<S>,
 {
     fn clone(&self) -> Self {
         Self {
             system: self.system.clone(),
             adapter: self.adapter.clone(),
             selection: self.selection.clone(),
+            bridge_mode: self.bridge_mode,
         }
     }
 }
@@ -31,17 +36,20 @@ where
 impl<S, A> SystemRealization<S, A>
 where
     S: AdaptableSystemDefinition,
-    A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
+    A: AdapterDefinition<Target = S>,
+    A::Compatibility: SystemAdapterCompatibility<S>,
 {
     pub(crate) fn new(
         system: SystemSelection<S>,
         adapter: AdapterProviderModule<A>,
-        selection: ContractProviderSelection,
+        selection: Option<ContractProviderSelection>,
+        bridge_mode: AdapterBridgeMode,
     ) -> Self {
         Self {
             system,
             adapter,
             selection,
+            bridge_mode,
         }
     }
 
@@ -54,7 +62,9 @@ where
     }
 
     pub fn provider_selection(&self) -> &ContractProviderSelection {
-        &self.selection
+        self.selection
+            .as_ref()
+            .expect("canonical semantic API adapters select their target directly")
     }
 
     pub fn into_raw_parts(
@@ -64,6 +74,22 @@ where
         AdapterProviderModule<A>,
         ContractProviderSelection,
     ) {
-        (self.system, self.adapter, self.selection)
+        (
+            self.system,
+            self.adapter,
+            self.selection
+                .expect("into_raw_parts is the legacy explicit-realization boundary"),
+        )
+    }
+
+    pub(crate) fn into_bridge_parts(
+        self,
+    ) -> (
+        SystemSelection<S>,
+        AdapterProviderModule<A>,
+        Option<ContractProviderSelection>,
+        AdapterBridgeMode,
+    ) {
+        (self.system, self.adapter, self.selection, self.bridge_mode)
     }
 }

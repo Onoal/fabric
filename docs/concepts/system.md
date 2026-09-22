@@ -138,9 +138,12 @@ its own.
 
 ## Adapter realization
 
-An `AdaptableSystemDefinition` publishes a typed `RealizationContract`. A
-compatible Adapter targets that System, accepts its schema through
-`AdapterSystemSchemaSupport`, and implements that interface.
+For a normal adapted System, its semantic `api { ... }` is the realization
+contract. A compatible Adapter targets that System, receives its exact schema
+support by default, and provides the typed System API directly. The System
+does not acquire a forwarding runtime merely because it is adapted. An
+explicit `RealizationContract` remains the advanced form for a deliberately
+different lower-level implementation interface.
 
 ```text
 SystemSelection + compatible Adapter = SystemRealization
@@ -150,11 +153,12 @@ SystemSelection + compatible Adapter = SystemRealization
 let realized = system_selection.using(adapter)?;
 ```
 
-`SystemRealization` retains the System selection, Adapter provider, and Core
-provider selection separately. `.using(adapter)` is declarative: it does not
+`.using(adapter)` is declarative: it does not
 start a System, connect to a service, modify an Instance, or perform discovery.
-It records realization truth for later Composition materialization. Incompatible
-schema support returns `SystemCompatibilityError` before runtime.
+It records realization truth for later Composition materialization. In the
+normal form the Adapter-owned provider occupies the selected System's semantic
+API slot. Incompatible schema support returns `SystemCompatibilityError` before
+runtime.
 
 One Composition may select a local Adapter and another a remote Adapter for
 the same System semantics. That does not redefine the System. In contrast,

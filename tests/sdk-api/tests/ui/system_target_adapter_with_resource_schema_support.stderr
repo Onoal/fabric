@@ -1,21 +1,22 @@
-error[E0271]: type mismatch resolving `<WrongSchemaSupportSystemAdapter as AdapterDefinition>::Compatibility == AdapterSystemSchemaSupport`
+error[E0277]: the trait bound `AdapterResourceSchemaSupport: authoring::definitions::adapter_definition::SystemAdapterCompatibility<AdaptedOperations>` is not satisfied
   --> tests/ui/system_target_adapter_with_resource_schema_support.rs:35:16
    |
 35 |         .using(WrongSchemaSupportSystemAdapter);
-   |          ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type mismatch resolving `<WrongSchemaSupportSystemAdapter as AdapterDefinition>::Compatibility == AdapterSystemSchemaSupport`
+   |          ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
    |          |
    |          required by a bound introduced by this call
    |
-note: expected this to be `AdapterSystemSchemaSupport`
-  --> tests/ui/system_target_adapter_with_resource_schema_support.rs:12:26
+   = help: the trait `authoring::definitions::adapter_definition::SystemAdapterCompatibility<AdaptedOperations>` is not implemented for `AdapterResourceSchemaSupport`
+help: the trait `authoring::definitions::adapter_definition::SystemAdapterCompatibility<S>` is implemented for `AdapterSystemSchemaSupport`
+  --> $WORKSPACE/sdk/src/authoring/definitions/adapter_definition.rs
    |
-12 |     type Compatibility = AdapterResourceSchemaSupport;
-   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   | impl<S> SystemAdapterCompatibility<S> for AdapterSystemSchemaSupport {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required by a bound in `SystemSelection::<S>::using`
   --> $WORKSPACE/sdk/src/authoring/system/system_selection.rs
    |
    |     pub fn using<A>(self, adapter: A) -> Result<SystemRealization<S, A>, SystemCompatibilityError>
    |            ----- required by a bound in this associated function
-   |     where
-   |         A: AdapterDefinition<Target = S, Compatibility = AdapterSystemSchemaSupport>,
-   |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SystemSelection::<S>::using`
+...
+   |         A::Compatibility: SystemAdapterCompatibility<S>,
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SystemSelection::<S>::using`

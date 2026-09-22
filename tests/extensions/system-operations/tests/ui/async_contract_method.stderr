@@ -1,4 +1,4 @@
-error: async system contract methods are not supported
+error: async system API methods are not supported
   --> tests/ui/async_contract_method.rs:16:26
    |
 16 |                 async fn current_marker(&self) -> OperationMarker;

@@ -1,4 +1,4 @@
-error: missing runtime implementation for contract method `current_marker`
+error: missing runtime implementation for API method `current_marker`
   --> tests/ui/missing_runtime_method.rs:16:20
    |
 16 |                 fn current_marker(&self) -> OperationMarker;

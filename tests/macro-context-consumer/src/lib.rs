@@ -8,7 +8,9 @@ use fabric_test_macro_context::{
 };
 
 #[cfg(test)]
-use fabric_test_macro_context::{RootStatefulStore, reset_root_adapter_stop, root_adapter_stopped};
+use fabric_test_macro_context::{
+    RootStatefulStore, reset_root_adapter_stop, root_adapter_stopped, root_api_identities,
+};
 
 adapter! {
     ExternalRootStore
@@ -72,4 +74,37 @@ fn external_adapters_consume_crate_root_adaptable_definitions() {
     assert!(root_adapter_stopped());
 
     let _ = ExternalRootStore::new();
+}
+
+#[test]
+fn owner_derived_api_identities_are_stable_across_macro_locations() {
+    let root = root_api_identities();
+    let module = fabric_test_macro_context::capability::api_identities();
+    let deep = fabric_test_macro_context::outer::middle::inner::api_identities();
+
+    assert_eq!(
+        root.0,
+        "fabric.resource.api.fabric.test.macro-context.root-store"
+    );
+    assert_eq!(
+        root.1,
+        "fabric.system.api.fabric.test.macro-context.root-system"
+    );
+    assert_eq!(
+        module.0,
+        "fabric.resource.api.fabric.test.macro-context.module-store"
+    );
+    assert_eq!(
+        module.1,
+        "fabric.system.api.fabric.test.macro-context.module-system"
+    );
+    assert_eq!(
+        deep.0,
+        "fabric.resource.api.fabric.test.macro-context.deep-store"
+    );
+    assert_eq!(
+        deep.1,
+        "fabric.system.api.fabric.test.macro-context.deep-system"
+    );
+    assert_ne!(root.0, root.1, "resource and system API domains differ");
 }

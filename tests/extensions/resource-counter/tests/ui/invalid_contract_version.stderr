@@ -1,4 +1,4 @@
-error: invalid contract version: unexpected character 'n' while parsing major version number
+error: invalid API version: unexpected character 'n' while parsing major version number
   --> tests/ui/invalid_contract_version.rs:15:26
    |
 15 |                 version: "not-a-version";

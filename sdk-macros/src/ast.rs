@@ -7,7 +7,7 @@ pub struct ResourceInput {
     pub schema: VersionLiteral,
     pub config: ConfigDefinition,
     pub relations: Vec<RelationDefinition>,
-    pub contracts: Vec<ContractDefinition>,
+    pub api: ApiDefinition,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
     pub runtime_state: Option<RuntimeStateDefinition>,
@@ -21,7 +21,7 @@ pub struct SystemInput {
     pub schema: VersionLiteral,
     pub config: ConfigDefinition,
     pub relations: Vec<RelationDefinition>,
-    pub contracts: Vec<ContractDefinition>,
+    pub api: ApiDefinition,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
     pub runtime_state: Option<RuntimeStateDefinition>,
@@ -73,12 +73,21 @@ pub enum ConfigDefinition {
     Type(Type),
 }
 
-pub struct ContractDefinition {
-    pub is_primary: bool,
+/// The single semantic API a Resource or System exposes to its consumers.
+///
+/// Normal `api { ... }` authoring derives identity and version from the owning
+/// definition. The explicit form exists only while the legacy `contracts`
+/// grammar remains source compatible.
+pub struct ApiDefinition {
     pub name: Ident,
-    pub contract_id: LitStr,
+    pub identity: ApiIdentity,
     pub version: VersionLiteral,
     pub methods: Vec<ContractMethod>,
+}
+
+pub enum ApiIdentity {
+    OwnerDerived,
+    LegacyExplicit(LitStr),
 }
 
 pub struct ContractMethod {

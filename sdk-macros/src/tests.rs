@@ -146,7 +146,7 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     assert!(
         validate.contains("must use an `&self` receiver")
             && validate.contains("arguments must use simple `name: Type` bindings")
-            && validate.contains("generic resource contract methods are not supported"),
+            && validate.contains("generic resource API methods are not supported"),
         "resource! validation should explicitly reject unsupported signatures"
     );
     assert!(
@@ -186,7 +186,7 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
         validate.contains("invalid system schema version")
             && validate.contains("invalid system dependency version requirement")
             && validate.contains("duplicate system dependency field")
-            && validate.contains("async system contract methods are not supported"),
+            && validate.contains("async system API methods are not supported"),
         "system! validation should cover system schema, dependency, and method integrity"
     );
     assert!(
@@ -281,8 +281,8 @@ fn normal_authoring_defaults_version_support_and_universal_config_without_removi
             && ast.contains("Type(Type)")
             && parse.contains("config: config.unwrap_or(ConfigDefinition::None)")
             && parse.contains("expected `config { ... }` or `config: RustConfigType;`")
-            && parse.contains("resolve_contract_versions"),
-        "resource and system normal authoring should derive provisional version, model no/inline/type Config explicitly, and inherit contract version"
+            && parse.contains("resolve_api"),
+        "resource and system normal authoring should derive provisional version, model no/inline/type Config explicitly, and derive the API version from its owner"
     );
     assert!(
         parse.contains("supports: ...;")
@@ -296,6 +296,58 @@ fn normal_authoring_defaults_version_support_and_universal_config_without_removi
             && adapter.contains("exact target resource schema requirement")
             && adapter.contains("exact target system schema requirement"),
         "an adapter without an explicit support override must derive exact target compatibility"
+    );
+}
+
+#[test]
+fn api_parser_reports_normal_authoring_errors_at_the_api_layer() {
+    fn resource_error(source: &str) -> String {
+        match syn::parse_str::<crate::ast::ResourceInput>(source) {
+            Ok(_) => panic!("resource input should fail to parse"),
+            Err(error) => error.to_string(),
+        }
+    }
+
+    assert!(
+        resource_error(r#"Thing { id: "example.thing"; runtime {} }"#)
+            .contains("resource! requires an `api { ... }` section")
+    );
+    assert!(
+        resource_error(r#"Thing { id: "example.thing"; api {} api {} runtime {} }"#)
+            .contains("resource! supports only one `api { ... }` section")
+    );
+    assert!(resource_error(
+        r#"Thing { id: "example.thing"; api {} contracts { primary Api { id: "example.thing.api"; } } runtime {} }"#
+    )
+    .contains("resource! cannot use both `api { ... }` and legacy `contracts { ... }`"));
+    assert!(resource_error(
+        r#"Thing { id: "example.thing"; api { fn read(&self) {} } runtime { fn read(&self) {} } }"#
+    )
+    .contains("api methods are signatures and must not include bodies"));
+}
+
+#[test]
+fn owner_derived_api_identity_depends_only_on_owner_kind_and_id() {
+    let common =
+        fs::read_to_string(crate_root().join("src/codegen/common.rs")).expect("read common");
+
+    assert!(
+        common.contains("concat!(\"fabric.resource.api.\", #owner_id)")
+            && common.contains("concat!(\"fabric.system.api.\", #owner_id)"),
+        "normal API identities must derive from the owner kind and stable owner id"
+    );
+    let identity_lowering = common
+        .split("pub fn api_contract_id_expr")
+        .nth(1)
+        .expect("API identity lowering")
+        .split("pub fn service_method_tokens")
+        .next()
+        .expect("API identity lowering end");
+    assert!(
+        !identity_lowering.contains("config")
+            && !identity_lowering.contains("relations")
+            && !identity_lowering.contains("runtime"),
+        "API identity lowering must not depend on Config, Relations, or runtime implementation"
     );
 }
 

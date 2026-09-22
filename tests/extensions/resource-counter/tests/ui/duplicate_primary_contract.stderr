@@ -1,11 +1,5 @@
 error: resource! supports only one `primary` contract
- --> tests/ui/duplicate_primary_contract.rs:4:9
-  |
-4 |     pub DuplicatePrimaryContract {
-  |         ^^^^^^^^^^^^^^^^^^^^^^^^
-
-error: runtime method `other_value` has no matching contract declaration
-  --> tests/ui/duplicate_primary_contract.rs:33:16
+  --> tests/ui/duplicate_primary_contract.rs:20:21
    |
-33 |             fn other_value(&self) -> u64 {
-   |                ^^^^^^^^^^^
+20 |             primary Secondary {
+   |                     ^^^^^^^^^

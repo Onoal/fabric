@@ -1,10 +1,10 @@
-error: async resource contract methods are not supported
+error: async resource API methods are not supported
   --> tests/ui/async_contract_method.rs:17:26
    |
 17 |                 async fn current_value(&self) -> u64;
    |                          ^^^^^^^^^^^^^
 
-error: async resource contract methods are not supported
+error: async resource API methods are not supported
   --> tests/ui/async_contract_method.rs:22:22
    |
 22 |             async fn current_value(&self) -> u64 {

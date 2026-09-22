@@ -1,4 +1,4 @@
-error: resource contract methods arguments must use simple `name: Type` bindings
+error: resource API methods arguments must use simple `name: Type` bindings
   --> tests/ui/destructured_argument_pattern.rs:17:41
    |
 17 |                 fn current_value(&self, (value, extra): (u64, u64)) -> u64;

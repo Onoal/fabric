@@ -1,4 +1,4 @@
-error: resource contract methods must use an `&self` receiver
+error: resource API methods must use an `&self` receiver
   --> tests/ui/value_self_receiver.rs:17:20
    |
 17 |                 fn current_value(self) -> u64;

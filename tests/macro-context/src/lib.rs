@@ -30,11 +30,8 @@ resource! {
         id: "fabric.test.macro-context.root-store";
         version: "0.1.0";
 
-        contracts {
-            primary Api {
-                id: "fabric.test.macro-context.root-store.api";
-                fn get(&self, key: RootKey) -> ImportedValue;
-            }
+        api {
+            fn get(&self, key: RootKey) -> ImportedValue;
         }
 
         adapter Adapter {
@@ -83,11 +80,8 @@ system! {
         id: "fabric.test.macro-context.root-system";
         version: "0.1.0";
 
-        contracts {
-            primary Api {
-                id: "fabric.test.macro-context.root-system.api";
-                fn marker(&self) -> ImportedValue;
-            }
+        api {
+            fn marker(&self) -> ImportedValue;
         }
 
         adapter Adapter {
@@ -104,6 +98,19 @@ system! {
     }
 }
 
+pub fn root_api_identities() -> (String, String) {
+    (
+        RootVersionedStore::primary_contract_key()
+            .id()
+            .as_str()
+            .to_owned(),
+        RootVersionedSystem::primary_contract_key()
+            .id()
+            .as_str()
+            .to_owned(),
+    )
+}
+
 pub mod capability {
     use fabric::*;
 
@@ -116,11 +123,8 @@ pub mod capability {
         pub ModuleStore {
             id: "fabric.test.macro-context.module-store";
 
-            contracts {
-                primary Api {
-                    id: "fabric.test.macro-context.module-store.api";
-                    fn get(&self, key: ModuleKey) -> ImportedValue;
-                }
+            api {
+                fn get(&self, key: ModuleKey) -> ImportedValue;
             }
 
             adapter Adapter {
@@ -141,11 +145,8 @@ pub mod capability {
         pub ModuleSystem {
             id: "fabric.test.macro-context.module-system";
 
-            contracts {
-                primary Api {
-                    id: "fabric.test.macro-context.module-system.api";
-                    fn marker(&self) -> ImportedValue;
-                }
+            api {
+                fn marker(&self) -> ImportedValue;
             }
 
             adapter Adapter {
@@ -160,6 +161,16 @@ pub mod capability {
                 }
             }
         }
+    }
+
+    pub fn api_identities() -> (String, String) {
+        (
+            ModuleStore::primary_contract_key().id().as_str().to_owned(),
+            ModuleSystem::primary_contract_key()
+                .id()
+                .as_str()
+                .to_owned(),
+        )
     }
 }
 
@@ -177,11 +188,8 @@ pub mod outer {
                 pub DeepStore {
                     id: "fabric.test.macro-context.deep-store";
 
-                    contracts {
-                        primary Api {
-                            id: "fabric.test.macro-context.deep-store.api";
-                            fn get(&self, key: DeepKey) -> ImportedValue;
-                        }
+                    api {
+                        fn get(&self, key: DeepKey) -> ImportedValue;
                     }
 
                     adapter Adapter {
@@ -202,11 +210,8 @@ pub mod outer {
                 pub DeepSystem {
                     id: "fabric.test.macro-context.deep-system";
 
-                    contracts {
-                        primary Api {
-                            id: "fabric.test.macro-context.deep-system.api";
-                            fn marker(&self) -> ImportedValue;
-                        }
+                    api {
+                        fn marker(&self) -> ImportedValue;
                     }
 
                     adapter Adapter {
@@ -221,6 +226,13 @@ pub mod outer {
                         }
                     }
                 }
+            }
+
+            pub fn api_identities() -> (String, String) {
+                (
+                    DeepStore::primary_contract_key().id().as_str().to_owned(),
+                    DeepSystem::primary_contract_key().id().as_str().to_owned(),
+                )
             }
         }
     }

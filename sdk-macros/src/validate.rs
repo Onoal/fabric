@@ -6,13 +6,11 @@ use syn::spanned::Spanned;
 use syn::{Error, Expr, ExprClosure, FnArg, Pat, PatIdent, Result, Signature};
 
 use crate::ast::{
-    AdapterInput, ComponentInput, ComponentOperationContext, RealizationDefinition,
+    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext, RealizationDefinition,
     RequirementLiteral, ResourceInput, SystemInput, VersionLiteral,
 };
 
-struct PrimaryContractValidation<'a> {
-    macro_name: &'a str,
-    additional_contract_message: &'a str,
+struct ApiValidation<'a> {
     async_message: &'a str,
     method_kind: &'a str,
     generic_message: &'a str,
@@ -28,16 +26,13 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
     );
     validate_resource_dependency_fields(input, &mut errors);
 
-    validate_primary_contract_shape(
-        input.name.span(),
-        &PrimaryContractValidation {
-            macro_name: "resource!",
-            additional_contract_message: "additional resource contracts are not supported",
-            async_message: "async resource contract methods are not supported",
-            method_kind: "resource contract methods",
-            generic_message: "generic resource contract methods are not supported",
+    validate_api(
+        &input.api,
+        &ApiValidation {
+            async_message: "async resource API methods are not supported",
+            method_kind: "resource API methods",
+            generic_message: "generic resource API methods are not supported",
         },
-        &input.contracts,
         &mut errors,
     );
 
@@ -66,7 +61,7 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
                 &mut errors,
                 Error::new(
                     method.signature.ident.span(),
-                    "async resource contract methods are not supported",
+                    "async resource API methods are not supported",
                 ),
             );
         }
@@ -79,11 +74,7 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
     }
 
     validate_runtime_method_integrity(
-        input
-            .contracts
-            .iter()
-            .find(|contract| contract.is_primary)
-            .map(|contract| &contract.methods),
+        Some(&input.api.methods),
         &input.runtime_methods,
         &mut errors,
     );
@@ -97,16 +88,13 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
     validate_version_literal(&input.schema, "invalid system schema version", &mut errors);
     validate_system_dependency_fields(input, &mut errors);
 
-    validate_primary_contract_shape(
-        input.name.span(),
-        &PrimaryContractValidation {
-            macro_name: "system!",
-            additional_contract_message: "additional system contracts are not supported",
-            async_message: "async system contract methods are not supported",
-            method_kind: "system contract methods",
-            generic_message: "generic system contract methods are not supported",
+    validate_api(
+        &input.api,
+        &ApiValidation {
+            async_message: "async system API methods are not supported",
+            method_kind: "system API methods",
+            generic_message: "generic system API methods are not supported",
         },
-        &input.contracts,
         &mut errors,
     );
 
@@ -135,7 +123,7 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
                 &mut errors,
                 Error::new(
                     method.signature.ident.span(),
-                    "async system contract methods are not supported",
+                    "async system API methods are not supported",
                 ),
             );
         }
@@ -148,11 +136,7 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
     }
 
     validate_runtime_method_integrity(
-        input
-            .contracts
-            .iter()
-            .find(|contract| contract.is_primary)
-            .map(|contract| &contract.methods),
+        Some(&input.api.methods),
         &input.runtime_methods,
         &mut errors,
     );
@@ -240,59 +224,21 @@ fn finish(errors: Option<Error>) -> Result<()> {
     }
 }
 
-fn validate_primary_contract_shape(
-    type_span: proc_macro2::Span,
-    rules: &PrimaryContractValidation<'_>,
-    contracts: &[crate::ast::ContractDefinition],
-    errors: &mut Option<Error>,
-) {
-    let primary_contracts = contracts
-        .iter()
-        .filter(|contract| contract.is_primary)
-        .count();
-    if primary_contracts == 0 {
-        push_error(
-            errors,
-            Error::new(
-                type_span,
-                format!(
-                    "{} requires exactly one `primary` contract",
-                    rules.macro_name
-                ),
-            ),
-        );
-    } else if primary_contracts > 1 {
-        push_error(
-            errors,
-            Error::new(
-                type_span,
-                format!("{} supports only one `primary` contract", rules.macro_name),
-            ),
-        );
-    }
-
-    for contract in contracts {
-        if !contract.is_primary {
+fn validate_api(api: &ApiDefinition, rules: &ApiValidation<'_>, errors: &mut Option<Error>) {
+    validate_version_literal(&api.version, "invalid API version", errors);
+    for method in &api.methods {
+        if method.signature.asyncness.is_some() {
             push_error(
                 errors,
-                Error::new(contract.name.span(), rules.additional_contract_message),
+                Error::new(method.signature.ident.span(), rules.async_message),
             );
         }
-        validate_version_literal(&contract.version, "invalid contract version", errors);
-        for method in &contract.methods {
-            if method.signature.asyncness.is_some() {
-                push_error(
-                    errors,
-                    Error::new(method.signature.ident.span(), rules.async_message),
-                );
-            }
-            validate_supported_signature(
-                &method.signature,
-                rules.method_kind,
-                rules.generic_message,
-                errors,
-            );
-        }
+        validate_supported_signature(
+            &method.signature,
+            rules.method_kind,
+            rules.generic_message,
+            errors,
+        );
     }
 }
 
@@ -689,7 +635,7 @@ fn validate_runtime_method_integrity(
                 errors,
                 Error::new(
                     method.signature.ident.span(),
-                    format!("missing runtime implementation for contract method `{name}`"),
+                    format!("missing runtime implementation for API method `{name}`"),
                 ),
             ),
             Some(runtime_signature) if runtime_signature != &signature_key(&method.signature) => {

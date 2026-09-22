@@ -13,7 +13,7 @@ relations {
 ```
 
 `Volume` and `Clock` may independently be Resources or Systems. Fabric derives
-their primary contract requirements from their definitions; authors do not
+their owner-derived semantic API requirements from their definitions; authors do not
 repeat the target kind or compatibility for the normal case. A versioned target
 uses an exact requirement for the contract it was authored against. A broader
 promise remains explicit: `storage: Volume(version = "^1");`.

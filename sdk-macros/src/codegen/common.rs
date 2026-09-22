@@ -4,14 +4,13 @@ use quote::{format_ident, quote};
 use syn::{FnArg, Pat, PatIdent};
 
 use crate::ast::{
-    ConfigDefinition, ContractDefinition, ContractMethod, RequirementLiteral, RuntimeMethod,
-    VersionLiteral,
+    ApiDefinition, ApiIdentity, ConfigDefinition, ContractMethod, RequirementLiteral,
+    RuntimeMethod, VersionLiteral,
 };
 
 pub struct PrimaryContractTokens {
     pub service_name: Ident,
     pub contract_name: Ident,
-    pub contract_id: syn::LitStr,
     pub service_methods: Vec<TokenStream>,
     pub contract_methods: Vec<TokenStream>,
     pub contract_key_expr: TokenStream,
@@ -52,28 +51,49 @@ pub fn has_config(config: &ConfigDefinition) -> bool {
 
 pub fn primary_contract_tokens(
     sdk: &TokenStream,
-    contract: &ContractDefinition,
+    api: &ApiDefinition,
     contract_id_expr: TokenStream,
 ) -> PrimaryContractTokens {
-    let service_name = format_ident!("{}Service", contract.name);
-    let contract_name = format_ident!("{}Contract", contract.name);
-    let contract_id = contract.contract_id.clone();
-    let service_methods = contract.methods.iter().map(service_method_tokens).collect();
-    let contract_methods = contract
+    let service_name = format_ident!("{}Service", api.name);
+    let contract_name = format_ident!("{}Contract", api.name);
+    let service_methods = api.methods.iter().map(service_method_tokens).collect();
+    let contract_methods = api
         .methods
         .iter()
         .map(contract_wrapper_method_tokens)
         .collect();
-    let contract_key_expr =
-        contract_key_expr(sdk, &contract.version, &contract_name, contract_id_expr);
+    let contract_key_expr = contract_key_expr(sdk, &api.version, &contract_name, contract_id_expr);
 
     PrimaryContractTokens {
         service_name,
         contract_name,
-        contract_id,
         service_methods,
         contract_methods,
         contract_key_expr,
+    }
+}
+
+pub fn api_contract_id_expr(
+    sdk: &TokenStream,
+    identity: &ApiIdentity,
+    owner_id: &syn::LitStr,
+    subject_kind: SubjectKind,
+) -> TokenStream {
+    match identity {
+        ApiIdentity::OwnerDerived => match subject_kind {
+            SubjectKind::Resource => quote!(
+                #sdk::core::ContractId::new(concat!("fabric.resource.api.", #owner_id))
+                    .expect("resource! generated a static owner-derived API contract id")
+            ),
+            SubjectKind::System => quote!(
+                #sdk::core::ContractId::new(concat!("fabric.system.api.", #owner_id))
+                    .expect("system! generated a static owner-derived API contract id")
+            ),
+        },
+        ApiIdentity::LegacyExplicit(id) => quote!(
+            #sdk::core::ContractId::new(#id)
+                .expect("legacy contracts syntax generated a static contract id")
+        ),
     }
 }
 

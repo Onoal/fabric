@@ -4,8 +4,8 @@ use syn::{
 };
 
 use crate::ast::{
-    AdapterInput, AdapterTargetKind, ComponentInput, ComponentOperationContext,
-    ComponentOperationDefinition, ConfigDefinition, ConfigField, ContractDefinition,
+    AdapterInput, AdapterTargetKind, ApiDefinition, ApiIdentity, ComponentInput,
+    ComponentOperationContext, ComponentOperationDefinition, ConfigDefinition, ConfigField,
     ContractMethod, RealizationDefinition, RelationDefinition, RequirementDefinition,
     RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
     RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
@@ -13,6 +13,7 @@ use crate::ast::{
 
 mod kw {
     syn::custom_keyword!(adapter);
+    syn::custom_keyword!(api);
     syn::custom_keyword!(component);
     syn::custom_keyword!(compatibility);
     syn::custom_keyword!(config);
@@ -54,6 +55,10 @@ struct PendingContractDefinition {
     methods: Vec<ContractMethod>,
 }
 
+struct PendingApiDefinition {
+    methods: Vec<ContractMethod>,
+}
+
 impl Parse for ResourceInput {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
         let visibility = input.parse::<Visibility>()?;
@@ -65,6 +70,7 @@ impl Parse for ResourceInput {
         let mut schema = None;
         let mut config = None;
         let mut relations = None;
+        let mut api = None;
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
@@ -133,12 +139,28 @@ impl Parse for ResourceInput {
                         })
                         .collect(),
                 );
+            } else if content.peek(kw::api) {
+                content.parse::<kw::api>()?;
+                if api.is_some() {
+                    return Err(content.error("resource! supports only one `api { ... }` section"));
+                }
+                if contracts.is_some() {
+                    return Err(content.error(
+                        "resource! cannot use both `api { ... }` and legacy `contracts { ... }`",
+                    ));
+                }
+                api = Some(parse_api(&content)?);
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
                 if contracts.is_some() {
                     return Err(
                         content.error("resource! supports only one `contracts { ... }` section")
                     );
+                }
+                if api.is_some() {
+                    return Err(content.error(
+                        "resource! cannot use both `api { ... }` and legacy `contracts { ... }`",
+                    ));
                 }
                 contracts = Some(parse_contracts(&content, "resource")?);
             } else if content.peek(kw::adapter) {
@@ -180,15 +202,7 @@ impl Parse for ResourceInput {
 
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
-        let contracts = resolve_contract_versions(
-            contracts.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "resource! requires a `contracts { ... }` section",
-                )
-            })?,
-            &schema,
-        );
+        let api = resolve_api(api, contracts, &schema, &name_for_errors, "resource")?;
 
         Ok(Self {
             visibility,
@@ -202,7 +216,7 @@ impl Parse for ResourceInput {
             schema,
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
-            contracts,
+            api,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
                 Error::new(
@@ -227,6 +241,7 @@ impl Parse for SystemInput {
         let mut schema = None;
         let mut config = None;
         let mut relations = None;
+        let mut api = None;
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
@@ -291,12 +306,28 @@ impl Parse for SystemInput {
                         })
                         .collect(),
                 );
+            } else if content.peek(kw::api) {
+                content.parse::<kw::api>()?;
+                if api.is_some() {
+                    return Err(content.error("system! supports only one `api { ... }` section"));
+                }
+                if contracts.is_some() {
+                    return Err(content.error(
+                        "system! cannot use both `api { ... }` and legacy `contracts { ... }`",
+                    ));
+                }
+                api = Some(parse_api(&content)?);
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
                 if contracts.is_some() {
                     return Err(
                         content.error("system! supports only one `contracts { ... }` section")
                     );
+                }
+                if api.is_some() {
+                    return Err(content.error(
+                        "system! cannot use both `api { ... }` and legacy `contracts { ... }`",
+                    ));
                 }
                 contracts = Some(parse_contracts(&content, "system")?);
             } else if content.peek(kw::adapter) {
@@ -336,15 +367,7 @@ impl Parse for SystemInput {
 
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
-        let contracts = resolve_contract_versions(
-            contracts.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "system! requires a `contracts { ... }` section",
-                )
-            })?,
-            &schema,
-        );
+        let api = resolve_api(api, contracts, &schema, &name_for_errors, "system")?;
 
         Ok(Self {
             visibility,
@@ -358,7 +381,7 @@ impl Parse for SystemInput {
             schema,
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
-            contracts,
+            api,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
                 Error::new(
@@ -725,20 +748,75 @@ fn parse_contracts(
     Ok(contracts)
 }
 
-fn resolve_contract_versions(
-    contracts: Vec<PendingContractDefinition>,
+fn parse_api(input: ParseStream<'_>) -> Result<PendingApiDefinition> {
+    let content;
+    braced!(content in input);
+    let mut methods = Vec::new();
+    while !content.is_empty() {
+        let method = content.parse::<syn::TraitItemFn>()?;
+        if method.default.is_some() {
+            return Err(Error::new(
+                method.sig.ident.span(),
+                "api methods are signatures and must not include bodies",
+            ));
+        }
+        methods.push(ContractMethod {
+            signature: method.sig,
+        });
+    }
+    Ok(PendingApiDefinition { methods })
+}
+
+fn resolve_api(
+    api: Option<PendingApiDefinition>,
+    contracts: Option<Vec<PendingContractDefinition>>,
     default_version: &VersionLiteral,
-) -> Vec<ContractDefinition> {
-    contracts
-        .into_iter()
-        .map(|contract| ContractDefinition {
-            is_primary: contract.is_primary,
-            name: contract.name,
-            contract_id: contract.contract_id,
-            version: contract.version.unwrap_or_else(|| default_version.clone()),
-            methods: contract.methods,
-        })
-        .collect()
+    name_for_errors: &Ident,
+    subject: &'static str,
+) -> Result<ApiDefinition> {
+    if let Some(api) = api {
+        return Ok(ApiDefinition {
+            name: Ident::new("Api", name_for_errors.span()),
+            identity: ApiIdentity::OwnerDerived,
+            version: default_version.clone(),
+            methods: api.methods,
+        });
+    }
+
+    let contracts = contracts.ok_or_else(|| {
+        Error::new(
+            name_for_errors.span(),
+            format!("{subject}! requires an `api {{ ... }}` section"),
+        )
+    })?;
+    let mut primary = None;
+    for contract in contracts {
+        if !contract.is_primary {
+            return Err(Error::new(
+                contract.name.span(),
+                format!("additional {subject} contracts are not supported"),
+            ));
+        }
+        if primary.is_some() {
+            return Err(Error::new(
+                contract.name.span(),
+                format!("{subject}! supports only one `primary` contract"),
+            ));
+        }
+        primary = Some(contract);
+    }
+    let primary = primary.ok_or_else(|| {
+        Error::new(
+            name_for_errors.span(),
+            format!("{subject}! requires exactly one `primary` contract"),
+        )
+    })?;
+    Ok(ApiDefinition {
+        name: primary.name,
+        identity: ApiIdentity::LegacyExplicit(primary.contract_id),
+        version: primary.version.unwrap_or_else(|| default_version.clone()),
+        methods: primary.methods,
+    })
 }
 
 fn parse_requires(input: ParseStream<'_>) -> Result<Vec<RequirementDefinition>> {

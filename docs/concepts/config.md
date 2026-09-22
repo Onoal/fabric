@@ -39,10 +39,9 @@ fabric::resource! {
     Store {
         id: "example.store";
         config { namespace: String; }
-        contracts { primary Api {
-            id: "example.store.api";
+        api {
             fn namespace(&self) -> String;
-        }}
+        }
         runtime { fn namespace(&self) -> String { self.config().namespace.clone() } }
     }
 }

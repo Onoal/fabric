@@ -4,8 +4,8 @@ use quote::{format_ident, quote};
 use crate::ast::{RealizationDefinition, RelationDefinition, ResourceInput};
 
 use super::common::{
-    PrimaryContractTokens, SubjectKind, config_type_tokens, fabric_path, has_config,
-    inline_config_definition_tokens, method_call_args, primary_contract_tokens,
+    PrimaryContractTokens, SubjectKind, api_contract_id_expr, config_type_tokens, fabric_path,
+    has_config, inline_config_definition_tokens, method_call_args, primary_contract_tokens,
     requirement_literal_expr, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
@@ -43,21 +43,18 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     };
     let resource_mod = format_ident!("{}", to_snake_case(resource_name));
     let raw_impl_mod = format_ident!("__fabric_raw_{}", to_snake_case(resource_name));
-    let contract = input
-        .contracts
-        .iter()
-        .find(|contract| contract.is_primary)
-        .expect("validated primary contract");
-    let contract_tokens = primary_contract_tokens(&sdk, contract, quote!(primary_contract_id()));
+    let api = &input.api;
+    let contract_tokens = primary_contract_tokens(&sdk, api, quote!(primary_contract_id()));
     let PrimaryContractTokens {
         service_name,
         contract_name,
-        contract_id,
         service_methods,
         contract_methods,
         contract_key_expr,
     } = contract_tokens;
     let resource_id = &input.resource_id;
+    let api_contract_id =
+        api_contract_id_expr(&sdk, &api.identity, resource_id, SubjectKind::Resource);
     let schema_expr =
         version_literal_expr(&sdk, &resource_mod, &input.schema, SubjectKind::Resource);
     let dependency_fields = input.relations.iter().map(|requirement| {
@@ -281,8 +278,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             }
 
             pub fn primary_contract_id() -> #sdk::core::ContractId {
-                #sdk::core::ContractId::new(#contract_id)
-                    .expect("resource! generated a static contract id")
+                #api_contract_id
             }
 
             pub fn primary_contract_key() -> #sdk::core::ContractKey<#contract_name> {

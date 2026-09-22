@@ -236,6 +236,48 @@ fabric::adapter! {
     }
 }
 
+fabric::resource! {
+    VersionedApiTarget {
+        id: "fabric.test.external.versioned-api-target";
+        version: "1.2.0";
+
+        api {
+            fn value(&self) -> u64;
+        }
+
+        runtime {
+            fn value(&self) -> u64 { 11 }
+        }
+    }
+}
+
+fabric::system! {
+    VersionedApiConsumer {
+        id: "fabric.test.external.versioned-api-consumer";
+
+        relations {
+            requires {
+                target: VersionedApiTarget(version = "^1");
+            }
+        }
+
+        api {
+            fn observed(&self) -> u64;
+        }
+
+        runtime {
+            fn observed(&self) -> u64 { (*self.target).value() }
+        }
+
+        lifecycle {
+            initialize {
+                assert_eq!((*self.target).value(), 11);
+                Ok(())
+            }
+        }
+    }
+}
+
 fabric::system! {
     ConfiguredSystem {
         id: "fabric.test.external.configured-system";
@@ -333,21 +375,18 @@ struct CleanMemoryState {
     values: Mutex<BTreeMap<Vec<u8>, Vec<u8>>>,
 }
 
-// A third-party KeyValue-style semantic definition using the 0.4.1 normal
-// path: versioned semantics, inherited contract version, and no empty config
-// or schema ceremony.
+// A third-party KeyValue semantic definition uses the canonical API form:
+// semantic methods appear once, while the explicit realization bridge remains
+// intentionally unchanged until the next DX slice.
 fabric::resource! {
     CleanKeyValueStore {
         id: "fabric.test.external.clean-key-value";
         version: "0.1.0";
 
-        contracts {
-            primary Api {
-                id: "fabric.test.external.clean-key-value.api";
-
-                fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
-                fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
-            }
+        api {
+            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
+            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+            fn delete(&self, key: Vec<u8>) -> Result<(), String>;
         }
 
         adapter Adapter {
@@ -356,6 +395,7 @@ fabric::resource! {
 
             fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
             fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+            fn delete(&self, key: Vec<u8>) -> Result<(), String>;
         }
 
         runtime {
@@ -365,6 +405,10 @@ fabric::resource! {
 
             fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
                 self.adapter.put(key, value)
+            }
+
+            fn delete(&self, key: Vec<u8>) -> Result<(), String> {
+                self.adapter.delete(key)
             }
         }
     }
@@ -390,6 +434,11 @@ fabric::adapter! {
                 self.state.get().values.lock().expect("values").insert(key, value);
                 Ok(())
             }
+
+            fn delete(&self, key: Vec<u8>) -> Result<(), String> {
+                self.state.get().values.lock().expect("values").remove(&key);
+                Ok(())
+            }
         }
     }
 }
@@ -412,6 +461,10 @@ fabric::adapter! {
             fn put(&self, _key: Vec<u8>, _value: Vec<u8>) -> Result<(), String> {
                 Ok(())
             }
+
+            fn delete(&self, _key: Vec<u8>) -> Result<(), String> {
+                Ok(())
+            }
         }
     }
 }
@@ -422,11 +475,7 @@ fabric::resource! {
     ImplicitProvisionalResource {
         id: "fabric.test.external.implicit-provisional";
 
-        contracts {
-            primary Api {
-                id: "fabric.test.external.implicit-provisional.api";
-            }
-        }
+        api {}
 
         runtime {}
     }
@@ -435,7 +484,7 @@ fabric::resource! {
 fabric::resource! {
     RelationVolume {
         id: "fabric.test.external.relation-volume";
-        contracts { primary Api { id: "fabric.test.external.relation-volume.api"; fn amount(&self) -> u64; } }
+        api { fn amount(&self) -> u64; }
         runtime { fn amount(&self) -> u64 { 7 } }
     }
 }
@@ -443,7 +492,7 @@ fabric::resource! {
 fabric::system! {
     RelationClock {
         id: "fabric.test.external.relation-clock";
-        contracts { primary Api { id: "fabric.test.external.relation-clock.api"; fn now(&self) -> u64; } }
+        api { fn now(&self) -> u64; }
         runtime { fn now(&self) -> u64 { 3 } }
     }
 }
@@ -453,9 +502,9 @@ fabric::resource! {
         id: "fabric.test.external.relation-resource-probe";
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
-        contracts { primary Api { id: "fabric.test.external.relation-resource-probe.api"; fn total(&self) -> u64; } }
+        api { fn total(&self) -> u64; }
         runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
-        lifecycle { initialize { let _ = self.clock.now(); Ok(()) } }
+        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
     }
 }
 
@@ -464,8 +513,9 @@ fabric::system! {
         id: "fabric.test.external.relation-system-probe";
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
-        contracts { primary Api { id: "fabric.test.external.relation-system-probe.api"; fn total(&self) -> u64; } }
+        api { fn total(&self) -> u64; }
         runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
     }
 }
 
@@ -483,7 +533,7 @@ fabric::adapter! {
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
         runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
-        lifecycle { initialize { let _ = self.volume.amount(); Ok(()) } }
+        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
     }
 }
 
@@ -730,14 +780,18 @@ fn external_relations_bind_resource_system_and_adapter_dependencies() {
             offset: 3,
         }))
         .expect("adapter relation target");
+    let versioned_target = VersionedApiTarget::select("versioned").expect("versioned target");
+    let versioned_consumer = VersionedApiConsumer::select().expect("versioned consumer");
 
     let built = Fabric::new("fabric.test.external.relations")
         .expect("fabric")
         .resource(volume)
         .resource(resource)
         .resource(adapted)
+        .resource(versioned_target)
         .system(clock)
         .system(system)
+        .system(versioned_consumer)
         .build()
         .expect("relations resolve");
     let mut instance = built

@@ -57,7 +57,7 @@ global manager.
 ### Normal authoring
 
 `system!` is the normal ergonomic frontend. It generates public typed
-authoring machinery (definition, Config, identity, schema, primary contract,
+authoring machinery (definition, Config, identity, schema, semantic API,
 and runtime implementation where declared), but the macro is not the System
 ontology. Handwritten `SystemDefinition` is public too.
 
@@ -67,10 +67,9 @@ fabric::system! {
         id: "example.operations";
         version: "0.1.0";
         config { seed: u64; }
-        contracts { primary Api {
-            id: "example.operations.api";
+        api {
             fn marker(&self) -> u64;
-        }}
+        }
         runtime { fn marker(&self) -> u64 { self.config().seed } }
     }
 }
@@ -98,8 +97,8 @@ no custom sections keeps the stateless successful defaults.
 ### Normal and advanced compatibility authoring
 
 For normal `system!` authoring, `version: "...";` is the semantic version
-word. Omit it for provisional semantics; an omitted primary contract version
-inherits the enclosing System version. No Config declaration means
+word. Omit it for provisional semantics; the canonical API inherits the
+enclosing System version and has an owner-derived contract identity. No Config declaration means
 `System::select()` with no generated empty Config value. Inline `config { ...
 }` generates a public typed Config; `config: MyConfig;` uses a creator-owned
 Rust type directly. `schema:` remains available as the legacy explicit form for advanced
@@ -204,7 +203,7 @@ materialized Instance -> live typed System contract
 | schema | compatibility truth | not discovery |
 | System dependency | declared | resolved and bound |
 | Adapter selection | Composition truth | materialized provider |
-| primary contract | declared | live typed value |
+| semantic API | declared | live typed value |
 
 ## External augmentation
 

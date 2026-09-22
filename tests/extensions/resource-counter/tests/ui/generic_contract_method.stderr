@@ -1,4 +1,4 @@
-error: generic resource contract methods are not supported
+error: generic resource API methods are not supported
   --> tests/ui/generic_contract_method.rs:17:20
    |
 17 |                 fn current_value<T>(&self, value: T) -> u64;

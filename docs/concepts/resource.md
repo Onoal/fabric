@@ -57,10 +57,9 @@ fabric::resource! {
         id: "example.note-store";
         version: "0.1.0";
         config { label: String; }
-        contracts { primary Api {
-            id: "example.note-store.api";
+        api {
             fn label(&self) -> String;
-        }}
+        }
         runtime { fn label(&self) -> String { self.config().label.clone() } }
     }
 }
@@ -86,10 +85,9 @@ generated typed service handles for that occurrence share this state.
 fabric::resource! {
     LocalCounter {
         id: "example.local-counter";
-        contracts { primary Api {
-            id: "example.local-counter.api";
+        api {
             fn current(&self) -> usize;
-        }}
+        }
         state { CounterState = CounterState::default(); }
         runtime { fn current(&self) -> usize { self.state.get().current() } }
         lifecycle {
@@ -116,7 +114,8 @@ initialize/start/stop defaults and Healthy health.
 
 Normal authors declare a semantic `version: "...";` only when the definition
 is deliberately versioned. Omitting it means provisional semantics; the
-primary contract inherits that enclosing version unless it declares its own.
+canonical API inherits that enclosing version and its contract identity is
+derived from the Resource identity.
 No Config declaration means `NoteStore::select("primary")` with no generated
 empty Config value. Inline `config { ... }` generates a public typed Config;
 `config: MyConfig;` uses a creator-owned Rust type directly. `schema:` remains a legacy explicit spelling

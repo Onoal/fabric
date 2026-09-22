@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::ast::{RealizationDefinition, RequirementDefinition, ResourceInput};
+use crate::ast::{RealizationDefinition, RelationDefinition, ResourceInput};
 
 use super::common::{
     PrimaryContractTokens, SubjectKind, config_type_tokens, fabric_path, has_config,
@@ -60,22 +60,22 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let resource_id = &input.resource_id;
     let schema_expr =
         version_literal_expr(&sdk, &resource_mod, &input.schema, SubjectKind::Resource);
-    let dependency_fields = input.requires.iter().map(|requirement| {
+    let dependency_fields = input.relations.iter().map(|requirement| {
         let field = &requirement.field;
         let contract_ty = requirement_contract_type(&sdk, requirement);
         quote!(#field: #sdk::authoring::ContractDependency<#contract_ty>,)
     });
-    let dependency_initializers = input.requires.iter().map(|requirement| {
+    let dependency_initializers = input.relations.iter().map(|requirement| {
         let field = &requirement.field;
         let requirement_expr = resource_requirement_expr(&sdk, requirement);
         quote! {
             #field: #sdk::authoring::ContractDependency::new(
-                #requirement_expr.as_contract_requirement().clone()
+                #requirement_expr
             ),
         }
     });
     let dependency_declarations = input
-        .requires
+        .relations
         .iter()
         .map(|requirement| {
             let field = &requirement.field;
@@ -83,14 +83,14 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
     let declaration_requirements = input
-        .requires
+        .relations
         .iter()
         .map(|requirement| {
             let requirement = resource_requirement_expr(&sdk, requirement);
             quote!(#requirement.declaration().clone())
         })
         .collect::<Vec<_>>();
-    let dependency_bindings = input.requires.iter().map(|requirement| {
+    let dependency_bindings = input.relations.iter().map(|requirement| {
         let field = &requirement.field;
         quote! {
             self.#field
@@ -212,6 +212,29 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
 
             fn primary_contract_key() -> #sdk::core::ContractKey<Self::Contract> {
                 #resource_mod::raw::primary_contract_key()
+            }
+        }
+
+        impl #sdk::authoring::RelationTarget for #resource_name {
+            type Contract = #resource_mod::raw::#contract_name;
+
+            fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
+                let key = <Self as #sdk::authoring::PrimaryResourceContract>::primary_contract_key();
+                match key.identity() {
+                    #sdk::core::ContractIdentity::Provisional => #sdk::core::ContractRequirement::provisional(key.id().clone()),
+                    #sdk::core::ContractIdentity::Versioned(version) => #sdk::core::ContractRequirement::versioned(
+                        key.id().clone(),
+                        #sdk::core::ContractVersionRequirement::parse(format!("={version}"))
+                            .expect("resource! generated a static exact relation requirement"),
+                    ),
+                }
+            }
+
+            fn relation_requirement_versioned(requirement: #sdk::core::ContractVersionRequirement) -> #sdk::core::ContractRequirement<Self::Contract> {
+                #sdk::core::ContractRequirement::versioned(
+                    <Self as #sdk::authoring::PrimaryResourceContract>::primary_contract_key().id().clone(),
+                    requirement,
+                )
             }
         }
 
@@ -405,27 +428,22 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     }
 }
 
-fn requirement_contract_type(
-    sdk: &TokenStream,
-    requirement: &RequirementDefinition,
-) -> TokenStream {
-    let resource = &requirement.resource;
-    quote!(<#resource as #sdk::authoring::PrimaryResourceContract>::Contract)
+fn requirement_contract_type(sdk: &TokenStream, requirement: &RelationDefinition) -> TokenStream {
+    let target = &requirement.target;
+    quote!(<#target as #sdk::authoring::RelationTarget>::Contract)
 }
 
-fn resource_requirement_expr(
-    sdk: &TokenStream,
-    requirement: &RequirementDefinition,
-) -> TokenStream {
-    let resource = &requirement.resource;
+fn resource_requirement_expr(sdk: &TokenStream, requirement: &RelationDefinition) -> TokenStream {
+    let target = &requirement.target;
     match &requirement.compatibility {
-        crate::ast::RequirementLiteral::Provisional => {
-            quote!(#sdk::authoring::Requires::<#resource>::provisional())
+        None => quote!(<#target as #sdk::authoring::RelationTarget>::relation_requirement()),
+        Some(crate::ast::RequirementLiteral::Provisional) => {
+            quote!(#sdk::core::ContractRequirement::<<#target as #sdk::authoring::RelationTarget>::Contract>::provisional(<#target as #sdk::authoring::RelationTarget>::relation_requirement().id().clone()))
         }
-        crate::ast::RequirementLiteral::Versioned(version) => quote!(
-            #sdk::authoring::Requires::<#resource>::versioned(
+        Some(crate::ast::RequirementLiteral::Versioned(version)) => quote!(
+            <#target as #sdk::authoring::RelationTarget>::relation_requirement_versioned(
                 #sdk::core::ContractVersionRequirement::parse(#version)
-                    .expect("resource! generated a static dependency version requirement"),
+                    .expect("resource! generated a static relation version requirement"),
             )
         ),
     }

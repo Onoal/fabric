@@ -134,9 +134,9 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     );
     assert!(
         codegen.contains("ContractDependency")
-            && codegen.contains("Requires::<#resource>::provisional()")
-            && codegen.contains("Requires::<#resource>::versioned("),
-        "resource! should lower requires {{}} through the typed resource dependency anchor"
+            && codegen.contains("RelationTarget")
+            && codegen.contains("relation_requirement_versioned"),
+        "resource! should lower relations through the typed relation target anchor"
     );
     assert!(
         codegen.contains("impl #sdk::authoring::AdaptableResourceDefinition for #resource_name")
@@ -177,8 +177,8 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
         "system! should lower primary contracts and optional realization through system-owned APIs"
     );
     assert!(
-        codegen.contains("SystemRequires::<#system>::provisional()")
-            && codegen.contains("SystemRequires::<#system>::versioned(")
+        codegen.contains("RelationTarget")
+            && codegen.contains("relation_requirement_versioned")
             && codegen.contains("#system_mod::realization::raw::requirement()"),
         "system! should lower system dependencies and realization requirements through canonical typed helpers"
     );
@@ -190,7 +190,7 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
         "system! validation should cover system schema, dependency, and method integrity"
     );
     assert!(
-        parse.contains("system! supports only one `system { ... }` section")
+        parse.contains("system! supports only one `relations { ... }` section")
             && parse.contains(
                 "{subject} realization contract requires a `compatibility: ...;` declaration"
             ),
@@ -220,7 +220,7 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     );
     assert!(
         parse.contains("adapter! requires `for resource ...` or `for system ...`")
-            && parse.contains("adapter! supports only one `system { ... }` section")
+            && parse.contains("adapter! supports only one `relations { ... }` section")
             && parse.contains("legacy `realization: ...;` declaration")
             && parse.contains("legacy `schema: ...;` declaration"),
         "adapter! parsing should retain explicit compatibility forms without making them mandatory"
@@ -237,8 +237,8 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
             && codegen.contains("type Compatibility = #schema_support_ty;")
             && codegen.contains("impl #target_service for Runtime")
             && codegen.contains("<#raw_impl_mod::Runtime as #interface>::realization_contract")
-            && codegen.contains("SystemRequires::<#system>::versioned("),
-        "adapter! should lower into AdapterDefinition, explicit typed realization interfaces, and canonical system dependencies"
+            && codegen.contains("relation_requirement_versioned"),
+        "adapter! should lower into AdapterDefinition, explicit typed realization interfaces, and canonical relations"
     );
     assert!(
         !codegen.contains("target_namespace_path")

@@ -432,6 +432,61 @@ fabric::resource! {
     }
 }
 
+fabric::resource! {
+    RelationVolume {
+        id: "fabric.test.external.relation-volume";
+        contracts { primary Api { id: "fabric.test.external.relation-volume.api"; fn amount(&self) -> u64; } }
+        runtime { fn amount(&self) -> u64 { 7 } }
+    }
+}
+
+fabric::system! {
+    RelationClock {
+        id: "fabric.test.external.relation-clock";
+        contracts { primary Api { id: "fabric.test.external.relation-clock.api"; fn now(&self) -> u64; } }
+        runtime { fn now(&self) -> u64 { 3 } }
+    }
+}
+
+fabric::resource! {
+    RelationResourceProbe {
+        id: "fabric.test.external.relation-resource-probe";
+        config { offset: u64; }
+        relations { requires { volume: RelationVolume; clock: RelationClock; } }
+        contracts { primary Api { id: "fabric.test.external.relation-resource-probe.api"; fn total(&self) -> u64; } }
+        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { let _ = self.clock.now(); Ok(()) } }
+    }
+}
+
+fabric::system! {
+    RelationSystemProbe {
+        id: "fabric.test.external.relation-system-probe";
+        config { offset: u64; }
+        relations { requires { volume: RelationVolume; clock: RelationClock; } }
+        contracts { primary Api { id: "fabric.test.external.relation-system-probe.api"; fn total(&self) -> u64; } }
+        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
+    }
+}
+
+fabric::resource! {
+    RelationAdapterTarget {
+        id: "fabric.test.external.relation-adapter-target";
+        contracts { primary Api { id: "fabric.test.external.relation-adapter-target.api"; fn total(&self) -> u64; } }
+        adapter Adapter { id: "fabric.test.external.relation-adapter-target.adapter"; compatibility: provisional; fn total(&self) -> u64; }
+        runtime { fn total(&self) -> u64 { self.adapter.total() } }
+    }
+}
+
+fabric::adapter! {
+    RelationAwareAdapter for resource RelationAdapterTarget implements RelationAdapterTargetRealization {
+        config { offset: u64; }
+        relations { requires { volume: RelationVolume; clock: RelationClock; } }
+        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { let _ = self.volume.amount(); Ok(()) } }
+    }
+}
+
 struct ExternalStatefulService {
     state: RuntimeState<ExternalLifecycleState>,
 }
@@ -658,6 +713,38 @@ fn no_config_normal_authoring_needs_no_config_value() {
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");
+}
+
+#[test]
+fn external_relations_bind_resource_system_and_adapter_dependencies() {
+    let volume = RelationVolume::select("primary").expect("volume");
+    let clock = RelationClock::select().expect("clock");
+    let resource =
+        RelationResourceProbe::select("resource", RelationResourceProbeConfig { offset: 1 })
+            .expect("resource probe");
+    let system =
+        RelationSystemProbe::select(RelationSystemProbeConfig { offset: 2 }).expect("system probe");
+    let adapted = RelationAdapterTarget::select("adapter")
+        .expect("adapter target")
+        .using(RelationAwareAdapter::new(RelationAwareAdapterConfig {
+            offset: 3,
+        }))
+        .expect("adapter relation target");
+
+    let built = Fabric::new("fabric.test.external.relations")
+        .expect("fabric")
+        .resource(volume)
+        .resource(resource)
+        .resource(adapted)
+        .system(clock)
+        .system(system)
+        .build()
+        .expect("relations resolve");
+    let mut instance = built
+        .materialize_named_on("fabric.test.external.relations.instance", &test_host())
+        .expect("relations bind");
+    instance.start().expect("relations start");
+    instance.stop().expect("relations stop");
 }
 
 #[test]

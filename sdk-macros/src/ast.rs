@@ -6,7 +6,7 @@ pub struct ResourceInput {
     pub resource_id: LitStr,
     pub schema: VersionLiteral,
     pub config: ConfigDefinition,
-    pub requires: Vec<RequirementDefinition>,
+    pub relations: Vec<RelationDefinition>,
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
@@ -20,7 +20,7 @@ pub struct SystemInput {
     pub system_id: LitStr,
     pub schema: VersionLiteral,
     pub config: ConfigDefinition,
-    pub systems: Vec<SystemDependencyDefinition>,
+    pub relations: Vec<RelationDefinition>,
     pub contracts: Vec<ContractDefinition>,
     pub realization: Option<RealizationDefinition>,
     pub runtime_methods: Vec<RuntimeMethod>,
@@ -39,7 +39,7 @@ pub struct AdapterInput {
     pub schema: Option<RequirementLiteral>,
     pub realization: VersionLiteral,
     pub config: ConfigDefinition,
-    pub systems: Vec<SystemDependencyDefinition>,
+    pub relations: Vec<RelationDefinition>,
     pub host_requirement: Option<Expr>,
     pub runtime_methods: Vec<RuntimeMethod>,
     pub runtime_state: Option<RuntimeStateDefinition>,
@@ -95,6 +95,16 @@ pub struct SystemDependencyDefinition {
     pub field: Ident,
     pub system: Path,
     pub compatibility: RequirementLiteral,
+}
+
+/// A named, typed capability relation declared by a definition.
+///
+/// The target kind is deliberately not represented here: the generated SDK
+/// code obtains the target's primary semantic contract through RelationTarget.
+pub struct RelationDefinition {
+    pub field: Ident,
+    pub target: Path,
+    pub compatibility: Option<RequirementLiteral>,
 }
 
 pub struct RuntimeMethod {

@@ -58,3 +58,6 @@ Manifest --inspects semantic declarations of--> Composition
 Continue with [Architecture](../architecture.md) for the complete model, or
 with the [Advanced Raw API](../advanced/raw-api.md) when building directly on
 Core.
+
+**[Relations](relations.md)** declare typed capabilities a Resource, System, or
+Adapter requires through Composition.

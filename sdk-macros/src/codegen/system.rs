@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::ast::{RealizationDefinition, SystemDependencyDefinition, SystemInput};
+use crate::ast::{RealizationDefinition, RelationDefinition, SystemInput};
 
 use super::common::{
     PrimaryContractTokens, SubjectKind, config_type_tokens, fabric_path, has_config,
@@ -56,22 +56,22 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
     } = contract_tokens;
     let system_id = &input.system_id;
     let schema_expr = version_literal_expr(&sdk, &system_mod, &input.schema, SubjectKind::System);
-    let dependency_fields = input.systems.iter().map(|dependency| {
+    let dependency_fields = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         let contract_ty = dependency_contract_type(&sdk, dependency);
         quote!(#field: #sdk::authoring::ContractDependency<#contract_ty>,)
     });
-    let dependency_initializers = input.systems.iter().map(|dependency| {
+    let dependency_initializers = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         let requirement_expr = system_requirement_expr(&sdk, dependency);
         quote! {
             #field: #sdk::authoring::ContractDependency::new(
-                #requirement_expr.as_contract_requirement().clone()
+                #requirement_expr
             ),
         }
     });
     let dependency_declarations = input
-        .systems
+        .relations
         .iter()
         .map(|dependency| {
             let field = &dependency.field;
@@ -79,14 +79,14 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
     let declaration_requirements = input
-        .systems
+        .relations
         .iter()
         .map(|dependency| {
             let requirement = system_requirement_expr(&sdk, dependency);
             quote!(#requirement.declaration().clone())
         })
         .collect::<Vec<_>>();
-    let dependency_bindings = input.systems.iter().map(|dependency| {
+    let dependency_bindings = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         quote! {
             self.#field
@@ -208,6 +208,20 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
             fn primary_contract_key() -> #sdk::core::ContractKey<Self::Contract> {
                 #system_mod::raw::primary_contract_key()
+            }
+        }
+
+        impl #sdk::authoring::RelationTarget for #system_name {
+            type Contract = #system_mod::raw::#contract_name;
+            fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
+                let key = <Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key();
+                match key.identity() {
+                    #sdk::core::ContractIdentity::Provisional => #sdk::core::ContractRequirement::provisional(key.id().clone()),
+                    #sdk::core::ContractIdentity::Versioned(version) => #sdk::core::ContractRequirement::versioned(key.id().clone(), #sdk::core::ContractVersionRequirement::parse(format!("={version}")).expect("system! generated a static exact relation requirement")),
+                }
+            }
+            fn relation_requirement_versioned(requirement: #sdk::core::ContractVersionRequirement) -> #sdk::core::ContractRequirement<Self::Contract> {
+                #sdk::core::ContractRequirement::versioned(<Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key().id().clone(), requirement)
             }
         }
 
@@ -401,27 +415,22 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
     }
 }
 
-fn dependency_contract_type(
-    sdk: &TokenStream,
-    dependency: &SystemDependencyDefinition,
-) -> TokenStream {
-    let system = &dependency.system;
-    quote!(<#system as #sdk::authoring::PrimarySystemContract>::Contract)
+fn dependency_contract_type(sdk: &TokenStream, dependency: &RelationDefinition) -> TokenStream {
+    let target = &dependency.target;
+    quote!(<#target as #sdk::authoring::RelationTarget>::Contract)
 }
 
-fn system_requirement_expr(
-    sdk: &TokenStream,
-    dependency: &SystemDependencyDefinition,
-) -> TokenStream {
-    let system = &dependency.system;
+fn system_requirement_expr(sdk: &TokenStream, dependency: &RelationDefinition) -> TokenStream {
+    let target = &dependency.target;
     match &dependency.compatibility {
-        crate::ast::RequirementLiteral::Provisional => {
-            quote!(#sdk::authoring::SystemRequires::<#system>::provisional())
+        None => quote!(<#target as #sdk::authoring::RelationTarget>::relation_requirement()),
+        Some(crate::ast::RequirementLiteral::Provisional) => {
+            quote!(#sdk::core::ContractRequirement::<<#target as #sdk::authoring::RelationTarget>::Contract>::provisional(<#target as #sdk::authoring::RelationTarget>::relation_requirement().id().clone()))
         }
-        crate::ast::RequirementLiteral::Versioned(version) => quote!(
-            #sdk::authoring::SystemRequires::<#system>::versioned(
+        Some(crate::ast::RequirementLiteral::Versioned(version)) => quote!(
+            <#target as #sdk::authoring::RelationTarget>::relation_requirement_versioned(
                 #sdk::core::ContractVersionRequirement::parse(#version)
-                    .expect("system! generated a static dependency version requirement"),
+                    .expect("system! generated a static relation version requirement"),
             )
         ),
     }

@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Path;
 
-use crate::ast::{AdapterInput, AdapterTargetKind, SystemDependencyDefinition};
+use crate::ast::{AdapterInput, AdapterTargetKind, RelationDefinition};
 
 use super::common::{
     config_type_tokens, fabric_path, has_config, inline_config_definition_tokens, method_call_args,
@@ -47,22 +47,22 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
     let realization_contract_expr = quote!(<#raw_impl_mod::Runtime as #interface>::realization_contract(
         ::std::sync::Arc::new(self.clone())
     ));
-    let dependency_fields = input.systems.iter().map(|dependency| {
+    let dependency_fields = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         let contract_ty = dependency_contract_type(&sdk, dependency);
         quote!(#field: #sdk::authoring::ContractDependency<#contract_ty>,)
     });
-    let dependency_initializers = input.systems.iter().map(|dependency| {
+    let dependency_initializers = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         let requirement_expr = system_requirement_expr(&sdk, dependency);
         quote! {
             #field: #sdk::authoring::ContractDependency::new(
-                #requirement_expr.as_contract_requirement().clone()
+                #requirement_expr
             ),
         }
     });
     let dependency_declarations = input
-        .systems
+        .relations
         .iter()
         .map(|dependency| {
             let field = &dependency.field;
@@ -70,14 +70,14 @@ pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
     let declaration_requirements = input
-        .systems
+        .relations
         .iter()
         .map(|dependency| {
             let requirement = system_requirement_expr(&sdk, dependency);
             quote!(#requirement.declaration().clone())
         })
         .collect::<Vec<_>>();
-    let dependency_bindings = input.systems.iter().map(|dependency| {
+    let dependency_bindings = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         quote! {
             self.#field
@@ -422,27 +422,22 @@ fn realization_key_expr_interface(
     }
 }
 
-fn dependency_contract_type(
-    sdk: &TokenStream,
-    dependency: &SystemDependencyDefinition,
-) -> TokenStream {
-    let system = &dependency.system;
-    quote!(<#system as #sdk::authoring::PrimarySystemContract>::Contract)
+fn dependency_contract_type(sdk: &TokenStream, dependency: &RelationDefinition) -> TokenStream {
+    let target = &dependency.target;
+    quote!(<#target as #sdk::authoring::RelationTarget>::Contract)
 }
 
-fn system_requirement_expr(
-    sdk: &TokenStream,
-    dependency: &SystemDependencyDefinition,
-) -> TokenStream {
-    let system = &dependency.system;
+fn system_requirement_expr(sdk: &TokenStream, dependency: &RelationDefinition) -> TokenStream {
+    let target = &dependency.target;
     match &dependency.compatibility {
-        crate::ast::RequirementLiteral::Provisional => {
-            quote!(#sdk::authoring::SystemRequires::<#system>::provisional())
+        None => quote!(<#target as #sdk::authoring::RelationTarget>::relation_requirement()),
+        Some(crate::ast::RequirementLiteral::Provisional) => {
+            quote!(#sdk::core::ContractRequirement::<<#target as #sdk::authoring::RelationTarget>::Contract>::provisional(<#target as #sdk::authoring::RelationTarget>::relation_requirement().id().clone()))
         }
-        crate::ast::RequirementLiteral::Versioned(version) => quote!(
-            #sdk::authoring::SystemRequires::<#system>::versioned(
+        Some(crate::ast::RequirementLiteral::Versioned(version)) => quote!(
+            <#target as #sdk::authoring::RelationTarget>::relation_requirement_versioned(
                 #sdk::core::ContractVersionRequirement::parse(#version)
-                    .expect("adapter! generated a static dependency version requirement"),
+                    .expect("adapter! generated a static relation version requirement"),
             )
         ),
     }

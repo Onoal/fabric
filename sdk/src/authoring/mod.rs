@@ -20,10 +20,10 @@ pub use definitions::{
     ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
     ComponentRealizationContract, ComponentResourceRequirement, ComponentResourceScope,
     ComponentSpec, ComponentSystemScope, ContractDependency, IntoResourceName,
-    PrimaryResourceContract, Requires, ResourceAugmentation, ResourceAugmentationDefinition,
-    ResourceAugmentationError, ResourceAugmentationRealization, ResourceAugmentationRequirement,
-    ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
-    ResourceSelection, SelfRealizingComponentDefinition,
+    PrimaryResourceContract, RelationTarget, Requires, ResourceAugmentation,
+    ResourceAugmentationDefinition, ResourceAugmentationError, ResourceAugmentationRealization,
+    ResourceAugmentationRequirement, ResourceAugmentationSupportDefinition, ResourceDefinition,
+    ResourceRealization, ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
     BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,

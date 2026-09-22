@@ -41,12 +41,14 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
         &mut errors,
     );
 
-    for requirement in &input.requires {
-        validate_requirement_literal(
-            &requirement.compatibility,
-            "invalid resource dependency version requirement",
-            &mut errors,
-        );
+    for requirement in &input.relations {
+        if let Some(compatibility) = &requirement.compatibility {
+            validate_requirement_literal(
+                compatibility,
+                "invalid resource dependency version requirement",
+                &mut errors,
+            );
+        }
     }
 
     if let Some(realization) = &input.realization {
@@ -108,12 +110,14 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
         &mut errors,
     );
 
-    for dependency in &input.systems {
-        validate_requirement_literal(
-            &dependency.compatibility,
-            "invalid system dependency version requirement",
-            &mut errors,
-        );
+    for dependency in &input.relations {
+        if let Some(compatibility) = &dependency.compatibility {
+            validate_requirement_literal(
+                compatibility,
+                "invalid system dependency version requirement",
+                &mut errors,
+            );
+        }
     }
 
     if let Some(realization) = &input.realization {
@@ -167,7 +171,7 @@ pub fn validate_adapter(input: &AdapterInput) -> Result<()> {
         );
     }
     validate_version_literal(&input.realization, "invalid adapter version", &mut errors);
-    validate_system_dependency_names(&input.systems, &mut errors, "adapter");
+    validate_relation_names(&input.relations, &mut errors, "adapter");
 
     for method in &input.runtime_methods {
         if method.signature.asyncness.is_some() {
@@ -512,7 +516,7 @@ fn validate_resource_dependency_fields(input: &ResourceInput, errors: &mut Optio
         .as_ref()
         .map(|realization| to_snake_case(&realization.name));
 
-    for requirement in &input.requires {
+    for requirement in &input.relations {
         let field = requirement.field.to_string();
         if let Some(first_span) = seen.insert(field.clone(), requirement.field.span()) {
             let mut error = Error::new(
@@ -553,11 +557,11 @@ fn validate_resource_dependency_fields(input: &ResourceInput, errors: &mut Optio
 }
 
 fn validate_system_dependency_fields(input: &SystemInput, errors: &mut Option<Error>) {
-    validate_system_dependency_names(&input.systems, errors, "system");
+    validate_relation_names(&input.relations, errors, "system");
 }
 
-fn validate_system_dependency_names(
-    dependencies: &[crate::ast::SystemDependencyDefinition],
+fn validate_relation_names(
+    dependencies: &[crate::ast::RelationDefinition],
     errors: &mut Option<Error>,
     subject: &str,
 ) {

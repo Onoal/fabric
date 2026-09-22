@@ -6,9 +6,9 @@ use syn::{
 use crate::ast::{
     AdapterInput, AdapterTargetKind, ComponentInput, ComponentOperationContext,
     ComponentOperationDefinition, ConfigDefinition, ConfigField, ContractDefinition,
-    ContractMethod, RealizationDefinition, RequirementDefinition, RequirementLiteral,
-    ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod, RuntimeStateDefinition,
-    SystemDependencyDefinition, SystemInput, VersionLiteral,
+    ContractMethod, RealizationDefinition, RelationDefinition, RequirementDefinition,
+    RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
+    RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
 };
 
 mod kw {
@@ -31,6 +31,7 @@ mod kw {
     syn::custom_keyword!(primary);
     syn::custom_keyword!(provisional);
     syn::custom_keyword!(realization);
+    syn::custom_keyword!(relations);
     syn::custom_keyword!(requires);
     syn::custom_keyword!(runtime);
     syn::custom_keyword!(state);
@@ -63,7 +64,7 @@ impl Parse for ResourceInput {
         let mut resource_id = None;
         let mut schema = None;
         let mut config = None;
-        let mut requires = None;
+        let mut relations = None;
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
@@ -107,14 +108,31 @@ impl Parse for ResourceInput {
                     );
                 }
                 config = Some(parse_config_definition(&content)?);
+            } else if content.peek(kw::relations) {
+                content.parse::<kw::relations>()?;
+                if relations.is_some() {
+                    return Err(
+                        content.error("resource! supports only one `relations { ... }` section")
+                    );
+                }
+                relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::requires) {
                 content.parse::<kw::requires>()?;
-                if requires.is_some() {
+                if relations.is_some() {
                     return Err(
                         content.error("resource! supports only one `requires { ... }` section")
                     );
                 }
-                requires = Some(parse_requires(&content)?);
+                relations = Some(
+                    parse_requires(&content)?
+                        .into_iter()
+                        .map(|item| RelationDefinition {
+                            field: item.field,
+                            target: item.resource,
+                            compatibility: Some(item.compatibility),
+                        })
+                        .collect(),
+                );
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
                 if contracts.is_some() {
@@ -183,7 +201,7 @@ impl Parse for ResourceInput {
             })?,
             schema,
             config: config.unwrap_or(ConfigDefinition::None),
-            requires: requires.unwrap_or_default(),
+            relations: relations.unwrap_or_default(),
             contracts,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
@@ -208,7 +226,7 @@ impl Parse for SystemInput {
         let mut system_id = None;
         let mut schema = None;
         let mut config = None;
-        let mut systems = None;
+        let mut relations = None;
         let mut contracts = None;
         let mut realization = None;
         let mut runtime_methods = None;
@@ -250,12 +268,29 @@ impl Parse for SystemInput {
                     return Err(content.error("system! supports only one `config { ... }` section"));
                 }
                 config = Some(parse_config_definition(&content)?);
+            } else if content.peek(kw::relations) {
+                content.parse::<kw::relations>()?;
+                if relations.is_some() {
+                    return Err(
+                        content.error("system! supports only one `relations { ... }` section")
+                    );
+                }
+                relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
-                if systems.is_some() {
+                if relations.is_some() {
                     return Err(content.error("system! supports only one `system { ... }` section"));
                 }
-                systems = Some(parse_system_dependencies(&content)?);
+                relations = Some(
+                    parse_system_dependencies(&content)?
+                        .into_iter()
+                        .map(|item| RelationDefinition {
+                            field: item.field,
+                            target: item.system,
+                            compatibility: Some(item.compatibility),
+                        })
+                        .collect(),
+                );
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
                 if contracts.is_some() {
@@ -322,7 +357,7 @@ impl Parse for SystemInput {
             })?,
             schema,
             config: config.unwrap_or(ConfigDefinition::None),
-            systems: systems.unwrap_or_default(),
+            relations: relations.unwrap_or_default(),
             contracts,
             realization,
             runtime_methods: runtime_methods.ok_or_else(|| {
@@ -360,7 +395,7 @@ impl Parse for AdapterInput {
         let mut schema = None;
         let mut realization = None;
         let mut config = None;
-        let mut systems = None;
+        let mut relations = None;
         let mut host_requirement = None;
         let mut runtime_methods = None;
         let mut runtime_state = None;
@@ -415,14 +450,31 @@ impl Parse for AdapterInput {
                     );
                 }
                 config = Some(parse_config_definition(&content)?);
+            } else if content.peek(kw::relations) {
+                content.parse::<kw::relations>()?;
+                if relations.is_some() {
+                    return Err(
+                        content.error("adapter! supports only one `relations { ... }` section")
+                    );
+                }
+                relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
-                if systems.is_some() {
+                if relations.is_some() {
                     return Err(
                         content.error("adapter! supports only one `system { ... }` section")
                     );
                 }
-                systems = Some(parse_system_dependencies(&content)?);
+                relations = Some(
+                    parse_system_dependencies(&content)?
+                        .into_iter()
+                        .map(|item| RelationDefinition {
+                            field: item.field,
+                            target: item.system,
+                            compatibility: Some(item.compatibility),
+                        })
+                        .collect(),
+                );
             } else if content.peek(kw::host) {
                 content.parse::<kw::host>()?;
                 content.parse::<Token![:]>()?;
@@ -469,7 +521,7 @@ impl Parse for AdapterInput {
             schema,
             realization: realization.unwrap_or(VersionLiteral::Provisional),
             config: config.unwrap_or(ConfigDefinition::None),
-            systems: systems.unwrap_or_default(),
+            relations: relations.unwrap_or_default(),
             host_requirement,
             runtime_methods: runtime_methods.ok_or_else(|| {
                 Error::new(
@@ -706,6 +758,38 @@ fn parse_requires(input: ParseStream<'_>) -> Result<Vec<RequirementDefinition>> 
         });
     }
     Ok(requirements)
+}
+
+fn parse_relations(input: ParseStream<'_>) -> Result<Vec<RelationDefinition>> {
+    let content;
+    braced!(content in input);
+    if !content.peek(kw::requires) {
+        return Err(content.error("relations! currently supports only `requires { ... }`"));
+    }
+    content.parse::<kw::requires>()?;
+    let required;
+    braced!(required in content);
+    if !content.is_empty() {
+        return Err(content.error("unexpected tokens after `requires { ... }`"));
+    }
+    let mut relations = Vec::new();
+    while !required.is_empty() {
+        let field = required.parse::<Ident>()?;
+        required.parse::<Token![:]>()?;
+        let target = required.parse::<Path>()?;
+        let compatibility = if required.peek(syn::token::Paren) {
+            Some(parse_requirement_invocation(&required)?)
+        } else {
+            None
+        };
+        required.parse::<Token![;]>()?;
+        relations.push(RelationDefinition {
+            field,
+            target,
+            compatibility,
+        });
+    }
+    Ok(relations)
 }
 
 fn parse_requirement_invocation(input: ParseStream<'_>) -> Result<RequirementLiteral> {

@@ -4,6 +4,7 @@ mod component_augmentation;
 mod component_definition;
 mod contract_dependency;
 mod primary_resource_contract;
+mod relation_target;
 mod requires;
 mod resource_augmentation;
 mod resource_definition;
@@ -27,6 +28,7 @@ pub use component_definition::{
 };
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;
+pub use relation_target::RelationTarget;
 pub use requires::Requires;
 pub use resource_augmentation::{
     ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,

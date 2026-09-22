@@ -3,9 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-use fabric::authoring::CompositionExt;
+use fabric::authoring::ResourceDefinition;
 use fabric::*;
 use fabric_test_adapter_clock_memory::MemoryClock;
 use fabric_test_resource_clock::{Clock, ClockConfig, ClockError};
@@ -29,49 +28,6 @@ fn test_host() -> HostDescriptor {
         HostOperatingSystem::new("linux").expect("os"),
         HostArchitecture::new("x86_64").expect("architecture"),
     )
-}
-
-struct ExternalLifecycleState {
-    events: Arc<Mutex<Vec<String>>>,
-    value: AtomicUsize,
-}
-
-impl ExternalLifecycleState {
-    fn event(&self, event: &str) {
-        self.events.lock().expect("events").push(event.to_owned());
-    }
-}
-
-fabric::resource! {
-    ExternalStatefulResource {
-        id: "fabric.test.external.stateful-resource";
-
-        schema: provisional;
-
-        config {}
-
-        contracts {
-            primary Api {
-                id: "fabric.test.external.stateful-resource.api";
-                version: provisional;
-
-                fn current(&self) -> usize;
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.external.stateful-resource.adapter";
-            compatibility: provisional;
-
-            fn current(&self) -> usize;
-        }
-
-        runtime {
-            fn current(&self) -> usize {
-                self.adapter.current()
-            }
-        }
-    }
 }
 
 // This lives in a genuinely separate workspace crate and uses only the root
@@ -180,6 +136,7 @@ impl LocalKeyValueConfig {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct ResourceCreatorConfig {
     namespace: String,
 }
@@ -193,6 +150,7 @@ impl ResourceCreatorConfig {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct SystemCreatorConfig {
     label: String,
     defaults: BackendDefaults,
@@ -214,60 +172,12 @@ fabric::resource! {
         id: "fabric.test.external.configured-key-value";
         config: ResourceCreatorConfig;
 
-        contracts {
-            primary Api {
-                id: "fabric.test.external.configured-key-value.api";
-                fn namespace(&self) -> String;
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.external.configured-key-value.adapter";
-            compatibility: provisional;
-            fn namespace(&self) -> String;
-        }
-
-        runtime {
-            fn namespace(&self) -> String {
-                self.config().namespace.clone()
-            }
-        }
-
-        lifecycle {
-            initialize {
-                config_events().lock().expect("events").push(format!(
-                    "resource.initialize:{}",
-                    self.config().namespace,
-                ));
-                Ok(())
-            }
-
-            start {
-                config_events().lock().expect("events").push(format!(
-                    "resource.start:{}",
-                    self.config().namespace,
-                ));
-                Ok(())
-            }
-
-            stop {
-                config_events().lock().expect("events").push(format!(
-                    "resource.stop:{}",
-                    self.config().namespace,
-                ));
-                Ok(())
-            }
-
-            health: Health::Healthy;
-        }
+        api { fn namespace(&self) -> String; }
     }
 }
 
 fabric::adapter! {
-    LocalKeyValue
-        for resource ConfiguredKeyValue
-        implements ConfiguredKeyValueRealization
-    {
+    LocalKeyValue for ConfiguredKeyValue {
         config: LocalKeyValueConfig;
 
         runtime {
@@ -341,43 +251,12 @@ fabric::system! {
         id: "fabric.test.external.configured-system";
         config: SystemCreatorConfig;
 
-        contracts {
-            primary Api {
-                id: "fabric.test.external.configured-system.api";
-                fn label(&self) -> String;
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.external.configured-system.adapter";
-            compatibility: provisional;
-            fn label(&self) -> String;
-        }
-
-        runtime {
-            fn label(&self) -> String {
-                self.config().label.clone()
-            }
-        }
-
-        lifecycle {
-            initialize {
-                config_events().lock().expect("events").push(format!(
-                    "system.initialize:{}:{}",
-                    self.config().defaults.label,
-                    self.config().label,
-                ));
-                Ok(())
-            }
-        }
+        api { fn label(&self) -> String; }
     }
 }
 
 fabric::adapter! {
-    ConfiguredSystemAdapter
-        for system ConfiguredSystem
-        implements ConfiguredSystemRealization
-    {
+    ConfiguredSystemAdapter for ConfiguredSystem {
         config {
             endpoint: String;
         }
@@ -404,26 +283,12 @@ fabric::system! {
     UnconfiguredSystem {
         id: "fabric.test.external.unconfigured-system";
 
-        contracts {
-            primary Api {
-                id: "fabric.test.external.unconfigured-system.api";
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.external.unconfigured-system.adapter";
-            compatibility: provisional;
-        }
-
-        runtime {}
+        api {}
     }
 }
 
 fabric::adapter! {
-    UnconfiguredSystemAdapter
-        for system UnconfiguredSystem
-        implements UnconfiguredSystemRealization
-    {
+    UnconfiguredSystemAdapter for UnconfiguredSystem {
         runtime {}
     }
 }
@@ -447,37 +312,11 @@ fabric::resource! {
             fn delete(&self, key: Vec<u8>) -> Result<(), String>;
         }
 
-        adapter Adapter {
-            id: "fabric.test.external.clean-key-value.adapter";
-            compatibility: "^1";
-
-            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
-            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
-            fn delete(&self, key: Vec<u8>) -> Result<(), String>;
-        }
-
-        runtime {
-            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
-                self.adapter.get(key)
-            }
-
-            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
-                self.adapter.put(key, value)
-            }
-
-            fn delete(&self, key: Vec<u8>) -> Result<(), String> {
-                self.adapter.delete(key)
-            }
-        }
     }
 }
 
 fabric::adapter! {
-    CleanMemoryStore
-        for resource CleanKeyValueStore
-        implements CleanKeyValueStoreRealization
-    {
-        version: "1.0.0";
+    CleanMemoryStore for CleanKeyValueStore {
 
         state {
             CleanMemoryState = CleanMemoryState::default();
@@ -504,12 +343,8 @@ fabric::adapter! {
 // A deliberate compatibility override remains available for an implementation
 // that supports a range rather than only its compiled target version.
 fabric::adapter! {
-    ExplicitSupportMemoryStore
-        for resource CleanKeyValueStore
-        implements CleanKeyValueStoreRealization
-    {
+    ExplicitSupportMemoryStore for CleanKeyValueStore {
         supports: "^0.1";
-        version: "1.0.0";
 
         runtime {
             fn get(&self, _key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
@@ -580,28 +415,16 @@ fabric::system! {
 fabric::resource! {
     RelationAdapterTarget {
         id: "fabric.test.external.relation-adapter-target";
-        contracts { primary Api { id: "fabric.test.external.relation-adapter-target.api"; fn total(&self) -> u64; } }
-        adapter Adapter { id: "fabric.test.external.relation-adapter-target.adapter"; compatibility: provisional; fn total(&self) -> u64; }
-        runtime { fn total(&self) -> u64 { self.adapter.total() } }
+        api { fn total(&self) -> u64; }
     }
 }
 
 fabric::adapter! {
-    RelationAwareAdapter for resource RelationAdapterTarget implements RelationAdapterTargetRealization {
+    RelationAwareAdapter for RelationAdapterTarget {
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
         runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
         lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
-    }
-}
-
-struct ExternalStatefulService {
-    state: RuntimeState<ExternalLifecycleState>,
-}
-
-impl ExternalStatefulResourceRealization for ExternalStatefulService {
-    fn current(&self) -> usize {
-        self.state.get().value.fetch_add(1, Ordering::SeqCst)
     }
 }
 
@@ -785,11 +608,7 @@ fn external_config_authoring_keeps_semantic_and_realization_config_separate() {
 
     let events = config_events().lock().expect("events");
     for expected in [
-        "resource.initialize:users",
-        "resource.start:users",
-        "resource.stop:users",
         "adapter.initialize:redis:redis.internal/4",
-        "system.initialize:system:telemetry",
         "system-adapter.initialize:https://metrics.internal",
     ] {
         assert!(
@@ -890,86 +709,4 @@ fn external_component_macro_owns_participation_local_teardown_without_native_run
         ["component-teardown"]
     );
     instance.stop().expect("stop");
-}
-
-#[test]
-fn external_sdk_stateful_adapter_uses_public_runtime_authoring_without_module_runtime() {
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let runtime = StatefulRuntimeAuthoring::new(
-        {
-            let events = Arc::clone(&events);
-            move || ExternalLifecycleState {
-                events: Arc::clone(&events),
-                value: AtomicUsize::new(0),
-            }
-        },
-        |state| {
-            external_stateful_resource::realization::raw::AdapterContract::new(Arc::new(
-                ExternalStatefulService { state },
-            ))
-        },
-    )
-    .with_initialize(|state, context| {
-        assert!(context.is_bound());
-        state.get().event("initialize");
-        Ok(())
-    })
-    .with_start(|state, _| {
-        state.get().event("start");
-        Ok(())
-    })
-    .with_stop(|state, _| {
-        state.get().event("stop");
-        Ok(())
-    })
-    .with_health(|_, _| Health::Healthy);
-    let adapter = StatefulAdapterDefinition::<
-        ExternalStatefulResource,
-        AdapterResourceSchemaSupport,
-        ExternalLifecycleState,
-        external_stateful_resource::realization::raw::AdapterContract,
-    >::new(
-        AdapterResourceSchemaSupport::provisional(ExternalStatefulResource::resource_id()),
-        HostRequirement::new(),
-        external_stateful_resource::realization::raw::provisional_contract_key(),
-        runtime,
-    );
-    let resource = ExternalStatefulResource::select("primary", ExternalStatefulResourceConfig {})
-        .expect("selection")
-        .using(adapter)
-        .expect("adapter");
-    let built = Fabric::new("fabric.test.external.stateful-runtime")
-        .expect("fabric")
-        .resource(resource)
-        .build()
-        .expect("build");
-    let mut instance = built
-        .composition()
-        .materialize_named_on(
-            "fabric.test.external.stateful-runtime.instance",
-            &test_host(),
-        )
-        .expect("materialize");
-    instance.start().expect("start");
-    instance.stop().expect("stop");
-    assert_eq!(
-        events.lock().expect("events").as_slice(),
-        ["initialize", "start", "stop"]
-    );
-}
-
-#[test]
-fn stateful_external_witness_does_not_author_raw_module_runtime() {
-    let source = include_str!("witness.rs");
-    let witness = source
-        .split(
-            "fn external_sdk_stateful_adapter_uses_public_runtime_authoring_without_module_runtime",
-        )
-        .nth(1)
-        .expect("stateful witness")
-        .split("#[test]")
-        .next()
-        .expect("witness end");
-    assert!(witness.contains("StatefulRuntimeAuthoring"));
-    assert!(!witness.contains("ModuleRuntime"));
 }

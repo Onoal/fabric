@@ -6,8 +6,8 @@ use syn::spanned::Spanned;
 use syn::{Error, Expr, ExprClosure, FnArg, Pat, PatIdent, Result, Signature};
 
 use crate::ast::{
-    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext, RealizationDefinition,
-    RequirementLiteral, ResourceInput, SystemInput, VersionLiteral,
+    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext, RequirementLiteral,
+    ResourceInput, SystemInput, VersionLiteral,
 };
 
 struct ApiValidation<'a> {
@@ -44,15 +44,6 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
                 &mut errors,
             );
         }
-    }
-
-    if let Some(realization) = &input.realization {
-        validate_realization(
-            realization,
-            &mut errors,
-            "resource",
-            "invalid resource realization version requirement",
-        );
     }
 
     for method in input.runtime_methods.iter().flatten() {
@@ -131,15 +122,6 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
         }
     }
 
-    if let Some(realization) = &input.realization {
-        validate_realization(
-            realization,
-            &mut errors,
-            "system",
-            "invalid system realization version requirement",
-        );
-    }
-
     for method in input.runtime_methods.iter().flatten() {
         if method.signature.asyncness.is_some() {
             push_error(
@@ -200,7 +182,6 @@ pub fn validate_adapter(input: &AdapterInput) -> Result<()> {
             &mut errors,
         );
     }
-    validate_version_literal(&input.realization, "invalid adapter version", &mut errors);
     validate_relation_names(&input.relations, &mut errors, "adapter");
 
     for method in &input.runtime_methods {
@@ -534,10 +515,6 @@ fn validate_component_dependency_fields(input: &ComponentInput, errors: &mut Opt
 fn validate_resource_dependency_fields(input: &ResourceInput, errors: &mut Option<Error>) {
     let mut seen = BTreeMap::new();
     let reserved = ["config", "module_id"];
-    let realization_field = input
-        .realization
-        .as_ref()
-        .map(|realization| to_snake_case(&realization.name));
 
     for requirement in &input.relations {
         let field = requirement.field.to_string();
@@ -560,18 +537,6 @@ fn validate_resource_dependency_fields(input: &ResourceInput, errors: &mut Optio
                     requirement.field.span(),
                     format!(
                         "resource dependency field `{field}` is reserved by generated runtime state"
-                    ),
-                ),
-            );
-        }
-
-        if realization_field.as_deref() == Some(field.as_str()) {
-            push_error(
-                errors,
-                Error::new(
-                    requirement.field.span(),
-                    format!(
-                        "resource dependency field `{field}` collides with the generated realization field"
                     ),
                 ),
             );
@@ -617,47 +582,6 @@ fn validate_relation_names(
             );
         }
     }
-}
-
-fn validate_realization(
-    realization: &RealizationDefinition,
-    errors: &mut Option<Error>,
-    subject: &'static str,
-    invalid_requirement_message: &'static str,
-) {
-    validate_requirement_literal(
-        &realization.compatibility,
-        invalid_requirement_message,
-        errors,
-    );
-
-    for method in &realization.methods {
-        if method.signature.asyncness.is_some() {
-            push_error(
-                errors,
-                Error::new(
-                    method.signature.ident.span(),
-                    format!("async {subject} realization methods are not supported"),
-                ),
-            );
-        }
-        validate_supported_signature(
-            &method.signature,
-            &format!("{subject} realization methods"),
-            &format!("generic {subject} realization methods are not supported"),
-            errors,
-        );
-    }
-
-    validate_duplicate_methods(
-        realization
-            .methods
-            .iter()
-            .map(|method| &method.signature)
-            .collect::<Vec<_>>(),
-        "realization",
-        errors,
-    );
 }
 
 fn validate_runtime_method_integrity(
@@ -862,24 +786,6 @@ fn validate_duplicate_methods(
             push_error(errors, error);
         }
     }
-}
-
-fn to_snake_case(name: &syn::Ident) -> String {
-    let input = name.to_string();
-    let mut result = String::new();
-    for (index, ch) in input.chars().enumerate() {
-        if ch.is_uppercase() {
-            if index != 0 {
-                result.push('_');
-            }
-            for lower in ch.to_lowercase() {
-                result.push(lower);
-            }
-        } else {
-            result.push(ch);
-        }
-    }
-    result
 }
 
 fn push_error(target: &mut Option<Error>, error: Error) {

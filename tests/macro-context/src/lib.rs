@@ -4,6 +4,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use fabric::authoring::{PrimaryResourceContract, PrimarySystemContract};
 use fabric::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,26 +89,11 @@ resource! {
             fn get(&self, key: RootKey) -> ImportedValue;
         }
 
-        adapter Adapter {
-            id: "fabric.test.macro-context.root-store.adapter";
-            compatibility: "^1";
-            fn get(&self, key: RootKey) -> ImportedValue;
-        }
-
-        runtime {
-            fn get(&self, key: RootKey) -> ImportedValue {
-                self.adapter.get(key)
-            }
-        }
     }
 }
 
 adapter! {
-    pub RootStatefulStore
-        for resource RootVersionedStore
-        implements RootVersionedStoreRealization
-    {
-        version: "1.0.0";
+    pub RootStatefulStore for RootVersionedStore {
 
         state {
             RootStoreState = RootStoreState;
@@ -138,17 +124,6 @@ system! {
             fn marker(&self) -> ImportedValue;
         }
 
-        adapter Adapter {
-            id: "fabric.test.macro-context.root-system.adapter";
-            compatibility: "^1";
-            fn marker(&self) -> ImportedValue;
-        }
-
-        runtime {
-            fn marker(&self) -> ImportedValue {
-                self.adapter.marker()
-            }
-        }
     }
 }
 
@@ -166,6 +141,7 @@ pub fn root_api_identities() -> (String, String) {
 }
 
 pub mod capability {
+    use fabric::authoring::{PrimaryResourceContract, PrimarySystemContract};
     use fabric::*;
 
     use crate::ImportedValue;
@@ -181,17 +157,6 @@ pub mod capability {
                 fn get(&self, key: ModuleKey) -> ImportedValue;
             }
 
-            adapter Adapter {
-                id: "fabric.test.macro-context.module-store.adapter";
-                compatibility: provisional;
-                fn get(&self, key: ModuleKey) -> ImportedValue;
-            }
-
-            runtime {
-                fn get(&self, key: ModuleKey) -> ImportedValue {
-                    self.adapter.get(key)
-                }
-            }
         }
     }
 
@@ -203,17 +168,6 @@ pub mod capability {
                 fn marker(&self) -> ImportedValue;
             }
 
-            adapter Adapter {
-                id: "fabric.test.macro-context.module-system.adapter";
-                compatibility: provisional;
-                fn marker(&self) -> ImportedValue;
-            }
-
-            runtime {
-                fn marker(&self) -> ImportedValue {
-                    self.adapter.marker()
-                }
-            }
         }
     }
 
@@ -231,6 +185,7 @@ pub mod capability {
 pub mod outer {
     pub mod middle {
         pub mod inner {
+            use fabric::authoring::{PrimaryResourceContract, PrimarySystemContract};
             use fabric::*;
 
             use crate::ImportedValue;
@@ -246,17 +201,6 @@ pub mod outer {
                         fn get(&self, key: DeepKey) -> ImportedValue;
                     }
 
-                    adapter Adapter {
-                        id: "fabric.test.macro-context.deep-store.adapter";
-                        compatibility: provisional;
-                        fn get(&self, key: DeepKey) -> ImportedValue;
-                    }
-
-                    runtime {
-                        fn get(&self, key: DeepKey) -> ImportedValue {
-                            self.adapter.get(key)
-                        }
-                    }
                 }
             }
 
@@ -268,17 +212,6 @@ pub mod outer {
                         fn marker(&self) -> ImportedValue;
                     }
 
-                    adapter Adapter {
-                        id: "fabric.test.macro-context.deep-system.adapter";
-                        compatibility: provisional;
-                        fn marker(&self) -> ImportedValue;
-                    }
-
-                    runtime {
-                        fn marker(&self) -> ImportedValue {
-                            self.adapter.marker()
-                        }
-                    }
                 }
             }
 

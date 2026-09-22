@@ -10,10 +10,9 @@ mod root_wildcard {
         pub RootStore {
             id: "docs.root.store";
             version: "0.1.0";
-            contracts { primary Api {
-                id: "docs.root.store.api";
+            api {
                 fn value(&self) -> u64;
-            }}
+            }
             runtime { fn value(&self) -> u64 { 1 } }
         }
     }
@@ -22,10 +21,9 @@ mod root_wildcard {
         pub RootSystem {
             id: "docs.root.system";
             version: "0.1.0";
-            contracts { primary Api {
-                id: "docs.root.system.api";
+            api {
                 fn value(&self) -> u64;
-            }}
+            }
             runtime { fn value(&self) -> u64 { 2 } }
         }
     }
@@ -44,32 +42,15 @@ mod root_wildcard {
         }
     }
 
-    #[derive(Clone)]
-    struct Readback;
-    #[derive(Clone)]
-    struct ReadbackContract;
-
-    impl ResourceAugmentationDefinition<RootStore> for Readback {
-        type Config = ();
-        type Contract = ReadbackContract;
-
-        fn contract_key() -> ContractKey<Self::Contract> {
-            ContractKey::provisional(ContractId::new("docs.root.store.readback").expect("id"))
-        }
-    }
-
     #[test]
     fn wildcard_root_supports_normal_authoring() {
         let store = RootStore::select("primary").expect("selection");
-        let augmentation =
-            ResourceAugmentation::<RootStore, Readback>::attach(&store, ()).expect("attachment");
         let system = RootSystem::select().expect("selection");
         let component = RootComponent::define(RootComponentConfig {});
 
         let built = Fabric::new("docs.root")
             .expect("composition")
             .resource(store)
-            .resource_augmentation(augmentation)
             .system(system)
             .component(component)
             .build()
@@ -77,28 +58,21 @@ mod root_wildcard {
         assert_eq!(built.manifest().resources().len(), 1);
         assert_eq!(built.manifest().systems().len(), 1);
         assert_eq!(built.manifest().components().len(), 1);
-        assert_eq!(built.manifest().resource_augmentations().len(), 1);
 
         let clock = Clock::select("clock", ClockConfig::default()).expect("selection");
         let realized = clock
             .using(MemoryClock::new(1))
             .expect("adapter realization");
         let _host = HostRequirement::new();
-        let _: ResourceId = RootStore::resource_id();
-        let _: SystemId = RootSystem::system_id();
         let _: ComponentId = RootComponent::component_id();
         let _: OperationKey<(), ()> = root_component::operations::ping();
-        let _: ResourceSchemaDescriptor = RootStore::schema();
-        let _: SystemSchemaDescriptor = RootSystem::schema();
         let _ = realized;
     }
 }
 
 #[cfg(test)]
 mod selective_root {
-    use fabric::{
-        ComponentId, ContractId, ContractKey, Fabric, HostRequirement, ResourceId, SystemId,
-    };
+    use fabric::{ComponentId, Fabric, HostRequirement, ResourceId, SystemId};
 
     #[test]
     fn normal_semantic_identifiers_are_selectively_importable() {
@@ -106,7 +80,6 @@ mod selective_root {
         let _ = ResourceId::new("docs.root.resource").expect("resource id");
         let _ = SystemId::new("docs.root.system").expect("system id");
         let _ = ComponentId::new("docs.root.component").expect("component id");
-        let _ = ContractKey::<()>::provisional(ContractId::new("docs.root.contract").expect("id"));
         let _ = HostRequirement::new();
     }
 }

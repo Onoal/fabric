@@ -11,6 +11,13 @@ Resource occurrence = ResourceId + ResourceName
 Resource != Adapter
 ```
 
+A Resource is not a System with a missing name: Resources model independently
+named occurrences, while a System models one coherent shared capability. It is
+not a Component either: Components own behavior and consume capabilities. It is
+not an Adapter: an Adapter owns one concrete implementation of the semantic
+Resource. See [System](system.md), [Component](component.md), and
+[Adapter](adapter.md).
+
 Components ask for Resource semantics rather than databases, cloud services,
 libraries, or local implementations. Composition chooses the occurrence and
 realization that satisfy the requirement.
@@ -33,9 +40,10 @@ occurrence. See [Component](component.md) and [Composition](composition.md).
 
 ## Definition, selection, Config, and contract
 
-`ResourceDefinition` is typed authoring for a Resource kind: Config type,
-`ResourceId`, semantic version/schema compatibility, declaration construction, and optional self-realization.
-It is semantic definition truth, not an occurrence or a concrete implementation.
+For normal code, `resource!` declares a Resource kind with Config, identity,
+version semantics, Relations, API, and an optional self-realization. The
+advanced `ResourceDefinition` trait is the typed lower-level representation of
+that same declaration. Neither is an occurrence or a concrete implementation.
 
 `ResourceSelection<R>` is a configured named occurrence:
 
@@ -114,7 +122,13 @@ lifecycle: a running live realization may be Healthy, Degraded, or Unavailable
 without changing its lifecycle state. Adapter realizations use the same Fabric
 lifecycle ownership model; their canonical authoring is documented separately.
 
-## Schema and realization
+The normal Adapter implements the Resource API directly. When a Resource
+deliberately needs semantic mediation, it can own only that mediation while an
+Adapter supplies an effective lower realization contract. Fabric composes typed
+providers rather than selecting one provider per method. See
+[Realization](realization.md).
+
+## Version compatibility and realization
 
 ### Normal and advanced compatibility authoring
 
@@ -124,8 +138,10 @@ canonical API inherits that enclosing version and its contract identity is
 derived from the Resource identity.
 No Config declaration means `NoteStore::select("primary")` with no generated
 empty Config value. Inline `config { ... }` generates a public typed Config;
-`config: MyConfig;` uses a creator-owned Rust type directly. `schema:` remains a legacy explicit spelling
-for compatibility-focused code, but is not part of the normal path.
+`config: MyConfig;` uses a creator-owned Rust type directly.
+
+Advanced compatibility controls are available when an implementation must span
+intentional target-version ranges; they are not part of normal package code.
 
 The internal `ResourceSchemaDescriptor` still carries the identity/version that
 Fabric uses for compatibility. An Adapter with no explicit support declaration
@@ -145,9 +161,9 @@ it does not establish safe replacement, migration, or provider-state transfer.
 
 A self-realizing Resource may materialize directly. For the normal adapted
 form, its semantic `api { ... }` is the Adapter requirement and the selected
-Adapter owns the concrete live machinery. An explicit typed
-[RealizationContract](adapter.md) remains the advanced form for intentional
-semantic mediation with a different lower-level interface.
+Adapter owns the concrete live machinery. A differential
+[realization boundary](adapter.md) is available for intentional semantic
+mediation with a different lower-level interface.
 
 ```text
 ResourceSelection + compatible Adapter = ResourceRealization

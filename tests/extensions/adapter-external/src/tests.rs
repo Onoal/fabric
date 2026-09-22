@@ -1,19 +1,15 @@
 use std::sync::{Arc, Mutex};
 
-use fabric::{
-    authoring::{CompositionExt, FabricBuilder},
-    core::ContractProviderSelection,
-    ids::module,
-    prelude::*,
-};
+use fabric::authoring::{Requires, SystemRequires};
+use fabric::prelude::*;
 use fabric_core::{
-    CompositionError, ContractIdentity, Health, ModuleBindings, ModuleContract, ModuleError,
-    ModuleId, ModuleRuntime,
+    CompositionError, ContractIdentity, ContractVersion, ContractVersionRequirement, Health,
+    ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
 };
 use fabric_test_resource_counter::{AdaptedCounter, AdaptedCounterConfig};
 use fabric_test_system_operations::{
     AdaptedOperations, AdaptedOperationsConfig, OperationMarker, TestOperations,
-    TestOperationsConfig, adapted_operations_contract_version,
+    TestOperationsConfig,
 };
 
 use crate::{
@@ -30,26 +26,15 @@ fn test_host() -> HostDescriptor {
     )
 }
 
-#[test]
-fn external_targets_expose_public_typed_realization_interfaces() {
-    fn resource_interface<T: fabric_test_resource_counter::AdaptedCounterRealization>() {}
-    fn system_interface<T: fabric_test_system_operations::AdaptedOperationsRealization>() {}
-
-    let _ = resource_interface::<crate::resource_adapter::external_counter_adapter::raw::Runtime>;
-    let _ = system_interface::<crate::system_adapter::external_operations_adapter::raw::Runtime>;
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CounterCapture {
     value: u64,
-    provider: String,
-    identity: String,
 }
 
 #[derive(Clone)]
 struct CounterConsumer {
     module_id: ModuleId,
-    requirement: fabric::Requires<AdaptedCounter>,
+    requirement: Requires<AdaptedCounter>,
     capture: Arc<Mutex<Option<CounterCapture>>>,
 }
 
@@ -57,7 +42,7 @@ impl CounterConsumer {
     fn new(capture: Arc<Mutex<Option<CounterCapture>>>) -> Self {
         Self {
             module_id: ModuleId::new("external.counter.consumer").expect("module id"),
-            requirement: fabric::Requires::<AdaptedCounter>::provisional(),
+            requirement: Requires::<AdaptedCounter>::provisional(),
             capture,
         }
     }
@@ -83,8 +68,6 @@ impl ModuleRuntime for CounterConsumer {
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture") = Some(CounterCapture {
             value: resolved.value().current_value().value(),
-            provider: resolved.value().adapter_provider(),
-            identity: resolved.value().adapter_identity(),
         });
         Ok(())
     }
@@ -122,7 +105,7 @@ impl OperationsConsumer {
         Self {
             module_id: ModuleId::new("external.operations.consumer").expect("module id"),
             requirement: SystemRequires::<AdaptedOperations>::versioned(
-                ContractVersionRequirement::parse("^1.2").expect("requirement"),
+                ContractVersionRequirement::parse("^2").expect("requirement"),
             ),
             capture,
         }
@@ -178,23 +161,13 @@ fn external_resource_adapter_can_target_a_macro_generated_resource_from_another_
             value: 41,
         }))
         .expect("adapter");
-    let resource_module_id = adapted.resource().module_id().clone();
-    let (resource, adapter, selection) = adapted.into_raw_parts();
-
-    let composition = FabricBuilder::new("fabric.test.external.counter")
+    let composition = Fabric::new("fabric.test.external.counter")
         .expect("builder")
-        .block("runtime", |block| block.module(resource).module(adapter))
-        .expect("runtime")
+        .resource(adapted)
         .block("consumer", |block| {
             block.module(CounterConsumer::new(Arc::clone(&capture)))
         })
         .expect("consumer")
-        .select_provider(selection)
-        .select_provider(ContractProviderSelection::new(
-            module("external.counter.consumer").expect("consumer id"),
-            AdaptedCounter::primary_contract_key().id().clone(),
-            resource_module_id,
-        ))
         .build()
         .expect("composition");
 
@@ -206,11 +179,7 @@ fn external_resource_adapter_can_target_a_macro_generated_resource_from_another_
 
     assert_eq!(
         capture.lock().expect("capture").clone(),
-        Some(CounterCapture {
-            value: 41,
-            provider: "fabric.test.counter.adapted.selection.7072696d617279.realization".to_owned(),
-            identity: "1.0.0".to_owned(),
-        })
+        Some(CounterCapture { value: 41 })
     );
 }
 
@@ -224,17 +193,13 @@ fn external_system_adapter_can_target_a_macro_generated_system_from_another_crat
         ))
         .expect("adapter");
     let system_module_id = adapted.system().module_id().clone();
-    let (system, adapter, selection) = adapted.into_raw_parts();
-
-    let composition = FabricBuilder::new("fabric.test.external.operations")
+    let composition = Fabric::new("fabric.test.external.operations")
         .expect("builder")
-        .block("runtime", |block| block.module(system).module(adapter))
-        .expect("runtime")
+        .system(adapted)
         .block("consumer", |block| {
             block.module(OperationsConsumer::new(Arc::clone(&capture)))
         })
         .expect("consumer")
-        .select_provider(selection)
         .build()
         .expect("composition");
 
@@ -249,7 +214,9 @@ fn external_system_adapter_can_target_a_macro_generated_system_from_another_crat
         Some(OperationsCapture {
             marker: OperationMarker::new(77),
             provider: system_module_id,
-            identity: ContractIdentity::versioned(adapted_operations_contract_version()),
+            identity: ContractIdentity::versioned(
+                ContractVersion::parse("2.0.0").expect("semantic API version"),
+            ),
         })
     );
 }
@@ -264,25 +231,14 @@ fn external_adapter_can_consume_systems_through_the_canonical_adapter_surface() 
             ExternalOperationsWithSystemAdapterConfig { offset: 3 },
         ))
         .expect("adapter");
-    let (base_system, adapted_system, adapter, selection) = {
-        let (system, adapter, selection) = adapted.into_raw_parts();
-        (base, system, adapter, selection)
-    };
-
-    let composition = FabricBuilder::new("fabric.test.external.operations.dependency")
+    let composition = Fabric::new("fabric.test.external.operations.dependency")
         .expect("builder")
-        .block("runtime", |block| {
-            block
-                .module(base_system)
-                .module(adapted_system)
-                .module(adapter)
-        })
-        .expect("runtime")
+        .system(base)
+        .system(adapted)
         .block("consumer", |block| {
             block.module(OperationsConsumer::new(Arc::clone(&capture)))
         })
         .expect("consumer")
-        .select_provider(selection)
         .build()
         .expect("composition");
 
@@ -314,13 +270,9 @@ fn external_host_bound_resource_adapter_still_requires_explicit_host_truth() {
             HostBoundExternalCounterAdapterConfig { value: 9 },
         ))
         .expect("adapter");
-    let (resource, adapter, selection) = adapted.into_raw_parts();
-
-    let composition = FabricBuilder::new("fabric.test.external.counter.host")
+    let composition = Fabric::new("fabric.test.external.counter.host")
         .expect("builder")
-        .block("runtime", |block| block.module(resource).module(adapter))
-        .expect("runtime")
-        .select_provider(selection)
+        .resource(adapted)
         .build()
         .expect("composition");
 

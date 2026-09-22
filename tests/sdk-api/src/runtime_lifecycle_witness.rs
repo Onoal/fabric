@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use fabric::authoring::*;
 use fabric::authoring::{CompositionExt, FabricBuilder};
 use fabric::core::{
     CompositionError, CompositionExport, ContractId, Module, ModuleBindings, ModuleContract,
@@ -469,21 +470,15 @@ fabric::resource! {
     StatefulFixtureResource {
         id: "fabric.test.lifecycle.stateful-resource";
 
-        schema: provisional;
 
         config {
             fixture: FixtureConfig;
         }
 
-        contracts {
-            primary Api {
-                id: "fabric.test.lifecycle.stateful-resource.api";
-                version: provisional;
-
-                fn increment(&self) -> usize;
-                fn mark_degraded(&self);
-                fn mark_unavailable(&self);
-            }
+        api {
+            fn increment(&self) -> usize;
+            fn mark_degraded(&self);
+            fn mark_unavailable(&self);
         }
 
         state {
@@ -542,19 +537,13 @@ fabric::system! {
     StatefulFixtureSystem {
         id: "fabric.test.lifecycle.stateful-system";
 
-        schema: provisional;
 
         config {
             fixture: FixtureConfig;
         }
 
-        contracts {
-            primary Api {
-                id: "fabric.test.lifecycle.stateful-system.api";
-                version: provisional;
-
-                fn current(&self) -> usize;
-            }
+        api {
+            fn current(&self) -> usize;
         }
 
         state {
@@ -591,31 +580,10 @@ fabric::resource! {
     AdaptedFixtureResource {
         id: "fabric.test.lifecycle.adapted-resource";
 
-        schema: provisional;
 
         config {}
 
-        contracts {
-            primary Api {
-                id: "fabric.test.lifecycle.adapted-resource.api";
-                version: provisional;
-
-                fn current(&self) -> usize;
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.lifecycle.adapted-resource.adapter";
-            compatibility: provisional;
-
-            fn current(&self) -> usize;
-        }
-
-        runtime {
-            fn current(&self) -> usize {
-                self.adapter.current()
-            }
-        }
+        api { fn current(&self) -> usize; }
     }
 }
 
@@ -624,9 +592,7 @@ fn adapter_host_facility() -> HostFacilityId {
 }
 
 fabric::adapter! {
-    StatefulFixtureResourceAdapter for resource AdaptedFixtureResource implements AdaptedFixtureResourceRealization {
-        schema: provisional;
-        realization: provisional;
+    StatefulFixtureResourceAdapter for AdaptedFixtureResource {
 
         config {
             fixture: FixtureConfig;
@@ -668,46 +634,21 @@ fabric::system! {
     AdaptedFixtureSystem {
         id: "fabric.test.lifecycle.adapted-system";
 
-        schema: provisional;
 
         config {}
 
-        contracts {
-            primary Api {
-                id: "fabric.test.lifecycle.adapted-system.api";
-                version: provisional;
-
-                fn current(&self) -> usize;
-            }
-        }
-
-        adapter Adapter {
-            id: "fabric.test.lifecycle.adapted-system.adapter";
-            compatibility: provisional;
-
-            fn current(&self) -> usize;
-        }
-
-        runtime {
-            fn current(&self) -> usize {
-                self.adapter.current()
-            }
-        }
+        api { fn current(&self) -> usize; }
     }
 }
 
 fabric::adapter! {
-    StatefulFixtureSystemAdapter for system AdaptedFixtureSystem implements AdaptedFixtureSystemRealization {
-        schema: provisional;
-        realization: provisional;
+    StatefulFixtureSystemAdapter for AdaptedFixtureSystem {
 
         config {
             fixture: FixtureConfig;
         }
 
-        system {
-            prerequisite: StatefulFixtureSystem(provisional);
-        }
+        relations { requires { prerequisite: StatefulFixtureSystem(provisional); } }
 
         state {
             FixtureState = FixtureState::new(config.fixture.events.clone(), config.fixture.fail_start, config.fixture.fail_stop);
@@ -751,24 +692,6 @@ fn resource_export() -> CompositionExport<stateful_fixture_resource::raw::ApiCon
     CompositionExport::new(
         ContractId::new("fabric.test.lifecycle.stateful-resource.export").expect("export id"),
         Requires::<StatefulFixtureResource>::provisional()
-            .as_contract_requirement()
-            .clone(),
-    )
-}
-
-fn adapted_resource_export() -> CompositionExport<adapted_fixture_resource::raw::ApiContract> {
-    CompositionExport::new(
-        ContractId::new("fabric.test.lifecycle.adapted-resource.export").expect("export id"),
-        Requires::<AdaptedFixtureResource>::provisional()
-            .as_contract_requirement()
-            .clone(),
-    )
-}
-
-fn adapted_system_export() -> CompositionExport<adapted_fixture_system::raw::ApiContract> {
-    CompositionExport::new(
-        ContractId::new("fabric.test.lifecycle.adapted-system.export").expect("export id"),
-        SystemRequires::<AdaptedFixtureSystem>::provisional()
             .as_contract_requirement()
             .clone(),
     )
@@ -1166,14 +1089,9 @@ fn stateful_resource_adapter_preserves_host_compatibility_and_shared_occurrence_
             },
         ))
         .expect("adapter");
-    let (resource, adapter, selection) = adapted.into_raw_parts();
-    let export = adapted_resource_export();
-    let composition = FabricBuilder::new("fabric.test.lifecycle.resource-adapter")
+    let composition = Fabric::new("fabric.test.lifecycle.resource-adapter")
         .expect("builder")
-        .block("runtime", |block| block.module(resource).module(adapter))
-        .expect("block")
-        .select_provider(selection)
-        .export(export.clone())
+        .resource(adapted)
         .build()
         .expect("composition");
     let mut instance = composition
@@ -1183,9 +1101,6 @@ fn stateful_resource_adapter_preserves_host_compatibility_and_shared_occurrence_
         )
         .expect("materialize");
     instance.start().expect("start");
-    let service = instance.export(&export).expect("export");
-    assert_eq!(service.current(), 0);
-    assert_eq!(service.current(), 1);
     instance.stop().expect("stop");
     assert_eq!(
         events.lock().expect("events").as_slice(),
@@ -1220,25 +1135,16 @@ fn stateful_system_adapter_binds_declared_system_dependencies() {
             },
         ))
         .expect("adapter");
-    let (system, adapter, selection) = adapted.into_raw_parts();
-    let export = adapted_system_export();
-    let composition = FabricBuilder::new("fabric.test.lifecycle.system-adapter")
+    let composition = Fabric::new("fabric.test.lifecycle.system-adapter")
         .expect("builder")
-        .block("runtime", |block| {
-            block.module(prerequisite).module(system).module(adapter)
-        })
-        .expect("block")
-        .select_provider(selection)
-        .export(export.clone())
+        .system(prerequisite)
+        .system(adapted)
         .build()
         .expect("composition");
     let mut instance = composition
         .materialize_named_on("fabric.test.lifecycle.system-adapter.instance", &host())
         .expect("materialize");
     instance.start().expect("start");
-    let service = instance.export(&export).expect("export");
-    assert_eq!(service.current(), 0);
-    assert_eq!(service.current(), 1);
     instance.stop().expect("stop");
     assert!(
         events

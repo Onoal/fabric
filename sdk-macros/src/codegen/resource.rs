@@ -1,17 +1,16 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 use crate::ast::{
-    ApiDefinition, ApiIdentity, ContractMethod, DifferentialRealizationDefinition,
-    RealizationDefinition, RelationDefinition, ResourceInput,
+    ApiDefinition, ContractMethod, DifferentialRealizationDefinition, RelationDefinition,
+    ResourceInput,
 };
 
 use super::common::{
     CanonicalAdapterBridgeTokens, PrimaryContractTokens, SubjectKind, api_contract_id_expr,
     canonical_adapter_bridge_tokens, canonical_adapter_bridge_tokens_named, config_type_tokens,
     fabric_path, has_config, inline_config_definition_tokens, method_call_args,
-    primary_contract_tokens, requirement_literal_expr, runtime_method_tokens, to_snake_case,
-    version_literal_expr,
+    primary_contract_tokens, runtime_method_tokens, to_snake_case, version_literal_expr,
 };
 
 pub fn expand_resource(input: &ResourceInput) -> TokenStream {
@@ -147,8 +146,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         quote!(#builder, #contract, #service, effective_realization_contract_key,)
     });
     let resource_id = &input.resource_id;
-    let api_contract_id =
-        api_contract_id_expr(&sdk, &api.identity, resource_id, SubjectKind::Resource);
+    let api_contract_id = api_contract_id_expr(&sdk, resource_id, SubjectKind::Resource);
     let schema_expr =
         version_literal_expr(&sdk, &resource_mod, &input.schema, SubjectKind::Resource);
     let dependency_fields = input.relations.iter().map(|requirement| {
@@ -190,42 +188,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         }
     });
 
-    let realization_tokens = input
-        .realization
-        .as_ref()
-        .map(|realization| realization_tokens(&sdk, realization, resource_name, "resource"));
-    let realization_interface_tokens = input.realization.as_ref().map(|realization| {
-        realization_interface_tokens(&sdk, realization, resource_name, &resource_mod)
-    });
-    let realization_field = input.realization.as_ref().map(|realization| {
-        let field = format_ident!("{}", to_snake_case(&realization.name));
-        let contract_name = format_ident!("{}Contract", realization.name);
-        quote!(#field: #sdk::authoring::ContractDependency<#resource_mod::realization::raw::#contract_name>,)
-    });
-    let realization_initializer = input.realization.as_ref().map(|realization| {
-        let field = format_ident!("{}", to_snake_case(&realization.name));
-        quote! {
-            #field: #sdk::authoring::ContractDependency::new(
-                #resource_mod::realization::raw::requirement()
-            ),
-        }
-    });
-    let realization_declaration = input.realization.as_ref().map(|realization| {
-        let field = format_ident!("{}", to_snake_case(&realization.name));
-        quote!(declarations.push(self.#field.declaration().clone());)
-    });
-    let realization_requirement_declaration = input.realization.as_ref().map(|realization| {
-        let _ = realization;
-        quote!(required.push(#resource_mod::realization::raw::requirement().declaration().clone());)
-    });
-    let realization_binding = input.realization.as_ref().map(|realization| {
-        let field = format_ident!("{}", to_snake_case(&realization.name));
-        quote! {
-            self.#field
-                .bind(bindings)
-                .map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
-        }
-    });
     let differential_field = effective_contract_tokens.as_ref().map(|tokens| {
         let contract = &tokens.contract_name;
         quote!(realization: #sdk::authoring::ContractDependency<#resource_mod::raw::#contract>,)
@@ -247,18 +209,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let differential_binding = effective_contract_tokens.as_ref().map(|_| quote!(
         self.realization.bind(bindings).map_err(|error| #sdk::core::ModuleError::new(error.to_string()))?;
     ));
-    let adaptable_impl = if let Some(realization) = input.realization.as_ref() {
-        let contract_name = format_ident!("{}Contract", realization.name);
-        quote! {
-            impl #sdk::authoring::AdaptableResourceDefinition for #resource_name {
-                type RealizationContract = #resource_mod::realization::raw::#contract_name;
-
-                fn realization_requirement() -> #sdk::core::ContractRequirement<Self::RealizationContract> {
-                    #resource_mod::realization::raw::requirement()
-                }
-            }
-        }
-    } else if let Some(tokens) = effective_contract_tokens.as_ref() {
+    let adaptable_impl = if let Some(tokens) = effective_contract_tokens.as_ref() {
         let effective_contract = &tokens.contract_name;
         let effective_key = quote!(#resource_mod::raw::effective_realization_contract_key());
         quote! {
@@ -391,7 +342,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 runtime_context: #sdk::authoring::RuntimeContext,
                 #runtime_state_field
                 #(#dependency_fields)*
-                #realization_field
                 #differential_field
             }
 
@@ -407,7 +357,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                         runtime_context: #sdk::authoring::RuntimeContext::default(),
                         #runtime_state_value
                         #(#dependency_initializers)*
-                        #realization_initializer
                         #differential_initializer
                     }
                 }
@@ -440,7 +389,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                     let mut declarations = ::std::vec![
                         #(#dependency_declarations),*
                     ];
-                    #realization_declaration
                     #differential_declaration
                     declarations
                 }
@@ -464,7 +412,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                     bindings: &#sdk::core::ModuleBindings,
                 ) -> ::std::result::Result<(), #sdk::core::ModuleError> {
                     #(#dependency_bindings)*
-                    #realization_binding
                     #differential_binding
                     Ok(())
                 }
@@ -566,7 +513,6 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 selection: &#sdk::authoring::ResourceSelection<Self>,
             ) -> #sdk::core::ModuleDeclaration {
                 let mut required = ::std::vec![#(#declaration_requirements),*];
-                #realization_requirement_declaration
                 #differential_requirement_declaration
                 #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
                     .with_provided_contracts(::std::vec![#resource_mod::raw::primary_contract_key().declaration()])
@@ -640,10 +586,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 };
             }
 
-            #realization_tokens
         }
-
-        #realization_interface_tokens
     }
 }
 
@@ -685,157 +628,7 @@ fn effective_api(
     }));
     ApiDefinition {
         name: format_ident!("EffectiveRealization"),
-        identity: ApiIdentity::OwnerDerived,
         version: api.version.clone(),
         methods,
-    }
-}
-
-fn realization_tokens(
-    sdk: &TokenStream,
-    realization: &RealizationDefinition,
-    subject_name: &Ident,
-    subject_kind: &'static str,
-) -> TokenStream {
-    let realization_mod = format_ident!("realization");
-    let raw_impl_mod = format_ident!("__fabric_realization_raw_{}", to_snake_case(subject_name));
-    let service_name = format_ident!("{}Service", realization.name);
-    let contract_name = format_ident!("{}Contract", realization.name);
-    let contract_id = &realization.contract_id;
-    let compatibility_expr =
-        requirement_literal_expr(sdk, &realization.compatibility, subject_kind);
-    let service_methods = realization
-        .methods
-        .iter()
-        .map(super::common::service_method_tokens);
-    let contract_methods = realization
-        .methods
-        .iter()
-        .map(super::common::contract_wrapper_method_tokens);
-    let static_contract_id_message = syn::LitStr::new(
-        &format!("{subject_kind}! generated a static realization contract id"),
-        proc_macro2::Span::call_site(),
-    );
-
-    quote! {
-        #[allow(non_snake_case)]
-        mod #raw_impl_mod {
-            // This helper is emitted directly inside the generated resource
-            // module. Its grandparent is therefore always the caller's
-            // invocation scope, regardless of whether that scope is the
-            // crate root or an arbitrarily nested Rust module.
-            use super::super::*;
-
-            pub fn contract_id() -> #sdk::core::ContractId {
-                #sdk::core::ContractId::new(#contract_id)
-                    .expect(#static_contract_id_message)
-            }
-
-            pub fn requirement() -> #sdk::core::ContractRequirement<#contract_name> {
-                match #compatibility_expr {
-                    #sdk::core::ContractCompatibilityRequirement::Provisional => {
-                        #sdk::core::ContractRequirement::provisional(contract_id())
-                    }
-                    #sdk::core::ContractCompatibilityRequirement::Versioned(requirement) => {
-                        #sdk::core::ContractRequirement::versioned(contract_id(), requirement)
-                    }
-                }
-            }
-
-            pub fn provisional_contract_key() -> #sdk::core::ContractKey<#contract_name> {
-                #sdk::core::ContractKey::provisional(contract_id())
-            }
-
-            pub fn contract_key(
-                version: #sdk::core::ContractVersion,
-            ) -> #sdk::core::ContractKey<#contract_name> {
-                #sdk::core::ContractKey::versioned(contract_id(), version)
-            }
-
-            pub trait #service_name: Send + Sync {
-                #(#service_methods)*
-            }
-
-            #[derive(Clone)]
-            pub struct #contract_name {
-                inner: ::std::sync::Arc<dyn #service_name>,
-            }
-
-            impl #contract_name {
-                pub fn new(inner: ::std::sync::Arc<dyn #service_name>) -> Self {
-                    Self { inner }
-                }
-
-                #(#contract_methods)*
-            }
-        }
-
-        pub mod #realization_mod {
-            pub mod raw {
-                pub use super::super::#raw_impl_mod::{
-                    #contract_name, #service_name, contract_id, contract_key,
-                    provisional_contract_key, requirement,
-                };
-                pub use super::super::#raw_impl_mod::{
-                    #contract_name as Contract,
-                    #service_name as Service,
-                };
-            }
-        }
-    }
-}
-
-fn realization_interface_tokens(
-    sdk: &TokenStream,
-    realization: &RealizationDefinition,
-    subject_name: &Ident,
-    subject_mod: &Ident,
-) -> TokenStream {
-    let interface_name = format_ident!("{}Realization", subject_name);
-    let contract_name = format_ident!("{}Contract", realization.name);
-    let service_name = format_ident!("{}Service", realization.name);
-    let service_methods = realization
-        .methods
-        .iter()
-        .map(super::common::service_method_tokens);
-    let forwarding_methods = realization.methods.iter().map(|method| {
-        let signature = &method.signature;
-        let name = &signature.ident;
-        let args = method_call_args(signature);
-        quote!(#signature { <T as #interface_name>::#name(self, #(#args),*) })
-    });
-
-    quote! {
-        pub trait #interface_name: Send + Sync + 'static {
-            #(#service_methods)*
-
-            fn realization_target() -> ::std::marker::PhantomData<#subject_name>
-            where Self: Sized {
-                ::std::marker::PhantomData
-            }
-
-            fn realization_contract_key(
-                version: #sdk::core::ContractVersion,
-            ) -> #sdk::core::ContractKey<#subject_mod::realization::raw::#contract_name>
-            where Self: Sized {
-                #subject_mod::realization::raw::contract_key(version)
-            }
-
-            fn provisional_realization_contract_key() -> #sdk::core::ContractKey<#subject_mod::realization::raw::#contract_name>
-            where Self: Sized {
-                #subject_mod::realization::raw::provisional_contract_key()
-            }
-
-            fn realization_contract(
-                service: ::std::sync::Arc<Self>,
-            ) -> #subject_mod::realization::raw::#contract_name
-            where Self: Sized {
-                #subject_mod::realization::raw::#contract_name::new(service)
-            }
-        }
-
-        impl<T: #interface_name + ?Sized> #subject_mod::realization::raw::#service_name for T {
-            #(#forwarding_methods)*
-        }
     }
 }

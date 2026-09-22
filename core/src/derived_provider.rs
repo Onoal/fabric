@@ -21,10 +21,13 @@ pub trait DerivedContractFactory<T>: Send
 where
     T: Send + Sync + 'static,
 {
+    /// Declares the typed capabilities required to assemble `T`.
     fn required_contract_declarations(&self) -> Vec<ContractRequirementDeclaration>;
 
+    /// Receives the resolved requirements during the normal Core bind phase.
     fn bind(&mut self, bindings: &ModuleBindings) -> Result<(), ModuleError>;
 
+    /// Constructs the exported typed capability after its requirements bind.
     fn build(&self) -> Result<T, ModuleError>;
 }
 
@@ -48,6 +51,10 @@ where
     T: Send + Sync + 'static,
     F: DerivedContractFactory<T>,
 {
+    /// Creates a provider that exports `key` by deriving its value with `factory`.
+    ///
+    /// The provider participates in the ordinary Core graph. It does not create
+    /// a new resolver, registry, or method-level selection mechanism.
     pub fn new(module_id: ModuleId, key: ContractKey<T>, factory: F) -> Self {
         Self {
             module_id,

@@ -1,8 +1,5 @@
 use fabric::prelude::{HostFacilityId, HostRequirement};
-use fabric_test_resource_counter::{
-    AdaptedCounter as ExternalCounter, AdaptedCounterRealization as ExternalCounterRealization,
-    CounterValue,
-};
+use fabric_test_resource_counter::{AdaptedCounter as ExternalCounter, CounterValue};
 
 pub fn external_counter_host_facility() -> HostFacilityId {
     HostFacilityId::new("fabric.test.host.external-counter")
@@ -10,9 +7,7 @@ pub fn external_counter_host_facility() -> HostFacilityId {
 }
 
 fabric::adapter! {
-    pub ExternalCounterAdapter for resource ExternalCounter implements ExternalCounterRealization {
-        schema: provisional;
-        realization: "1.0.0";
+    pub ExternalCounterAdapter for ExternalCounter {
 
         config {
             value: u64;
@@ -27,9 +22,7 @@ fabric::adapter! {
 }
 
 fabric::adapter! {
-    pub HostBoundExternalCounterAdapter for resource ExternalCounter implements ExternalCounterRealization {
-        schema: provisional;
-        realization: "1.0.0";
+    pub HostBoundExternalCounterAdapter for ExternalCounter {
 
         config {
             value: u64;

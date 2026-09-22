@@ -3,6 +3,8 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use fabric::authoring::*;
+use fabric::component::ComponentAugmentationRuntimePreparation;
 use fabric::prelude::*;
 use fabric_component::{
     ComponentError, ComponentRuntimeScope, OperationId, OperationKey, OperationTypeId,

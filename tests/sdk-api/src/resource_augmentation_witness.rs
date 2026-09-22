@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::authoring::*;
 use fabric::prelude::*;
 use fabric_core::{
     ContractId, ContractKey, ContractRequirement, ModuleBindings, ModuleContract, ModuleError,

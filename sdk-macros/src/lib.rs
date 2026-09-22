@@ -1,3 +1,10 @@
+//! Fabric's procedural-macro authoring frontend.
+//!
+//! This crate implements `resource!`, `system!`, `adapter!`, and `component!`.
+//! Normal users should depend on the `fabric` umbrella crate, which re-exports
+//! them. Generated raw modules and helper types are implementation machinery,
+//! not normal authoring vocabulary.
+
 #![forbid(unsafe_code)]
 
 use proc_macro::TokenStream;

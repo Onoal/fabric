@@ -1,4 +1,4 @@
-use fabric::prelude::{
+use fabric::authoring::{
     IntoResourceName, PrimaryResourceContract, ResourceDefinition, ResourceSelection,
     SystemRequires,
 };

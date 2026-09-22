@@ -1,0 +1,5 @@
+error: `contracts { primary ... }` was removed from resource! in Fabric 0.5; use `api { ... }`
+ --> tests/ui/legacy_contracts_removed.rs:6:19
+  |
+6 |         contracts { primary Api { id: "fabric.test.legacy.contracts.api"; } }
+  |                   ^

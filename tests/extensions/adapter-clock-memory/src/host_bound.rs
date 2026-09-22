@@ -1,4 +1,5 @@
-use fabric::prelude::{AdapterDefinition, HostFacilityId, HostRequirement, ResourceDefinition};
+use fabric::authoring::{AdapterDefinition, ResourceDefinition};
+use fabric::prelude::{HostFacilityId, HostRequirement};
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
 use fabric_resource::{AdapterResourceSchemaSupport, ResourceSchemaRequirement};
 use fabric_test_resource_clock::{Clock, clock_realization_contract_key};

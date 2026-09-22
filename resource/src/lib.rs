@@ -1,3 +1,10 @@
+//! Resource identity, occurrence, and compatibility primitives for Fabric.
+//!
+//! A Resource is an occurrence-based semantic capability. This crate carries
+//! its lower typed identity and selection model; it does not make a Resource a
+//! concrete Adapter realization or live runtime owner. Normal authors should
+//! use `fabric::resource!` through the `fabric` umbrella crate.
+
 #![forbid(unsafe_code)]
 
 mod error;

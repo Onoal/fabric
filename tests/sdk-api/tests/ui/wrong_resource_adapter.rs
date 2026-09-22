@@ -1,5 +1,7 @@
+use fabric::authoring::{PrimaryResourceContract, ResourceDefinition};
+use fabric::prelude::{ResourceId, ResourceSelection};
+use fabric::resource::ResourceSchemaDescriptor;
 use fabric_core::{ContractId, ContractKey, ModuleRuntime};
-use fabric::prelude::*;
 use fabric_test_adapter_clock_memory::MemoryClock;
 use fabric_test_resource_clock::ClockContract;
 

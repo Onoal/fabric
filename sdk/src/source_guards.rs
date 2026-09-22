@@ -115,7 +115,6 @@ fn sdk_source_stays_generic_and_curated() {
             "third-party.test-clock",
             "macro_rules!",
             "proc_macro",
-            "component!",
             "host!",
             "fabric-packages",
         ] {
@@ -143,8 +142,8 @@ fn runtime_authoring_stays_sdk_machinery_not_a_lifecycle_ontology() {
     );
     for public in ["RuntimeState", "RuntimeContext", "StatefulRuntimeAuthoring"] {
         assert!(
-            root.contains(public) && prelude.contains(public),
-            "normal root and prelude surfaces should both expose {public}"
+            !root.contains(&format!("pub use authoring::{public}")) && !prelude.contains(public),
+            "normal root and prelude surfaces must not expose handwritten runtime machinery {public}"
         );
     }
 }
@@ -694,17 +693,18 @@ fn sdk_exposes_a_curated_generic_system_surface() {
         "sdk system facade should re-export curated raw system types"
     );
     assert!(
-        prelude.contains("PrimarySystemContract")
-            && prelude.contains("SystemDefinition")
-            && prelude.contains("SystemRequires")
-            && prelude.contains("SystemSelection")
-            && prelude.contains("AdaptableSystemDefinition")
-            && prelude.contains("SystemRealization"),
-        "sdk prelude should expose the handwritten system authoring surface"
+        !prelude.contains("PrimarySystemContract")
+            && !prelude.contains("SystemDefinition")
+            && !prelude.contains("SystemRequires")
+            && !prelude.contains("AdaptableSystemDefinition")
+            && !prelude.contains("SystemRealization"),
+        "normal prelude must not expose handwritten system/provider machinery"
     );
     assert!(
-        authoring.contains("AdaptableSystemDefinition") && authoring.contains("SystemRealization"),
-        "sdk authoring surface should export adaptable system definitions and realizations"
+        authoring.contains("AdaptableSystemDefinition")
+            && authoring.contains("SystemRealization")
+            && authoring.contains("PrimarySystemContract"),
+        "sdk authoring surface should own handwritten system definitions and realizations"
     );
     assert!(
         system_authoring.contains("mod adaptable_system_definition;")

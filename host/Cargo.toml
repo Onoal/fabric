@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/onoal-fabric-host"
 description = "Environmental compatibility primitives for Fabric."
+readme = "README.md"
 publish = ["crates-io"]
 
 [lib]

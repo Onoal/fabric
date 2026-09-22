@@ -2,25 +2,19 @@ fabric::system! {
     pub DerivedOperations {
         id: "fabric.test.operations.derived";
 
-        schema: provisional;
 
         config {
             offset: u64;
         }
 
-        system {
-            base: crate::TestOperations(version = "^1.2");
+        relations {
+            requires { base: crate::TestOperations(version = "^1.2"); }
         }
 
-        contracts {
-            primary Api {
-                id: "fabric.test.system.operations.derived";
-                version: provisional;
-
-                fn current_marker(&self) -> crate::OperationMarker;
-                fn source_provider(&self) -> String;
-                fn source_identity(&self) -> String;
-            }
+        api {
+            fn current_marker(&self) -> crate::OperationMarker;
+            fn source_provider(&self) -> String;
+            fn source_identity(&self) -> String;
         }
 
         runtime {

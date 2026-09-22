@@ -17,7 +17,7 @@
 //! A `src/tests.rs` source guard pins this negative space so the package
 //! cannot silently regain a runtime obligation.
 
-use fabric::prelude::{
+use fabric::authoring::{
     IntoResourceName, PrimaryResourceContract, ResourceDefinition, ResourceSelection,
 };
 use fabric_core::{ContractKey, ModuleDeclaration};

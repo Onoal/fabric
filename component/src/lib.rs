@@ -1,3 +1,13 @@
+//! Typed behavioral participation primitives for Fabric Components.
+//!
+//! Components declare behavior as operations and declare the semantic
+//! Resources and Systems they require. This crate provides the corresponding
+//! runtime, participation, invocation, and readiness/control primitives. It
+//! does not own concrete Resource/System realization selection or deployment.
+//!
+//! Normal authors should use `fabric::component!` through the `fabric` umbrella
+//! crate; direct use is an advanced integration surface.
+
 mod communication;
 mod component;
 mod component_scope;

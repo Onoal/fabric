@@ -13,8 +13,9 @@ direct Core authoring.
   identified by `ResourceId + ResourceName`.
 - **System** is an instance-wide shared capability. Normal typed authoring has
   one coherent occurrence per `SystemId` in a Composition.
-- **Adapter** realizes an adaptable Component, Resource, or System. It names both the
-  semantic target and that target's public typed realization interface.
+- **Adapter** is concrete realization machinery for a Resource or System. In
+  normal authoring it names its target once; that target supplies the typed
+  realization requirement. Component participation remains a distinct model.
 - **Component** owns semantic behavior expressed as typed operations. It can
   require Resources and Systems.
 - **Host** represents environmental compatibility for live Adapter
@@ -24,6 +25,35 @@ direct Core authoring.
   generation-scoped materialization. `Composition != Instance`.
 
 Fabric generalizes machinery rather than package or product vocabulary.
+
+## Semantic subjects and live realization
+
+```text
+Self realization
+Resource/System semantic API <- self-owned live runtime
+
+Direct Adapter realization
+Resource/System semantic API <- Adapter-owned live provider
+
+Differential realization
+Resource/System semantic API <- semantic assembly
+                                      ^
+                                      | typed effective realization requirement
+                                Adapter-owned live provider
+```
+
+The first is appropriate only when the semantic subject truly owns live
+behavior. The second is the normal adapted form. The third is explicit semantic
+mediation: Core still selects one provider for the semantic API and one provider
+for the effective realization Contract, never a provider per method.
+
+```text
+typed requirement -> selected provider -> bind typed Contract -> consumer
+Composition        -> materialize       -> Instance generation
+```
+
+The same resolved graph supplies dependency ordering, startup, and reverse
+cleanup. It is not a service locator or a second resolver.
 
 ## Open semantic augmentation
 
@@ -89,10 +119,12 @@ Runtime participation is a cross-cutting execution spine, not another semantic
 subject. Configuration is declarative materialization input; `RuntimeState` is
 fresh ephemeral state for one materialized occurrence; lifecycle is that
 occurrence's initialize/start/stop participation; Health reports its current
-ability to fulfill responsibility. Normal Resource, System, and Adapter
-authoring may provide state and lifecycle hooks without implementing Core
-`ModuleRuntime`; contract handles for one occurrence share its state, while a
-fresh materialization receives fresh state.
+ability to fulfill responsibility. A Resource/System owns state and lifecycle
+only when it explicitly self-realizes or mediates semantic behavior. A normal
+adapted subject owns neither a fake forwarding runtime nor Adapter machinery:
+the Adapter owns concrete state, lifecycle hooks, and health. Contract handles
+for one occurrence share its live state, while a fresh materialization receives
+fresh state.
 
 Structural declaration or realization change is represented by authoring new
 declarative truth and materializing a fresh Instance generation. Fabric does
@@ -109,8 +141,8 @@ Component authoring lowers through Core requirements, providers, and provider
 selections. There is no second resolver or general runtime service locator.
 
 A Component may expose a public realization trait for advanced authoring. For a
-normal Resource or System, the target API is the realization contract and the
-Adapter names the target once:
+normal Resource or System, the target API is the direct realization contract and
+the Adapter names the target once:
 
 ```rust
 fabric::adapter! {
@@ -123,6 +155,22 @@ fabric::adapter! {
 Compatibility states what can satisfy a requirement. Provider selection chooses
 one compatible provider for a Composition. A Component declares semantic needs;
 it does not choose an Adapter.
+
+## Provider composition and differential realization
+
+Core resolves one selected provider for each typed Contract. A provider may
+derive one typed capability from typed required capabilities; this is contract
+composition, not method-level selection. Differential realization uses that
+general rule only when a semantic owner deliberately mediates part of its API:
+
+```text
+semantic API <- semantic assembly <- effective realization <- Adapter
+```
+
+The semantic assembly exports the complete semantic API, implementing mediated
+methods and typed-delegating direct methods. The Adapter exports the effective
+realization contract. A direct Adapter realization does not add this layer.
+Neither form recreates a mandatory Resource/System forwarding runtime.
 
 ## Components and operations
 

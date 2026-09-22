@@ -1,5 +1,0 @@
-error: runtime method `extra` has no matching contract declaration
-  --> tests/ui/undeclared_runtime_method.rs:26:16
-   |
-26 |             fn extra(&self) -> u64 {
-   |                ^^^^^

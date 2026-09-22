@@ -11,7 +11,8 @@ and the generic Instance runtime boundary used to materialize that grammar.
 - `Composition`: one assembled declarative graph of Blocks with authoritative
   global contract resolution and lifecycle ordering
 - `Instance`: one concrete materialization of a Composition
-- `ModuleRuntime`: one concrete runtime participant materialized from a Module
+- `ModuleRuntime`: one materialized graph participant that exports, binds, and
+  may own concrete live machinery
 - derived provider: a provider which exports one typed Contract assembled from
   ordinary typed required Contracts
 - `Block`: current structural grouping machinery inside a Composition
@@ -90,10 +91,11 @@ requirements through normal `ModuleBindings`, and constructs its exported typed
 value from them. Resolution still selects exactly one provider for each
 Contract; Core does not select providers method by method.
 
-A derived provider need not own independently live machinery. The generic
-`DerivedContractProvider` has no stateful lifecycle work of its own, while a
-provider with live state remains an ordinary `ModuleRuntime`. Composition still
-orders, binds, starts, and cleans the complete provider graph uniformly.
+A provider need not own independently live machinery. The generic
+`DerivedContractProvider` participates in the existing graph for binding and
+export but has no stateful lifecycle work of its own; a provider with live state
+uses ordinary `ModuleRuntime` hooks. Composition still orders, binds, starts,
+and cleans the complete provider graph uniformly.
 
 ## Non-ownership
 

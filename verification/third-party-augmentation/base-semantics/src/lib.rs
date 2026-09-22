@@ -4,15 +4,8 @@ pub struct Reading(pub u64);
 fabric::resource! {
     pub ThirdPartyStore {
         id: "third.party.store";
-        schema: provisional;
         config { value: u64; }
-        contracts {
-            primary Api {
-                id: "third.party.store.api";
-                version: provisional;
-                fn read(&self) -> crate::Reading;
-            }
-        }
+        api { fn read(&self) -> crate::Reading; }
         runtime {
             fn read(&self) -> crate::Reading { crate::Reading(self.config.value) }
         }
@@ -22,15 +15,8 @@ fabric::resource! {
 fabric::system! {
     pub ThirdPartyClock {
         id: "third.party.clock";
-        schema: provisional;
         config { value: u64; }
-        contracts {
-            primary Api {
-                id: "third.party.clock.api";
-                version: provisional;
-                fn now(&self) -> crate::Reading;
-            }
-        }
+        api { fn now(&self) -> crate::Reading; }
         runtime {
             fn now(&self) -> crate::Reading { crate::Reading(self.config.value) }
         }

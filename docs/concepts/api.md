@@ -7,14 +7,9 @@ its consumers. Resource and System use the same normal authoring form:
 fabric::resource! {
     KeyValueStore {
         id: "example.key-value";
-
         api {
             fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, KeyValueError>;
             fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), KeyValueError>;
-        }
-
-        runtime {
-            // Self-realizing behavior, when this definition owns it.
         }
     }
 }
@@ -35,7 +30,7 @@ fabric::system! {
 ```
 
 The API contains signatures only. It is not runtime implementation, transport,
-an operation system, or an Adapter realization interface. Fabric lowers the
+an operation system, or concrete realization implementation. Fabric lowers the
 single API into its typed primary contract, service trait, wrapper, and Core
 contract key. Those generated details remain available for advanced and legacy
 interoperation, but are not normal authoring decisions.
@@ -95,7 +90,7 @@ lifecycle code call it through typed fields such as `self.storage.get(...)` or
 
 For an API-only Resource/System selected with a canonical Adapter, the Adapter
 provides this API directly. The semantic definition does not grow a forwarding
-runtime merely because it is adapted. Existing `contracts { primary ... }` declarations remain a legacy explicit
-compatibility form in the 0.4 line. New Resource and System definitions should
-use `api { ... }`. An explicit realization boundary remains available for
-advanced semantic mediation where the lower implementation interface differs.
+runtime merely because it is adapted. An explicit realization boundary remains
+available for advanced semantic mediation where the lower implementation
+interface differs. See [Realization](realization.md) and the
+[0.5 migration guide](../migrations/0.5.md) for the legacy compatibility form.

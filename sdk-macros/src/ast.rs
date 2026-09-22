@@ -9,10 +9,8 @@ pub struct ResourceInput {
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
     /// Optional delta from the public API to the Adapter's effective
-    /// realization contract.  This is distinct from the legacy explicit
-    /// whole-contract realization declaration below.
+    /// realization contract.
     pub differential_realization: Option<DifferentialRealizationDefinition>,
-    pub realization: Option<RealizationDefinition>,
     /// Present only when this semantic Resource explicitly owns a live
     /// self-realization or mediation layer.
     pub runtime_methods: Option<Vec<RuntimeMethod>>,
@@ -29,7 +27,6 @@ pub struct SystemInput {
     pub relations: Vec<RelationDefinition>,
     pub api: ApiDefinition,
     pub differential_realization: Option<DifferentialRealizationDefinition>,
-    pub realization: Option<RealizationDefinition>,
     /// Present only when this semantic System explicitly owns a live
     /// self-realization or mediation layer.
     pub runtime_methods: Option<Vec<RuntimeMethod>>,
@@ -40,17 +37,10 @@ pub struct SystemInput {
 pub struct AdapterInput {
     pub visibility: Visibility,
     pub name: Ident,
-    /// Legacy headers carry an explicit target kind. Canonical Adapter
-    /// authoring derives the kind from the target and leaves this absent.
-    pub target_kind: Option<AdapterTargetKind>,
     pub target: Path,
-    /// The advanced, legacy realization interface. Canonical Adapter
-    /// authoring derives the normal interface from the target semantic API.
-    pub realization_interface: Option<Path>,
     /// An explicit, advanced target-schema compatibility override.  When it
     /// is absent, adapter support is derived exactly from the target's schema.
     pub schema: Option<RequirementLiteral>,
-    pub realization: VersionLiteral,
     pub config: ConfigDefinition,
     pub relations: Vec<RelationDefinition>,
     pub host_requirement: Option<Expr>,
@@ -89,18 +79,11 @@ pub enum ConfigDefinition {
 /// The single semantic API a Resource or System exposes to its consumers.
 ///
 /// Normal `api { ... }` authoring derives identity and version from the owning
-/// definition. The explicit form exists only while the legacy `contracts`
-/// grammar remains source compatible.
+/// definition.
 pub struct ApiDefinition {
     pub name: Ident,
-    pub identity: ApiIdentity,
     pub version: VersionLiteral,
     pub methods: Vec<ContractMethod>,
-}
-
-pub enum ApiIdentity {
-    OwnerDerived,
-    LegacyExplicit(LitStr),
 }
 
 #[derive(Clone)]
@@ -174,24 +157,11 @@ pub enum ComponentOperationContext {
     Invocation,
 }
 
-pub struct RealizationDefinition {
-    pub name: Ident,
-    pub contract_id: LitStr,
-    pub compatibility: RequirementLiteral,
-    pub methods: Vec<ContractMethod>,
-}
-
 /// The authored delta used when a semantic owner mediates part of its API.
 /// Unlisted API methods remain direct Adapter requirements.
 pub struct DifferentialRealizationDefinition {
     pub mediated: Vec<Ident>,
     pub operations: Vec<ContractMethod>,
-}
-
-#[derive(Clone, Copy)]
-pub enum AdapterTargetKind {
-    Resource,
-    System,
 }
 
 #[derive(Clone)]

@@ -18,7 +18,7 @@ note: required by a bound in `fabric::authoring::definitions::resource_selection
   |         A: AdapterDefinition<Target = R>,
   |                              ^^^^^^^^^^ required by this bound in `ResourceSelection::<R>::using`
 
-error[E0277]: the trait bound `fabric_system::model::schema::AdapterSystemSchemaSupport: fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<Clock>` is not satisfied
+error[E0277]: the trait bound `fabric::authoring::definitions::adapter_definition::CanonicalAdapterSupport<AdaptedOperations>: fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<Clock>` is not satisfied
  --> tests/ui/system_adapter_cannot_target_resource.rs:7:16
   |
 7 |           .using(FixedOperationsAdapter::new(FixedOperationsAdapterConfig {
@@ -29,17 +29,14 @@ error[E0277]: the trait bound `fabric_system::model::schema::AdapterSystemSchema
 9 | |         }));
   | |__________^ unsatisfied trait bound
   |
-  = help: the trait `fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<Clock>` is not implemented for `fabric_system::model::schema::AdapterSystemSchemaSupport`
-help: the following other types implement trait `fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<R>`
+  = help: the trait `fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<Clock>` is not implemented for `fabric::authoring::definitions::adapter_definition::CanonicalAdapterSupport<AdaptedOperations>`
+help: the trait `fabric::authoring::definitions::adapter_definition::ResourceAdapterCompatibility<R>` is implemented for `fabric::authoring::definitions::adapter_definition::CanonicalAdapterSupport<R>`
  --> $WORKSPACE/sdk/src/authoring/definitions/adapter_definition.rs
   |
-  |   impl<R> ResourceAdapterCompatibility<R> for AdapterResourceSchemaSupport {
-  |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `fabric_resource::model::requirement::AdapterResourceSchemaSupport`
-...
   | / impl<R> ResourceAdapterCompatibility<R> for CanonicalAdapterSupport<R>
   | | where
   | |     R: crate::authoring::ResourceDefinition,
-  | |____________________________________________^ `fabric::authoring::definitions::adapter_definition::CanonicalAdapterSupport<R>`
+  | |____________________________________________^
 note: required by a bound in `fabric::authoring::definitions::resource_selection::ResourceSelection::<R>::using`
  --> $WORKSPACE/sdk/src/authoring/definitions/resource_selection.rs
   |

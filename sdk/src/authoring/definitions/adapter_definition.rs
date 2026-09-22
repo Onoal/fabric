@@ -19,7 +19,9 @@ use fabric_system::{
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AdapterBridgeMode {
-    LegacyRealization,
+    /// An advanced/Core Adapter explicitly supplies an independently typed
+    /// contract. Normal macro authoring never selects this mode.
+    ExplicitContract,
     SemanticApi,
     /// The Adapter provides a target-owned effective realization contract;
     /// the semantic target composes its public API from that contract.
@@ -193,7 +195,7 @@ pub trait AdapterDefinition: Clone + Send + Sync + 'static {
 
     #[doc(hidden)]
     fn bridge_mode(&self) -> AdapterBridgeMode {
-        AdapterBridgeMode::LegacyRealization
+        AdapterBridgeMode::ExplicitContract
     }
 
     fn host_requirement(&self) -> HostRequirement {

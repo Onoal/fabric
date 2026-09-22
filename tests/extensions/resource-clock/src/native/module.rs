@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use fabric::AdaptableResourceDefinition;
+use fabric::authoring::AdaptableResourceDefinition;
 use fabric_core::{
     ContractRequirement, Health, ModuleBindings, ModuleContract, ModuleError, ModuleId,
     ModuleRuntime, ResolvedContract,

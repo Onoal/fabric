@@ -1,12 +1,7 @@
-use fabric_test_system_operations::{
-    AdaptedOperations as ExternalOperations,
-    AdaptedOperationsRealization as ExternalOperationsRealization, OperationMarker,
-};
+use fabric_test_system_operations::{AdaptedOperations as ExternalOperations, OperationMarker};
 
 fabric::adapter! {
-    pub ExternalOperationsAdapter for system ExternalOperations implements ExternalOperationsRealization {
-        schema: "^2";
-        realization: "1.0.0";
+    pub ExternalOperationsAdapter for ExternalOperations {
 
         config {
             value: u64;
@@ -21,17 +16,13 @@ fabric::adapter! {
 }
 
 fabric::adapter! {
-    pub ExternalOperationsWithSystemAdapter for system ExternalOperations implements ExternalOperationsRealization {
-        schema: "^2";
-        realization: "1.0.0";
+    pub ExternalOperationsWithSystemAdapter for ExternalOperations {
 
         config {
             offset: u64;
         }
 
-        system {
-            operations: fabric_test_system_operations::TestOperations(version = "^1.2");
-        }
+        relations { requires { operations: fabric_test_system_operations::TestOperations(version = "^1"); } }
 
         runtime {
             fn current_marker(&self) -> OperationMarker {

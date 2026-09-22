@@ -78,7 +78,7 @@ where
             self.system,
             self.adapter,
             self.selection
-                .expect("into_raw_parts is the legacy explicit-realization boundary"),
+                .expect("into_raw_parts requires an explicit-contract Adapter boundary"),
         )
     }
 

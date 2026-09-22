@@ -44,6 +44,22 @@ runtime materializer returns `MissingRuntimeMaterializer`.
   typed [Augmentation](../concepts/augmentation.md) API rather than hand-write
   its lowering.
 
+## Typed derived providers
+
+Core can derive one typed capability from ordinary typed required capabilities.
+`DerivedContractFactory<T>` declares/binds requirements and builds `T`;
+`DerivedContractProvider<T, F>` exports that derived value through the same
+Composition resolution and binding path as every other provider.
+
+```text
+typed requirement A -> derived provider -> typed provided capability B
+```
+
+This is a general capability-composition tool. It is not a method-level
+provider registry, dynamic service locator, or a second lifecycle engine. A
+pure factory has no independent live state or lifecycle work; a provider that
+owns concrete live machinery remains an ordinary `ModuleRuntime`.
+
 Raw Core consumers can declare bounded `CompositionExport`s intentionally.
 This does not make Instance a general service locator: only declared exports
 are retained and retrievable for a specific materialization.

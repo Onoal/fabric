@@ -1,5 +1,0 @@
-error: invalid resource schema version: unexpected character 'n' while parsing major version number
- --> tests/ui/invalid_resource_schema_version.rs:6:17
-  |
-6 |         schema: "not-a-version";
-  |                 ^^^^^^^^^^^^^^^

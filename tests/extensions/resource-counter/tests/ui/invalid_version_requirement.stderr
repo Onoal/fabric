@@ -1,5 +1,0 @@
-error: invalid resource dependency version requirement: unexpected character 'd' while parsing major version number
-  --> tests/ui/invalid_version_requirement.rs:11:45
-   |
-11 |             source: DirectCounter(version = "definitely-not-a-range");
-   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^

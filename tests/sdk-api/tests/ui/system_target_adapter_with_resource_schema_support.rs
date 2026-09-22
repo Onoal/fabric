@@ -1,7 +1,5 @@
+use fabric::{ResourceId, authoring::AdapterDefinition, resource::AdapterResourceSchemaSupport};
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
-use fabric::prelude::{
-    AdapterDefinition, AdapterResourceSchemaSupport, ResourceId,
-};
 use fabric_test_system_operations::{AdaptedOperations, AdaptedOperationsConfig};
 
 #[derive(Clone)]

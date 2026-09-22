@@ -32,10 +32,10 @@ Core resolve the capability providers.
 self-realization path, but it is authoring convenience rather than ontology.
 Handwritten definitions use the same public machinery.
 
-A Component may be declaration-only, explicitly self-realizing, or
-Adapter-realized. These are realization choices for one declared behavior;
-they do not change the Component's identity, Operations, or semantic
-Resource/System requirements.
+A Component may be declaration-only or explicitly own native runtime
+participation. Component realization internals are distinct from the canonical
+Resource/System Adapter path: a Component's identity, Operations, and semantic
+Resource/System requirements never become Adapter choice.
 
 Component Config remains configuration of the semantic Component occurrence.
 When an Adapter realizes that occurrence, Fabric supplies the configured

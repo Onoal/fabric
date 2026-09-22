@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
+    use fabric::authoring::*;
     use fabric::core::{ContractId, ContractKey, ModuleDeclaration, ModuleId, ModuleRuntime};
-    use fabric::prelude::*;
     use fabric_test_adapter_clock_memory::MemoryClock;
     use fabric_test_component_greeter::{Greeter, GreeterConfig};
     use fabric_test_resource_clock::{Clock, ClockConfig};

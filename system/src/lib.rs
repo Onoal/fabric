@@ -1,3 +1,10 @@
+//! System identity and compatibility primitives for Fabric.
+//!
+//! A System is an instance-wide shared semantic capability. This crate owns
+//! its typed identity and compatibility model, not Adapter implementation,
+//! lifecycle orchestration, or Component behavior. Normal authors should use
+//! `fabric::system!` through the `fabric` umbrella crate.
+
 #![forbid(unsafe_code)]
 
 mod error;

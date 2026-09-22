@@ -1,5 +1,0 @@
-error: adapter runtime methods must use an `&self` receiver
-  --> tests/ui/mut_self_runtime_method.rs:11:16
-   |
-11 |             fn current_value(&mut self) -> fabric_test_resource_counter::CounterValue {
-   |                ^^^^^^^^^^^^^

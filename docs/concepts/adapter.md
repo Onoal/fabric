@@ -44,10 +44,8 @@ Target support is inferred exactly from `Store` by default. Use
 `Adapter::new()`; inline `config { ... }` generates a public Config type, while
 `config: MyConfig;` uses a creator-owned Rust type directly.
 
-An existing explicit realization boundary remains the advanced compatibility
-form: `for resource Store implements StoreRealization` (or `for system ...`)
-continues to lower through its declared realization contract. Fabric 0.4.9 also
-adds an optional typed differential boundary: a semantic owner may mediate
+For a deliberately different lower-level interface, use the typed
+differential boundary: a semantic owner may mediate
 selected API methods while an Adapter provides the derived effective realization
 contract. Direct API methods are assembled by typed delegation; the normal
 direct Adapter path remains the default.
@@ -114,9 +112,9 @@ or change a live Instance.
 
 Compatibility is not selection: compatibility means an Adapter *can* satisfy
 the realization requirement; selection means this [Composition](composition.md)
-chooses it. The legacy explicit form retains its provider selection machinery;
-the canonical form directly exports the semantic API from the Adapter-owned
-provider. Both keep semantic identity separate from concrete machinery.
+chooses it. The canonical form directly exports the semantic API from the
+Adapter-owned provider while keeping semantic identity separate from concrete
+machinery.
 
 `AdapterProviderModule<A>` is Core-facing typed carrier machinery for the
 Adapter declaration, Host requirement, and optional provider runtime. Its

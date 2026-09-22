@@ -22,15 +22,26 @@ contain distinct occurrences of the same Resource type.
 **[System](system.md)** is an instance-wide shared capability used by the
 declared system.
 
-**[Adapter](adapter.md)** realizes a Component, Resource, or System. For normal
-Resource/System authoring the target semantic API is the realization contract;
-explicit realization interfaces remain an advanced mediation boundary.
+**[Adapter](adapter.md)** realizes a Resource or System. For normal authoring
+the target semantic API is the direct realization contract; an explicit
+realization boundary is the advanced mediation path.
 
 **[Config](config.md)** is the typed creator-to-consumer declaration input for
 Resource, System, and Adapter occurrences.
 
 **[API](api.md)** is the semantic callable capability a Resource or System
 exposes to its consumers.
+
+**[Realization](realization.md)** is the concrete machinery selected to make a
+semantic Resource or System operational.
+
+**[State](state.md)** is mutable occurrence-local live machinery; it is not
+Config.
+
+**[Lifecycle](lifecycle.md)** orchestrates the live graph, while
+**[Health](health.md)** observes a live owner's ability to fulfill its role.
+
+**[Host](host.md)** describes environmental compatibility for a realization.
 
 **[Augmentation](augmentation.md)** is independently owned semantic meaning
 attached to a selected Resource, System, or Component without changing the
@@ -48,7 +59,7 @@ view exposes raw/Core backing details when advanced debugging needs them.
 Component --requires--> Resource
 Component --requires--> System
 
-Adapter --realizes--> Component, Resource, or System
+Adapter --realizes--> Resource or System
 Host --constrains compatibility of--> Adapter realization
 
 External semantic X --augments--> Resource, System, or Component target

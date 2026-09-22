@@ -1,8 +1,14 @@
-# fabric
+# onoal-fabric
 
-`fabric` is the main Rust crate for Fabric. This directory implements the
-high-level Rust authoring surface over the same public typed machinery
-available to handwritten third-party extensions.
+`onoal-fabric` is the umbrella crate and normal entry point for Fabric. It
+exports the high-level Rust authoring surface and the normal macros while
+keeping Core and generated implementation machinery opt-in.
+
+Use this crate for normal applications and package authors. The sibling crates
+exist so low-level integrations can depend on focused primitives; they are not
+required to understand or use Fabric. Start with the
+[Fabric manual](https://github.com/Onoal/fabric/tree/main/docs) and its
+[Getting Started guide](https://github.com/Onoal/fabric/blob/main/docs/getting-started.md).
 
 Use `fabric::*` for normal Resource, System, Adapter, Component, Host, Fabric,
 Instance, and semantic Manifest work. `fabric::prelude::*` remains an optional
@@ -14,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.9" }
+fabric = { package = "onoal-fabric", version = "0.5.0" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -23,10 +29,13 @@ Normal code imports the SDK through its public Rust crate name:
 use fabric::*;
 ```
 
-For the normal learning path, read [Getting Started](../docs/getting-started.md),
-then the [Concepts overview](../docs/concepts/README.md). This document is
-package-level API documentation; [Architecture](../docs/architecture.md) and
-the [Advanced Raw API](../docs/advanced/raw-api.md) provide deeper context.
+For the normal learning path, read
+[Getting Started](https://github.com/Onoal/fabric/blob/main/docs/getting-started.md),
+then the [manual index](https://github.com/Onoal/fabric/tree/main/docs). This
+document is package-level API documentation;
+[Architecture](https://github.com/Onoal/fabric/blob/main/docs/architecture.md)
+and the [Advanced Raw API](https://github.com/Onoal/fabric/blob/main/docs/advanced/raw-api.md)
+provide deeper context.
 
 ## Normal flow
 
@@ -70,7 +79,8 @@ Host-constrained Adapter compositions materialize explicitly with a
 
 Configuration is immutable declarative input; it is not live runtime state.
 `RuntimeState`, `RuntimeContext`, `StatefulRuntimeAuthoring`, and
-`StatefulAdapterDefinition` are normal SDK machinery for handwritten authors.
+`StatefulAdapterDefinition` are explicit `fabric::authoring` machinery for
+handwritten advanced authors.
 The `resource!`, `system!`, and `adapter!` macros also accept optional `state`
 and `lifecycle` sections. State is fresh for each materialization, while
 contract handles and lifecycle hooks for that occurrence share it. Hooks are
@@ -106,8 +116,8 @@ The target determines whether it is a Resource or System and supplies the
 generated API machinery internally through its Rust-resolved type. Normal
 Adapter source names no generated
 interface and no `for resource` / `for system` discriminator. Adapter config
-stays normal typed Rust, and Adapter selection stays Composition truth. The
-legacy explicit realization form remains available for a semantic owner that
+stays normal typed Rust, and Adapter selection stays Composition truth. A
+differential realization boundary is available when a semantic owner
 intentionally uses a different lower-level contract.
 
 ## Component dependencies and operations

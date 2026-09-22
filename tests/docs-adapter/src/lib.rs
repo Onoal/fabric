@@ -33,7 +33,7 @@ mod tests {
                 ExternalOperationsAdapterConfig { value: 9 },
             ))
             .expect("compatible system Adapter");
-        assert_ne!(
+        assert_eq!(
             system.system().module_id(),
             system.adapter().provider_module_id()
         );

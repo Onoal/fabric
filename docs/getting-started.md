@@ -1,49 +1,59 @@
-# Getting Started with Fabric
+# Getting started with Fabric
 
-This guide builds one small Fabric system: a Greeter Component with a typed
-operation. It shows the full path from declaration to a running Instance.
+This guide follows one small system from semantic definition to a running
+Instance. Its complete source is compiled in `tests/docs-getting-started`.
 
-## Install and import
+## 1. Define what the capability means
 
-```toml
-[dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.9" }
-futures = "0.3"
-```
+`Store` is a Resource. It states only its identity and the typed API consumers
+receive; it has no fake self runtime.
 
 ```rust
 use fabric::*;
+
+fabric::resource! {
+    pub Store {
+        id: "example.getting-started.store";
+        api { fn count(&self) -> usize; }
+    }
+}
 ```
 
-The tutorial uses `futures::executor::block_on` only to drive the asynchronous
-operation in a small standalone program. Applications normally use their own
-async runtime.
+## 2. Provide a concrete realization
 
-## Define behavior
+`MemoryStore` says it realizes `Store`. The target supplies the normal
+realization contract, so there is no `implements`, generated trait name, or
+Resource forwarding method to write.
 
 ```rust
-#[derive(Clone)]
-pub struct GreetInput {
-    pub name: String,
+fabric::adapter! {
+    pub MemoryStore for Store {
+        runtime { fn count(&self) -> usize { 7 } }
+    }
 }
+```
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GreetOutput {
-    pub message: String,
-}
+The Adapter owns concrete implementation machinery. A stateful Adapter would
+put its mutable state and lifecycle hooks here, not in `Store` Config.
 
+## 3. Consume the semantic API
+
+Components require semantic capabilities, never a concrete Adapter. The
+handler receives the selected `Store` as a typed dependency and calls its API.
+
+```rust
 fabric::component! {
     pub Greeter {
         id: "example.greeter";
-
+        requires { store: Store(provisional); }
         operations {
             greet {
                 id: "example.greeter.greet";
                 input: GreetInput = "example.greeter.greet.input";
                 output: GreetOutput = "example.greeter.greet.output";
-                handler |input: GreetInput| async move {
+                handler |dependencies, input: GreetInput| async move {
                     Ok(GreetOutput {
-                        message: format!("hello, {}", input.name),
+                        message: format!("hello, {} ({})", input.name, dependencies.store.count()),
                     })
                 };
             }
@@ -52,61 +62,51 @@ fabric::component! {
 }
 ```
 
-`Greeter` is a declaration of behavior. Defining it does not start a runtime or
-perform an operation.
+`GreetInput` and `GreetOutput` are ordinary application Rust types; the
+compiled fixture defines them in full.
 
-## Compose, inspect, and run
+## 4. Select, compose, materialize, and run
+
+Selection records declarative truth. `build()` validates the Composition;
+`materialize_named()` creates one live generation; `start()` makes the graph
+operational. Component participation is then explicit.
 
 ```rust
-let built = Fabric::new("example.greeter")
-    .expect("valid composition")
+let built = Fabric::new("example.greeter")?
+    .resource(
+        Store::select("primary")?
+            .using(MemoryStore::new())?,
+    )
     .component(Greeter::define(GreeterConfig {}))
-    .build()
-    .expect("build");
+    .build()?;
 
-let manifest = built.manifest();
-assert_eq!(manifest.components().len(), 1);
+let mut instance = built.materialize_named_on(
+    "example.greeter.local",
+    &HostDescriptor::native(),
+)?;
+instance.start()?;
 
-let mut instance = built
-    .materialize_named("example.greeter.local")
-    .expect("materialize");
-instance.start().expect("start");
-
-let components = instance.components().expect("component host");
-components.materialize::<Greeter>().expect("materialize component");
-
+let components = instance.components().expect("Component host");
+components.materialize::<Greeter>()?;
 let output = futures::executor::block_on(components.invoke_external(
     &greeter::operations::greet(),
-    GreetInput {
-        name: "Ada".to_owned(),
-    },
-))
-.expect("runtime invocation");
-assert_eq!(output.message, "hello, Ada");
+    GreetInput { name: "Ada".to_owned() },
+))?;
+assert_eq!(output.message, "hello, Ada (7)");
 
-components
-    .dematerialize::<Greeter>()
-    .expect("dematerialize component");
-instance.stop().expect("stop");
+components.dematerialize::<Greeter>()?;
+instance.stop()?;
 ```
-
-The `Fabric` builder accumulates declarations. `build()` validates them and
-produces a reusable Composition artifact plus its semantic Manifest. Reading
-the Manifest inspects declaration-time truth; it does not inspect live runtime
-state.
-
-`materialize_named()` creates one Instance from that declaration. Starting the
-Instance makes its runtime available. The bounded Component façade then
-materializes Greeter, invokes its typed operation, and dematerializes it before
-the Instance stops.
-
-In short:
 
 ```text
-definition -> Composition -> build -> Manifest inspection
-           -> Instance materialization -> start -> operation -> stop
+definition -> selected realization -> Composition -> Instance generation
+                                                 -> start -> typed operation -> stop
 ```
 
-Next, read [Composition](concepts/composition.md) to understand the declaration
-that `build()` created. The [Concepts overview](concepts/README.md) maps the
-remaining pieces; read [Architecture](architecture.md) for the precise model.
+`Composition` remains reusable declaration-time truth. `Instance` is one live
+generation and stops terminally; materialize again for a fresh generation.
+
+Next, read [Resource](concepts/resource.md), [Adapter](concepts/adapter.md),
+and [Composition](concepts/composition.md). The [Architecture](architecture.md)
+explains how typed requirements, providers, binding, lifecycle, and health fit
+beneath this normal path.

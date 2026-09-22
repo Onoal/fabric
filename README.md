@@ -1,133 +1,104 @@
 # Fabric
 
-Fabric is a Rust framework for describing, composing, realizing, and operating
-technical systems through explicit semantic boundaries.
+Fabric is a Rust framework for declaring a system's semantic capabilities,
+selecting concrete realizations for them, and materializing those declarations
+as typed live Instances. It makes the boundary between *what a capability
+means* and *how it runs here* explicit.
 
-It separates a system's semantic meaning from the concrete implementations
-that realize it, and separates both from the live state of a running system.
-That makes dependencies explicit, lets compatible implementations be
-selected interchangeably across declarative Compositions, and gives first-party
-and third-party extensions the same public authoring surface.
+Fabric is not a scheduler, deployment engine, service registry, recovery
+manager, transport protocol, or cloud-only model. It works equally for an
+embedded capability, a local process, a database-backed service, or a shared
+system capability.
 
-## Why Fabric?
-
-Fabric helps a system describe behavior, the capabilities that behavior needs,
-shared Systems, implementations that realize Resources or Systems, Host
-compatibility, a declarative Composition, and one or more live Instances.
-
-The central distinction is:
+## The model in one view
 
 ```text
-Composition = what the system declares
-Instance    = one live materialization of that declaration
+Resource / System             Adapter
+semantic identity, Config,    concrete implementation, Config,
+Relations, API                state, lifecycle, health
+          \                       /
+           \  selected in a      /
+            +-- Composition ----+
+                    |
+                    | materialize
+                    v
+             Instance generation
 ```
 
-A Composition can therefore be inspected, reused, and materialized more than
-once without becoming runtime state itself.
+- **Resource**: an occurrence-based semantic capability.
+- **System**: an instance-wide shared semantic capability.
+- **Adapter**: a concrete realization of a Resource or System.
+- **Component**: typed behavior that consumes capabilities and exposes
+  operations.
+- **Host**: environment facts that determine whether a realization can run.
+- **Composition**: reusable declarative truth and provider selection.
+- **Instance**: one generation-scoped live materialization of a Composition.
 
-```text
-Composition -> materialize -> Instance generation
-new declarative truth -> materialize -> fresh Instance generation
-```
+The cross-cutting terms have deliberately different owners:
 
-An `InstanceGeneration` is a process-local runtime incarnation, not a version
-or a replacement record. Fabric does not infer migration, state transfer,
-cutover, rollback, or which concurrent generation is authoritative. Read the
-[Instance concept](docs/concepts/instance.md) for the temporal contract.
+| Term | Question it answers |
+| --- | --- |
+| Config | What may a creator/consumer choose for this occurrence? |
+| Relations | Which semantic capabilities are required? |
+| API | What can semantic consumers call? |
+| realization | Which concrete machinery provides that API? |
+| state | What mutable live data belongs to this occurrence? |
+| lifecycle | When is that live machinery initialized, started, and stopped? |
+| health | How able is that live owner to fulfill its responsibility? |
 
-## How Fabric fits together
+`Config != state`, `API != implementation`, `Resource != Adapter`,
+`Composition != Instance`, and `lifecycle != health`.
 
-```text
-                         Composition
-                              |
-          +-------------------+-------------------+
-          |                   |                   |
-      Component            Resource             System
-          |                   |                   |
-          |              realized by         realized by
-          +-------------------+-------------------+
-                              |
-                           Adapter
-                              |
-                     compatible with
-                              |
-                             Host
-
-                 Composition materializes an Instance
-```
-
-- **Component** expresses typed behavior and can require Resources and Systems.
-- **Resource** is an occurrence-based technical capability.
-- **System** is an instance-wide shared capability.
-- **Adapter** realizes a Component, Resource, or System for a concrete
-  environment.
-- **Augmentation** lets independently owned semantic meaning attach to a
-  selected Resource, System, or Component without modifying its base
-  definition.
-- **Host** describes environmental compatibility for a realization.
-- **Manifest** inspects the semantic declarations in a Composition.
-
-## Install
+## Start here
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.9" }
+fabric = { package = "onoal-fabric", version = "0.5.0" }
 ```
 
 ```rust
 use fabric::*;
+
+fabric::resource! {
+    Store {
+        id: "example.store";
+        api { fn get(&self, key: String) -> Option<String>; }
+    }
+}
+
+fabric::adapter! {
+    MemoryStore for Store {
+        runtime {
+            fn get(&self, _key: String) -> Option<String> { None }
+        }
+    }
+}
 ```
 
-## A first look
+`Store` states the semantic API once. `MemoryStore` owns the concrete
+implementation. A Composition selects that Adapter; consumers bind and call
+the `Store` API, not an Adapter-specific interface.
 
-```rust
-use fabric::*;
+## Read next
 
-let built = Fabric::new("example")
-    .expect("valid composition")
-    .build()
-    .expect("build");
+1. [Getting Started](docs/getting-started.md) carries one capability from
+   definition through realization, Composition, Instance, and typed use.
+2. [The manual index](docs/README.md) gives the intended learning order.
+3. [Architecture](docs/architecture.md) explains the stable ownership model.
+4. [Migration to 0.5](docs/migrations/0.5.md) maps legacy 0.4.x ceremony to
+   canonical authoring.
 
-let manifest = built.manifest();
-let mut instance = built
-    .materialize_named("example.local")
-    .expect("materialize");
+Normal code uses `fabric::*`. Named modules such as `fabric::core` and
+`fabric::authoring` are explicit advanced surfaces; generated `raw` machinery
+is not normal author vocabulary.
 
-instance.start().expect("start");
-// Operate declared Components here when the Composition contains them.
-instance.stop().expect("stop");
-```
+## Packages
 
-The [Getting Started guide](docs/getting-started.md) builds on this with a
-complete Component operation and explains each transition from declaration to
-live runtime.
-
-## Where to go next
-
-- New to Fabric? Start with [Getting Started](docs/getting-started.md).
-- Want the conceptual map? Read [Concepts](docs/concepts/README.md).
-- Need the precise model? Read the [Architecture](docs/architecture.md).
-- Need open semantic augmentation? Read the
-  [Augmentation concept](docs/concepts/augmentation.md).
-- Building directly on Core? See the [Advanced Raw API](docs/advanced/raw-api.md).
-- Contributing from source? See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Project status
-
-Fabric 0.4.9 adds typed provider composition and differential realization.
-Resource and System are semantic subjects: an API-only definition does not
-silently own a live runtime. `runtime`, `state`, and `lifecycle` explicitly
-describe a self-realization or semantic mediation layer. For a normal adapted
-subject, its API is the realization contract and the selected Adapter owns
-state, lifecycle, health, and concrete machinery without a Resource/System
-forwarding proxy. A semantic owner may instead mediate selected API methods
-while its Adapter supplies a derived effective realization contract.
-Canonical Adapter targets follow normal Rust type resolution, so local,
-imported, aliased, and re-exported target types are equivalent.
-
-Normal high-level authoring is available from `fabric::*`; the optional
-`fabric::prelude::*` remains a compatibility convenience. Experimental APIs,
-when present, stay explicit under `fabric::experimental`.
+The umbrella [`onoal-fabric`](sdk/README.md) crate is the normal dependency.
+Focused crates (`onoal-fabric-core`, `-resource`, `-system`, `-component`,
+`-host`, and `-sdk-macros`) document their advanced/direct-use boundaries in
+their own package READMEs. Each package links back to this manual when viewed
+on crates.io or docs.rs.
 
 ## License
 

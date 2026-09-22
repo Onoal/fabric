@@ -1,5 +1,0 @@
-error: additional resource contracts are not supported
-  --> tests/ui/missing_primary_contract.rs:13:13
-   |
-13 |             Api {
-   |             ^^^

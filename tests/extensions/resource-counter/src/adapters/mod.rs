@@ -1,17 +1,13 @@
-use std::sync::Arc;
-
-use fabric::prelude::{AdapterDefinition, ResourceDefinition};
+use fabric::authoring::{AdapterDefinition, ResourceDefinition};
 use fabric_core::{
     Health, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
 };
-use fabric_resource::{AdapterResourceSchemaSupport, ResourceId};
+use fabric_resource::AdapterResourceSchemaSupport;
 
-use crate::{CounterValue, definition::adapted_counter};
+use crate::CounterValue;
 
 fabric::adapter! {
-    pub FixedCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
-        schema: provisional;
-        realization: "1.0.0";
+    pub FixedCounterAdapter for crate::AdaptedCounter {
 
         config {
             value: u64;
@@ -26,9 +22,8 @@ fabric::adapter! {
 }
 
 fabric::adapter! {
-    pub IncompatibleSchemaCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
-        schema: "^9";
-        realization: "1.0.0";
+    pub IncompatibleSchemaCounterAdapter for crate::AdaptedCounter {
+        supports: "^9";
 
         config {
             value: u64;
@@ -43,9 +38,7 @@ fabric::adapter! {
 }
 
 fabric::adapter! {
-    pub WrongVersionCounterAdapter for resource crate::AdaptedCounter implements crate::AdaptedCounterRealization {
-        schema: provisional;
-        realization: "2.0.0";
+    pub WrongVersionCounterAdapter for crate::AdaptedCounter {
 
         config {
             value: u64;
@@ -129,34 +122,5 @@ impl ModuleRuntime for EmptyCounterProvider {
 
     fn health(&self) -> Health {
         Health::Healthy
-    }
-}
-
-#[derive(Clone)]
-pub struct ThirdPartyStyleCounterAdapter {
-    value: u64,
-}
-
-impl ThirdPartyStyleCounterAdapter {
-    pub fn new(value: u64) -> Self {
-        Self { value }
-    }
-}
-
-impl adapted_counter::realization::raw::Service for ThirdPartyStyleCounterAdapter {
-    fn current_value(&self) -> CounterValue {
-        CounterValue::new(self.value)
-    }
-}
-
-impl ThirdPartyStyleCounterAdapter {
-    pub fn export_contract(&self) -> Arc<adapted_counter::realization::raw::Contract> {
-        Arc::new(adapted_counter::realization::raw::Contract::new(Arc::new(
-            self.clone(),
-        )))
-    }
-
-    pub fn foreign_resource_id() -> ResourceId {
-        ResourceId::new("fabric.test.counter.foreign").expect("static foreign resource id")
     }
 }

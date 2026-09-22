@@ -13,11 +13,8 @@ fabric::resource! {
         id: "example.note-store";
         version: "0.1.0";
         config { label: String; }
-        contracts {
-            primary Api {
-                id: "example.note-store.api";
-                fn label(&self) -> String;
-            }
+        api {
+            fn label(&self) -> String;
         }
         runtime {
             fn label(&self) -> String { self.config.label.clone() }

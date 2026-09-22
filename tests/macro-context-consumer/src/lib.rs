@@ -7,10 +7,7 @@ use fabric_test_macro_context::{
     DifferentialImportedSystem as ImportedDifferentialSystem,
 };
 use fabric_test_macro_context::{ImportedCanonicalStore as ImportedStore, ImportedCanonicalSystem};
-use fabric_test_macro_context::{
-    ImportedValue, RootKey, RootVersionedStore, RootVersionedStoreRealization, RootVersionedSystem,
-    RootVersionedSystemRealization,
-};
+use fabric_test_macro_context::{ImportedValue, RootKey, RootVersionedStore, RootVersionedSystem};
 
 mod facade {
     pub use fabric_test_macro_context::ImportedCanonicalStore;
@@ -131,12 +128,7 @@ use fabric_test_macro_context::{
 };
 
 adapter! {
-    ExternalRootStore
-        for resource RootVersionedStore
-        implements RootVersionedStoreRealization
-    {
-        version: "1.0.0";
-
+    ExternalRootStore for RootVersionedStore {
         runtime {
             fn get(&self, key: RootKey) -> ImportedValue {
                 ImportedValue(key.0 + 1)
@@ -209,12 +201,7 @@ mod nested_adapters {
 }
 
 adapter! {
-    ExternalRootSystem
-        for system RootVersionedSystem
-        implements RootVersionedSystemRealization
-    {
-        version: "1.0.0";
-
+    ExternalRootSystem for RootVersionedSystem {
         runtime {
             fn marker(&self) -> ImportedValue {
                 ImportedValue(7)

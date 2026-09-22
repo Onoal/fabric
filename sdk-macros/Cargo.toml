@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/onoal-fabric-sdk-macros"
 description = "Procedural macros for the Fabric Rust SDK."
+readme = "README.md"
 publish = ["crates-io"]
 
 [lib]

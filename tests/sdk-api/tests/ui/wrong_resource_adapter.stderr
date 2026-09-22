@@ -1,14 +1,14 @@
-error[E0599]: the method `using` exists for struct `fabric::ResourceSelection<OtherClock>`, but its trait bounds were not satisfied
-  --> tests/ui/wrong_resource_adapter.rs:39:10
+error[E0599]: the method `using` exists for struct `ResourceSelection<OtherClock>`, but its trait bounds were not satisfied
+  --> tests/ui/wrong_resource_adapter.rs:41:10
    |
- 6 |   struct OtherClock;
+ 8 |   struct OtherClock;
    |   ----------------- doesn't satisfy `OtherClock: AdaptableResourceDefinition`
 ...
-37 |       let _ = OtherClock::select("secondary", ())
+39 |       let _ = OtherClock::select("secondary", ())
    |  _____________-
-38 | |         .expect("selection")
-39 | |         .using(MemoryClock::default());
-   | |         -^^^^^ method cannot be called on `fabric::ResourceSelection<OtherClock>` due to unsatisfied trait bounds
+40 | |         .expect("selection")
+41 | |         .using(MemoryClock::default());
+   | |         -^^^^^ method cannot be called on `ResourceSelection<OtherClock>` due to unsatisfied trait bounds
    | |_________|
    |
    |

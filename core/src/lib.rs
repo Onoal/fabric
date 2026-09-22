@@ -1,3 +1,18 @@
+//! Fabric's generic composition, provider, and Instance runtime layer.
+//!
+//! Core validates typed contract requirements, selects and binds one compatible
+//! provider per contract, and materializes generation-scoped [`Instance`]s.
+//! [`Module`] declares graph truth; [`ModuleRuntime`] owns live exports,
+//! bindings, context, lifecycle hooks, and health observation.
+//!
+//! [`DerivedContractProvider`] and [`DerivedContractFactory`] express the
+//! general rule that one typed capability can be derived from typed required
+//! capabilities. They are not a method-level provider registry and are useful
+//! beyond any one Resource, System, or Adapter feature.
+//!
+//! Normal Fabric authors should use the `fabric` umbrella crate. Core is the
+//! explicit advanced integration surface beneath that SDK.
+
 mod block;
 mod composition;
 mod contract;

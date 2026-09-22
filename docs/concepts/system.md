@@ -10,6 +10,12 @@ System != Resource without a name
 System != Adapter
 ```
 
+A System is not a Resource without a name: it represents one coherent shared
+capability in a Composition. It is not a Component, which owns behavior and
+consumes capabilities, and it is not an Adapter, which owns a concrete
+implementation. See [Resource](resource.md), [Component](component.md), and
+[Adapter](adapter.md).
+
 ## Why System exists
 
 Resources naturally represent independently named technical occurrences, such
@@ -33,10 +39,11 @@ not a statement about infrastructure size.
 
 ## Definition and selection
 
-`SystemDefinition` is typed authoring for a System kind. It owns its Config
-type, `SystemId`, schema, declaration construction, and optional
-self-realization. It is semantic definition truth, not itself the configured
-contribution or a concrete implementation.
+For normal code, `system!` declares a System kind with Config, identity,
+version semantics, Relations, API, and an optional self-realization. The
+advanced `SystemDefinition` trait is the typed lower-level representation of
+that same declaration. Neither is a configured contribution or a concrete
+implementation.
 
 `SystemSelection<S>` is that one configured contribution:
 
@@ -101,7 +108,13 @@ on abandoned startup, and `health` reports ability separately from lifecycle.
 Adapter realizations use the same ownership model without making backend
 health identical to System health.
 
-## Schema and direct realization
+The normal Adapter implements the System API directly. A System may explicitly
+mediate part of its API while an Adapter supplies the remaining effective
+realization contract. Consumers still receive only the System API and Core
+composes typed providers, not method-level providers. See
+[Realization](realization.md).
+
+## Version compatibility and direct realization
 
 ### Normal and advanced compatibility authoring
 
@@ -110,8 +123,10 @@ word. Omit it for provisional semantics; the canonical API inherits the
 enclosing System version and has an owner-derived contract identity. No Config declaration means
 `System::select()` with no generated empty Config value. Inline `config { ...
 }` generates a public typed Config; `config: MyConfig;` uses a creator-owned
-Rust type directly. `schema:` remains available as the legacy explicit form for advanced
-compatibility-oriented authoring rather than normal package code.
+Rust type directly.
+
+Advanced compatibility controls are for deliberate cross-version
+implementations, not normal package code.
 
 An Adapter defaults to exact compatibility with the System definition named in
 its header. Use `supports: "^0.4";` only when an implementation deliberately
@@ -141,8 +156,8 @@ its own.
 For a normal adapted System, its semantic `api { ... }` is the realization
 contract. A compatible Adapter targets that System, receives its exact schema
 support by default, and provides the typed System API directly. The System
-does not acquire a forwarding runtime merely because it is adapted. An
-explicit `RealizationContract` remains the advanced form for a deliberately
+does not acquire a forwarding runtime merely because it is adapted. A
+differential [realization boundary](adapter.md) is available for a deliberately
 different lower-level implementation interface.
 
 ```text

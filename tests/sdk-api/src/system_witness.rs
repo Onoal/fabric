@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::authoring::*;
 use fabric::authoring::{CompositionExt, FabricBuilder};
-use fabric::prelude::*;
+use fabric::core::ContractVersionRequirement;
 use fabric_core::{
     ContractIdentity, Health, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
 };

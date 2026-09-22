@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fabric::prelude::{ContractDependency, SystemRequires};
+use fabric::authoring::{ContractDependency, SystemRequires};
 use fabric_core::{Health, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime};
 
 use crate::{

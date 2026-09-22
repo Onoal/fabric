@@ -3,10 +3,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{FnArg, Pat, PatIdent, ReturnType};
 
-use crate::ast::{
-    ApiDefinition, ApiIdentity, ConfigDefinition, ContractMethod, RequirementLiteral,
-    RuntimeMethod, VersionLiteral,
-};
+use crate::ast::{ApiDefinition, ConfigDefinition, ContractMethod, RuntimeMethod, VersionLiteral};
 
 pub struct PrimaryContractTokens {
     pub service_name: Ident,
@@ -309,24 +306,17 @@ pub fn primary_contract_tokens(
 
 pub fn api_contract_id_expr(
     sdk: &TokenStream,
-    identity: &ApiIdentity,
     owner_id: &syn::LitStr,
     subject_kind: SubjectKind,
 ) -> TokenStream {
-    match identity {
-        ApiIdentity::OwnerDerived => match subject_kind {
-            SubjectKind::Resource => quote!(
-                #sdk::core::ContractId::new(concat!("fabric.resource.api.", #owner_id))
-                    .expect("resource! generated a static owner-derived API contract id")
-            ),
-            SubjectKind::System => quote!(
-                #sdk::core::ContractId::new(concat!("fabric.system.api.", #owner_id))
-                    .expect("system! generated a static owner-derived API contract id")
-            ),
-        },
-        ApiIdentity::LegacyExplicit(id) => quote!(
-            #sdk::core::ContractId::new(#id)
-                .expect("legacy contracts syntax generated a static contract id")
+    match subject_kind {
+        SubjectKind::Resource => quote!(
+            #sdk::core::ContractId::new(concat!("fabric.resource.api.", #owner_id))
+                .expect("resource! generated a static owner-derived API contract id")
+        ),
+        SubjectKind::System => quote!(
+            #sdk::core::ContractId::new(concat!("fabric.system.api.", #owner_id))
+                .expect("system! generated a static owner-derived API contract id")
         ),
     }
 }
@@ -385,27 +375,6 @@ pub fn version_literal_expr(
                     .expect("system! generated a static schema version"),
             )
         ),
-    }
-}
-
-pub fn requirement_literal_expr(
-    sdk: &TokenStream,
-    requirement: &RequirementLiteral,
-    subject_name: &'static str,
-) -> TokenStream {
-    match requirement {
-        RequirementLiteral::Provisional => {
-            quote!(#sdk::core::ContractCompatibilityRequirement::provisional())
-        }
-        RequirementLiteral::Versioned(version) => {
-            let expect = format!("{subject_name}! generated a static version requirement");
-            quote!(
-                #sdk::core::ContractCompatibilityRequirement::versioned(
-                    #sdk::core::ContractVersionRequirement::parse(#version)
-                        .expect(#expect),
-                )
-            )
-        }
     }
 }
 

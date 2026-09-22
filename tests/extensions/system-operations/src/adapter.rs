@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use fabric::prelude::{AdapterDefinition, ContractDependency, ResourceDefinition, SystemRequires};
+use fabric::authoring::{
+    AdapterDefinition, ContractDependency, ResourceDefinition, SystemRequires,
+};
 use fabric_core::{
     ContractVersionRequirement, Health, ModuleBindings, ModuleContract, ModuleDeclaration,
     ModuleError, ModuleId, ModuleRuntime,

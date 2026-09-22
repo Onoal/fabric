@@ -24,6 +24,16 @@ git diff --check
 ## Contributions
 
 Keep semantic boundaries explicit, add or update tests for behavior changes,
-and update public documentation when a public API changes. Keep the normal SDK
-path distinct from advanced Core APIs, and avoid product-specific vocabulary in
-generic Fabric machinery.
+and keep the normal SDK path distinct from advanced Core APIs. Avoid
+product-specific vocabulary in generic Fabric machinery.
+
+## Documentation is part of the change
+
+When a canonical public concept changes, review the affected concept guide,
+crate README, crate-level rustdoc, Getting Started/example, architecture guide,
+and migration or release note. Do not update every page mechanically: update
+the surfaces whose stated truth changed. Release notes are historical records,
+not the sole explanation of the current architecture.
+
+The documentation source-of-truth map and release documentation checklist live
+in [docs/documentation.md](docs/documentation.md).

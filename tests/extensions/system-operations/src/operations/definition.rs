@@ -7,19 +7,14 @@ fabric::system! {
     pub TestOperations {
         id: "fabric.test.operations";
 
-        schema: "1.0.0";
+        version: "1.4.0";
 
         config {
             sequence: OperationSequence;
         }
 
-        contracts {
-            primary Api {
-                id: "fabric.test.system.operations";
-                version: "1.4.0";
-
-                fn current_marker(&self) -> crate::OperationMarker;
-            }
+        api {
+            fn current_marker(&self) -> crate::OperationMarker;
         }
 
         runtime {
@@ -43,7 +38,7 @@ pub fn operations_system_id() -> SystemId {
 }
 
 pub fn operations_schema_version() -> SystemSchemaVersion {
-    SystemSchemaVersion::parse("1.0.0").expect("static operations schema version")
+    SystemSchemaVersion::parse("1.4.0").expect("static operations schema version")
 }
 
 pub fn operations_contract_version() -> ContractVersion {

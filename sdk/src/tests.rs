@@ -9,9 +9,9 @@ use fabric_core::{
 
 use crate::SdkAuthoringError;
 use crate::authoring::{BlockAuthor, CompositionExt, FabricBuilder};
+use crate::authoring::{PrimarySystemContract, SystemDefinition, SystemRequires, SystemSelection};
 use crate::contracts::{versioned_provider, versioned_requirement};
 use crate::ids::{block, composition, contract, instance};
-use crate::{PrimarySystemContract, SystemDefinition, SystemRequires, SystemSelection};
 
 #[derive(Clone)]
 struct EchoContract {

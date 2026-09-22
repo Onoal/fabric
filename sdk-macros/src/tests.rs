@@ -92,21 +92,16 @@ fn macro_codegen_uses_resource_scoped_raw_namespaces_and_strong_module_ids() {
         "generated Runtime should retain a strong ModuleId and typed Config constructor"
     );
     assert!(
-        codegen.contains("#visibility mod #resource_mod {")
-            && codegen.contains("let realization_mod = format_ident!(\"realization\")")
-            && codegen.contains("pub mod #realization_mod {"),
-        "resource! should scope generated realization APIs under the resource namespace"
+        codegen.contains("effective_realization_contract_key")
+            && codegen.contains("DifferentialSemanticApi"),
+        "resource! should expose an effective realization contract only for an explicit differential boundary"
     );
 }
 
 #[test]
-fn realization_helpers_reference_their_invariant_generated_parent_scope() {
+fn generated_helpers_do_not_assume_a_fixed_caller_module_depth() {
     for file in ["src/codegen/resource.rs", "src/codegen/system.rs"] {
         let source = fs::read_to_string(crate_root().join(file)).expect("read codegen");
-        assert!(
-            source.contains("use super::super::*;"),
-            "{file} must reach the macro invocation scope through its invariant generated parent"
-        );
         assert!(
             !source.contains("use super::super::super::*;"),
             "{file} must not assume a fixed caller module depth"
@@ -121,7 +116,6 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     let common =
         fs::read_to_string(crate_root().join("src/codegen/common.rs")).expect("read common");
     let validate = fs::read_to_string(crate_root().join("src/validate.rs")).expect("read validate");
-    let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
 
     assert!(
         !codegen.contains(".filter_map(|arg|"),
@@ -145,8 +139,8 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     );
     assert!(
         codegen.contains("impl #sdk::authoring::AdaptableResourceDefinition for #resource_name")
-            && codegen.contains("#resource_mod::realization::raw::requirement()"),
-        "resource! should lower adapter realization sections through the adaptable resource facet"
+            && codegen.contains("effective_realization_contract_key"),
+        "resource! should lower only explicit differential realization through the adaptable resource facet"
     );
     assert!(
         validate.contains("must use an `&self` receiver")
@@ -157,11 +151,8 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     assert!(
         validate.contains("invalid resource dependency version requirement")
             && validate.contains("duplicate resource dependency field")
-            && parse.contains(
-                "{subject} realization contract requires a `compatibility: ...;` declaration"
-            )
-            && validate.contains("async {subject} realization methods are not supported"),
-        "resource! validation should cover dependency and realization syntax integrity"
+            && validate.contains("async resource API methods are not supported"),
+        "resource! validation should cover relation and API syntax integrity"
     );
 }
 
@@ -184,13 +175,13 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
     assert!(
         codegen.contains("type Contract = #system_mod::raw::#contract_name;")
             && codegen.contains("impl #sdk::authoring::AdaptableSystemDefinition for #system_name"),
-        "system! should lower primary contracts and optional realization through system-owned APIs"
+        "system! should lower its primary API and explicit differential realization through system-owned APIs"
     );
     assert!(
         codegen.contains("RelationTarget")
             && codegen.contains("relation_requirement_versioned")
-            && codegen.contains("#system_mod::realization::raw::requirement()"),
-        "system! should lower system dependencies and realization requirements through canonical typed helpers"
+            && codegen.contains("effective_realization_contract_key"),
+        "system! should lower relations and explicit differential requirements through canonical typed helpers"
     );
     assert!(
         validate.contains("invalid system schema version")
@@ -201,15 +192,13 @@ fn system_macro_codegen_supports_dependencies_and_realizations() {
     );
     assert!(
         parse.contains("system! supports only one `relations { ... }` section")
-            && parse.contains(
-                "{subject} realization contract requires a `compatibility: ...;` declaration"
-            ),
-        "system! parsing should define the dedicated system dependency and realization sections"
+            && parse.contains("system! supports only one `realization { ... }` section"),
+        "system! parsing should define relation and differential realization sections"
     );
 }
 
 #[test]
-fn adapter_macro_codegen_supports_explicit_realizations() {
+fn adapter_macro_codegen_exposes_one_type_driven_canonical_path() {
     let lib = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read lib");
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
     let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
@@ -223,18 +212,15 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     );
     assert!(
         ast.contains("pub struct AdapterInput")
-            && ast.contains("pub enum AdapterTargetKind")
-            && ast.contains("Resource,")
-            && ast.contains("System,"),
-        "adapter! should parse an explicit target-plane model"
+            && !ast.contains("AdapterTargetKind")
+            && !ast.contains("realization_interface"),
+        "adapter! should retain only the type-resolved target in its canonical AST"
     );
     assert!(
-        parse.contains("let target_kind = if input.peek(kw::resource)")
-            && parse.contains("let realization_interface = if target_kind.is_some()")
+        parse.contains("was removed in Fabric 0.5")
             && parse.contains("adapter! supports only one `relations { ... }` section")
-            && parse.contains("legacy `realization: ...;` declaration")
-            && parse.contains("legacy `schema: ...;` declaration"),
-        "adapter! parsing should retain explicit compatibility forms without making them mandatory"
+            && parse.contains("target API is the realization contract"),
+        "adapter! should reject removed target/interface ceremony with a direct migration"
     );
     assert!(
         validate.contains("async adapter runtime methods are not supported")
@@ -245,24 +231,22 @@ fn adapter_macro_codegen_supports_explicit_realizations() {
     );
     assert!(
         codegen.contains("type Target = #target;")
-            && codegen.contains("type Compatibility = #schema_support_ty;")
+            && codegen.contains(
+                "type Compatibility = #sdk::authoring::CanonicalAdapterSupport<#target>;"
+            )
             && codegen.contains("CanonicalAdapterSupport<#target>")
             && codegen.contains("AdapterBridgeMode")
             && codegen.contains("__fabric_canonical_adapter_bridge_mode")
-            && codegen.contains("impl #target_service for Runtime")
-            && codegen.contains("<#raw_impl_mod::Runtime as #interface>::realization_contract")
             && codegen.contains("relation_requirement_versioned"),
-        "adapter! should lower into AdapterDefinition, target-owned typed bridge modes, explicit realization interfaces, and canonical relations"
+        "adapter! should lower into AdapterDefinition, target-owned typed bridge modes, and canonical relations"
     );
     assert!(
         !codegen.contains("target_api_raw_path")
             && !codegen.contains("to_snake_case(&final_segment.ident)")
             && codegen.contains("__fabric_canonical_adapter_builder")
             && codegen.contains("__fabric_canonical_adapter_contract_key")
-            && codegen.contains("let interface = input")
-            && codegen.contains("realization_target")
             && codegen.contains("host_requirement(&self) -> #sdk::host::HostRequirement"),
-        "adapter! should preserve explicit interfaces while reaching canonical target API machinery through the resolved target type"
+        "adapter! should reach target API machinery only through the resolved target type"
     );
     for forbidden in [
         "fabric-adapter",
@@ -302,16 +286,16 @@ fn normal_authoring_defaults_version_support_and_universal_config_without_removi
     );
     assert!(
         parse.contains("supports: ...;")
-            && parse.contains("version: ...;` or legacy `realization: ...;")
-            && parse.contains("schema: ...;` declaration"),
-        "adapter! should prefer version/support syntax while retaining legacy explicit forms"
+            && parse.contains("was removed from adapter! in Fabric 0.5")
+            && parse.contains("not an Adapter compatibility declaration"),
+        "adapter! should retain support overrides while rejecting removed compatibility ceremony"
     );
     assert!(
-        adapter.contains("ResourceSchemaIdentity::Versioned")
-            && adapter.contains("SystemSchemaIdentity::Versioned")
-            && adapter.contains("exact target resource schema requirement")
-            && adapter.contains("exact target system schema requirement"),
-        "an adapter without an explicit support override must derive exact target compatibility"
+        adapter.contains("CanonicalAdapterSupport::<#target>::inferred()")
+            && adapter.contains("CanonicalAdapterSupport::<#target>::versioned")
+            && !adapter.contains("AdapterTargetKind")
+            && !adapter.contains("schema_support_expr"),
+        "an adapter without an explicit support override must use its target-owned canonical compatibility bridge"
     );
 }
 
@@ -335,7 +319,7 @@ fn api_parser_reports_normal_authoring_errors_at_the_api_layer() {
     assert!(resource_error(
         r#"Thing { id: "example.thing"; api {} contracts { primary Api { id: "example.thing.api"; } } runtime {} }"#
     )
-    .contains("resource! cannot use both `api { ... }` and legacy `contracts { ... }`"));
+    .contains("`contracts { primary ... }` was removed from resource! in Fabric 0.5"));
     assert!(resource_error(
         r#"Thing { id: "example.thing"; api { fn read(&self) {} } runtime { fn read(&self) {} } }"#
     )

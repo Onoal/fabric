@@ -3,6 +3,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use fabric::authoring::*;
 use fabric::prelude::*;
 use fabric_core::{
     CompositionError, ContractId, ContractKey, ContractRequirement, HostMaterializationRequirement,

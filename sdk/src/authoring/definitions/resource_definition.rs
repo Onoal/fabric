@@ -36,8 +36,8 @@ pub trait AdaptableResourceDefinition: ResourceDefinition {
     fn realization_requirement() -> ContractRequirement<Self::RealizationContract>;
 
     /// Whether the target's primary semantic API is its effective normal
-    /// Adapter contract. Explicit legacy realization declarations return
-    /// `false` and continue through the advanced compatibility path.
+    /// Adapter contract. Differential realization declarations return
+    /// `false` and expose their owner-derived effective contract instead.
     #[doc(hidden)]
     fn supports_semantic_api_adapter() -> bool {
         false

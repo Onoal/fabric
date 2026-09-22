@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::authoring::*;
+use fabric::component::ComponentResourceRequirementName;
 use fabric::prelude::*;
 use fabric::{
     core::{ContractProviderSelection, ContractRequirement},
@@ -22,8 +24,8 @@ use fabric_test_component_greeter::{
 use fabric_test_resource_clock::{Clock, ClockConfig};
 use fabric_test_resource_counter::{
     AdaptedCounter, AdaptedCounterConfig, DerivedCounter, DerivedCounterConfig, DirectCounter,
-    DirectCounterConfig, FixedCounterAdapter, FixedCounterAdapterConfig, PackageOnlyAdapter,
-    PackageOnlyAdapterConfig, PackageOnlyConfig, PackageOnlyResource,
+    DirectCounterConfig, FixedCounterAdapter, FixedCounterAdapterConfig, PackageOnlyConfig,
+    PackageOnlyResource,
 };
 use fabric_test_system_operations::{
     AdaptedOperations, AdaptedOperationsConfig, FixedOperationsAdapter,
@@ -948,9 +950,12 @@ fn fabric_builds_two_adapted_contributions_without_raw_parts_ceremony() {
 
     assert_eq!(built.manifest().resources().len(), 1);
     assert_eq!(built.manifest().systems().len(), 1);
-    assert_eq!(
-        built.manifest().diagnostics().provider_selections().len(),
-        2
+    assert!(
+        built
+            .manifest()
+            .diagnostics()
+            .provider_selections()
+            .is_empty()
     );
 
     let mut instance = built
@@ -1047,15 +1052,8 @@ fn fabric_realization_manifest_covers_target_provider_and_selection() {
         .find(|declaration| declaration.module_id() == &provider_module)
         .expect("provider declaration");
     assert!(provider_declaration.host_requirement().is_some());
-    assert_eq!(manifest.diagnostics().provider_selections().len(), 1);
-    assert_eq!(
-        manifest.diagnostics().provider_selections()[0].consumer(),
-        &target_module
-    );
-    assert_eq!(
-        manifest.diagnostics().provider_selections()[0].provider(),
-        &provider_module
-    );
+    assert_eq!(provider_module, target_module);
+    assert!(manifest.diagnostics().provider_selections().is_empty());
 }
 
 #[test]
@@ -1159,38 +1157,6 @@ fn fabric_declaration_only_system_builds_manifests_and_fails_materialization() {
         error,
         CompositionError::MissingRuntimeMaterializer { module_id: missing }
             if missing == module_id
-    ));
-}
-
-#[test]
-fn fabric_declaration_only_adapter_provider_builds_manifests_and_fails_materialization() {
-    let adapted = AdaptedCounter::select("primary", AdaptedCounterConfig {})
-        .expect("selection")
-        .using(PackageOnlyAdapter::new(PackageOnlyAdapterConfig {
-            label: "package-counter-notes".to_owned(),
-        }))
-        .expect("adapter");
-    let provider_module = adapted.adapter().provider_module_id().clone();
-
-    let built = Fabric::new("fabric.test.fabric.package-adapter")
-        .expect("fabric")
-        .resource(adapted)
-        .build()
-        .expect("declaration-only realization builds");
-
-    assert_eq!(built.manifest().resources().len(), 1);
-    assert_eq!(
-        built.manifest().diagnostics().provider_selections().len(),
-        1
-    );
-
-    let error = built
-        .materialize_named_on("fabric.test.fabric.package-adapter.instance", &test_host())
-        .expect_err("declaration-only provider must not materialize");
-    assert!(matches!(
-        error,
-        CompositionError::MissingRuntimeMaterializer { module_id: missing }
-            if missing == provider_module
     ));
 }
 
@@ -2378,7 +2344,7 @@ impl SelfRealizingComponentDefinition for AlphaComponent {
                 ContractVersionRequirement::parse("^1").expect("clock requirement"),
             ))?;
             let system = scope.system(&SystemRequires::<AdaptedOperations>::versioned(
-                ContractVersionRequirement::parse("^1").expect("system requirement"),
+                ContractVersionRequirement::parse("^2").expect("system requirement"),
             ))?;
             capture.lock().expect("capture").push(AlphaObservation {
                 tick: clock
@@ -2871,7 +2837,7 @@ fn integrated_alpha_system_runs_end_to_end() {
             ))
             .select_resource_provider(&clock_selection)
             .requires_system(SystemRequires::<AdaptedOperations>::versioned(
-                ContractVersionRequirement::parse("^1").expect("system requirement"),
+                ContractVersionRequirement::parse("^2").expect("system requirement"),
             ))
             .select_system_provider(&system_selection),
         )
@@ -2953,7 +2919,7 @@ fn integrated_alpha_system_rejects_incompatible_host() {
             ))
             .select_resource_provider(&clock_selection)
             .requires_system(SystemRequires::<AdaptedOperations>::versioned(
-                ContractVersionRequirement::parse("^1").expect("system requirement"),
+                ContractVersionRequirement::parse("^2").expect("system requirement"),
             ))
             .select_system_provider(&system_selection),
         )

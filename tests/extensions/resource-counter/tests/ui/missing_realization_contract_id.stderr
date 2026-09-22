@@ -1,5 +1,0 @@
-error: resource realization contract requires an `id: ...;` declaration
-  --> tests/ui/missing_realization_contract_id.rs:19:17
-   |
-19 |         adapter Adapter {
-   |                 ^^^^^^^

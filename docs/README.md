@@ -1,45 +1,55 @@
-# Fabric Documentation
+# Fabric manual
 
-Fabric documentation has three levels.
+This is the current technical manual. Release notes preserve history; they are
+not required to understand the current architecture.
 
-1. **Discover:** the repository [README](../README.md) explains what Fabric is
-   and how to install it.
-2. **Learn:** [Getting Started](getting-started.md) and the
-   [Concepts overview](concepts/README.md) establish the normal model.
-3. **Understand and extend:** [Architecture](architecture.md) defines the
-   complete semantic model, while the [Advanced Raw API](advanced/raw-api.md)
-   documents direct Core authoring.
+## Start
 
-## Learning order
+1. [Getting Started](getting-started.md) — define an API, realize it, compose
+   it, materialize an Instance, and consume a typed capability.
+2. [Mental model and architecture](architecture.md) — the ownership boundaries
+   that make the vocabulary coherent.
 
-1. [Getting Started](getting-started.md)
-2. [Concepts](concepts/README.md)
-   - [Composition](concepts/composition.md)
-   - [Instance](concepts/instance.md)
-   - [Component](concepts/component.md)
-   - [Resource](concepts/resource.md)
-   - [System](concepts/system.md)
-   - [Adapter](concepts/adapter.md)
-   - [API](concepts/api.md)
-   - [Augmentation](concepts/augmentation.md)
-   - Host
-   - Manifest
-3. [Architecture](architecture.md)
-4. [Advanced Raw API](advanced/raw-api.md), when direct Core authoring is
-   needed
+## Authoring semantic capabilities
 
-Normal examples use `fabric::*`; `fabric::prelude::*` is an optional
-compatibility convenience. Explicit experiments, when needed, live under
-`fabric::experimental` and are not part of the normal learning path.
+- [Resource](concepts/resource.md)
+- [System](concepts/system.md)
+- [Component](concepts/component.md)
+- [Adapter and realization](concepts/adapter.md)
 
-Release notes record their contract changes in [release notes](releases/0.4.9.md).
+## Cross-cutting concepts
 
-The concept sequence is intentional. Composition comes first because it
-declares the assembled system; Instance then distinguishes that declaration
-from its live materialization. Component introduces behavior, while Resource
-and System explain two kinds of capability. Adapter explains realization, Host
-explains environmental compatibility, and Manifest closes the normal path with
-semantic Composition inspection.
+- [Config](concepts/config.md)
+- [Relations](concepts/relations.md)
+- [API](concepts/api.md)
+- [Realization](concepts/realization.md)
+- [State](concepts/state.md)
+- [Lifecycle](concepts/lifecycle.md)
+- [Health](concepts/health.md)
+- [Host](concepts/host.md)
+- [Composition](concepts/composition.md)
+- [Instance](concepts/instance.md)
+- [Augmentation](concepts/augmentation.md)
 
-Dedicated concept pages will expand this sequence. Until then, the Concepts
-overview and Architecture provide the relevant model.
+## Advanced
+
+- [Raw/Core API](advanced/raw-api.md)
+- [Core architecture](../core/ARCHITECTURE.md)
+- [Experimental crates](#experimental)
+
+## Migration and history
+
+- [0.4.x to 0.5 migration](migrations/0.5.md)
+- [Canonical executable examples](examples.md)
+- [Fabric 0.5 release notes](releases/0.5.0.md)
+
+## Experimental
+
+`experimental/binding` and `experimental/resource-registry` are repository
+research crates. They are not part of the normal public authoring path or the
+published package family.
+
+## Maintaining this manual
+
+[Documentation maintenance](documentation.md) assigns source ownership and
+defines the review rule for public changes.

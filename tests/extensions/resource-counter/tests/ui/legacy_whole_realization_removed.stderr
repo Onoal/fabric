@@ -1,0 +1,5 @@
+error: the legacy `adapter Name { ... }` resource realization was removed in Fabric 0.5; use a separate `adapter! { Name for Resource { ... } }` declaration, or `realization { ... }` for a differential boundary
+ --> tests/ui/legacy_whole_realization_removed.rs:7:17
+  |
+7 |         adapter Adapter { id: "fabric.test.legacy.realization.adapter"; }
+  |                 ^^^^^^^

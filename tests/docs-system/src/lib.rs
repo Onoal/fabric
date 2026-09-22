@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use fabric::authoring::SystemDefinition;
     use fabric::prelude::*;
     use fabric_test_system_operations::{
         AdaptedOperations, AdaptedOperationsConfig, FixedOperationsAdapter,
@@ -18,10 +19,9 @@ mod tests {
             id: "example.audit";
             version: "0.1.0";
             config { seed: u64; }
-            contracts { primary Api {
-                id: "example.audit.api";
+            api {
                 fn marker(&self) -> u64;
-            }}
+            }
             runtime { fn marker(&self) -> u64 { self.config.seed } }
         }
     }
@@ -31,11 +31,10 @@ mod tests {
             id: "example.derived-audit";
             version: "0.1.0";
             config { offset: u64; }
-            system { base: AuditSystem(version = "^0.1"); }
-            contracts { primary Api {
-                id: "example.derived-audit.api";
+            relations { requires { base: AuditSystem(version = "^0.1"); } }
+            api {
                 fn marker(&self) -> u64;
-            }}
+            }
             runtime { fn marker(&self) -> u64 { self.base.marker() + self.config.offset } }
         }
     }

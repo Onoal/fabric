@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use fabric::prelude::{
+use fabric::authoring::{
     AdaptableResourceDefinition, IntoResourceName, PrimaryResourceContract, ResourceDefinition,
     ResourceSelection,
 };

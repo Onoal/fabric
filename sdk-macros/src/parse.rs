@@ -6,14 +6,16 @@ use syn::{
 };
 
 use crate::ast::{
-    AdapterInput, AdapterTargetKind, ApiDefinition, ApiIdentity, ComponentInput,
-    ComponentOperationContext, ComponentOperationDefinition, ConfigDefinition, ConfigField,
-    ContractMethod, DifferentialRealizationDefinition, RealizationDefinition, RelationDefinition,
-    RequirementDefinition, RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition,
-    RuntimeMethod, RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
+    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext,
+    ComponentOperationDefinition, ConfigDefinition, ConfigField, ContractMethod,
+    DifferentialRealizationDefinition, RelationDefinition, RequirementDefinition,
+    RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
+    RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
 };
 
 mod kw {
+    // Retained only to issue precise 0.5 migration diagnostics for removed
+    // high-level grammar; they are not part of the canonical AST.
     syn::custom_keyword!(adapter);
     syn::custom_keyword!(api);
     syn::custom_keyword!(component);
@@ -50,14 +52,6 @@ mod kw {
     syn::custom_keyword!(resource);
 }
 
-struct PendingContractDefinition {
-    is_primary: bool,
-    name: Ident,
-    contract_id: LitStr,
-    version: Option<VersionLiteral>,
-    methods: Vec<ContractMethod>,
-}
-
 struct PendingApiDefinition {
     methods: Vec<ContractMethod>,
 }
@@ -74,8 +68,6 @@ impl Parse for ResourceInput {
         let mut config = None;
         let mut relations = None;
         let mut api = None;
-        let mut contracts = None;
-        let mut realization = None;
         let mut differential_realization = None;
         let mut runtime_methods = None;
         let mut runtime_state = None;
@@ -92,21 +84,16 @@ impl Parse for ResourceInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::schema) {
                 content.parse::<kw::schema>()?;
-                content.parse::<Token![:]>()?;
-                if schema.is_some() {
-                    return Err(
-                        content.error("resource! supports only one `schema: ...;` declaration")
-                    );
-                }
-                schema = Some(parse_version_literal(&content)?);
-                content.parse::<Token![;]>()?;
+                return Err(content.error(
+                    "`schema: ...;` was removed from resource! in Fabric 0.5; omit it for provisional definitions or use `version: \"...\";`",
+                ));
             } else if content.peek(kw::version) {
                 content.parse::<kw::version>()?;
                 content.parse::<Token![:]>()?;
                 if schema.is_some() {
-                    return Err(content.error(
-                        "resource! supports only one `version: ...;` or legacy `schema: ...;` declaration",
-                    ));
+                    return Err(
+                        content.error("resource! supports only one `version: ...;` declaration")
+                    );
                 }
                 schema = Some(parse_version_literal(&content)?);
                 content.parse::<Token![;]>()?;
@@ -128,62 +115,31 @@ impl Parse for ResourceInput {
                 relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::requires) {
                 content.parse::<kw::requires>()?;
-                if relations.is_some() {
-                    return Err(
-                        content.error("resource! supports only one `requires { ... }` section")
-                    );
-                }
-                relations = Some(
-                    parse_requires(&content)?
-                        .into_iter()
-                        .map(|item| RelationDefinition {
-                            field: item.field,
-                            target: item.resource,
-                            compatibility: Some(item.compatibility),
-                        })
-                        .collect(),
-                );
+                return Err(content.error(
+                    "`requires { ... }` was removed from resource! in Fabric 0.5; use `relations { requires { dependency: Target; } }`",
+                ));
             } else if content.peek(kw::api) {
                 content.parse::<kw::api>()?;
                 if api.is_some() {
                     return Err(content.error("resource! supports only one `api { ... }` section"));
                 }
-                if contracts.is_some() {
-                    return Err(content.error(
-                        "resource! cannot use both `api { ... }` and legacy `contracts { ... }`",
-                    ));
-                }
                 api = Some(parse_api(&content)?);
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
-                if contracts.is_some() {
-                    return Err(
-                        content.error("resource! supports only one `contracts { ... }` section")
-                    );
-                }
-                if api.is_some() {
-                    return Err(content.error(
-                        "resource! cannot use both `api { ... }` and legacy `contracts { ... }`",
-                    ));
-                }
-                contracts = Some(parse_contracts(&content, "resource")?);
+                return Err(content.error(
+                    "`contracts { primary ... }` was removed from resource! in Fabric 0.5; use `api { ... }`",
+                ));
             } else if content.peek(kw::adapter) {
                 content.parse::<kw::adapter>()?;
-                if realization.is_some() {
-                    return Err(content.error(
-                        "resource! supports only one `adapter ... { ... }` realization section",
-                    ));
-                }
-                realization = Some(parse_realization(&content, "resource")?);
+                return Err(content.error(
+                    "the legacy `adapter Name { ... }` resource realization was removed in Fabric 0.5; use a separate `adapter! { Name for Resource { ... } }` declaration, or `realization { ... }` for a differential boundary",
+                ));
             } else if content.peek(kw::realization) {
                 content.parse::<kw::realization>()?;
                 if differential_realization.is_some() {
                     return Err(
                         content.error("resource! supports only one `realization { ... }` section")
                     );
-                }
-                if realization.is_some() {
-                    return Err(content.error("resource! cannot use both `realization { ... }` and legacy `adapter ... { ... }`"));
                 }
                 differential_realization = Some(parse_differential_realization(&content)?);
             } else if content.peek(kw::runtime) {
@@ -217,7 +173,7 @@ impl Parse for ResourceInput {
 
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
-        let api = resolve_api(api, contracts, &schema, &name_for_errors, "resource")?;
+        let api = resolve_api(api, &schema, &name_for_errors, "resource")?;
         validate_differential_realization(
             &api,
             differential_realization.as_ref(),
@@ -239,7 +195,6 @@ impl Parse for ResourceInput {
             relations: relations.unwrap_or_default(),
             api,
             differential_realization,
-            realization,
             runtime_methods,
             runtime_state,
             lifecycle: lifecycle.unwrap_or_default(),
@@ -259,8 +214,6 @@ impl Parse for SystemInput {
         let mut config = None;
         let mut relations = None;
         let mut api = None;
-        let mut contracts = None;
-        let mut realization = None;
         let mut differential_realization = None;
         let mut runtime_methods = None;
         let mut runtime_state = None;
@@ -277,21 +230,16 @@ impl Parse for SystemInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::schema) {
                 content.parse::<kw::schema>()?;
-                content.parse::<Token![:]>()?;
-                if schema.is_some() {
-                    return Err(
-                        content.error("system! supports only one `schema: ...;` declaration")
-                    );
-                }
-                schema = Some(parse_version_literal(&content)?);
-                content.parse::<Token![;]>()?;
+                return Err(content.error(
+                    "`schema: ...;` was removed from system! in Fabric 0.5; omit it for provisional definitions or use `version: \"...\";`",
+                ));
             } else if content.peek(kw::version) {
                 content.parse::<kw::version>()?;
                 content.parse::<Token![:]>()?;
                 if schema.is_some() {
-                    return Err(content.error(
-                        "system! supports only one `version: ...;` or legacy `schema: ...;` declaration",
-                    ));
+                    return Err(
+                        content.error("system! supports only one `version: ...;` declaration")
+                    );
                 }
                 schema = Some(parse_version_literal(&content)?);
                 content.parse::<Token![;]>()?;
@@ -311,60 +259,31 @@ impl Parse for SystemInput {
                 relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
-                if relations.is_some() {
-                    return Err(content.error("system! supports only one `system { ... }` section"));
-                }
-                relations = Some(
-                    parse_system_dependencies(&content)?
-                        .into_iter()
-                        .map(|item| RelationDefinition {
-                            field: item.field,
-                            target: item.system,
-                            compatibility: Some(item.compatibility),
-                        })
-                        .collect(),
-                );
+                return Err(content.error(
+                    "`system { ... }` dependencies were removed from system! in Fabric 0.5; use `relations { requires { dependency: Target; } }`",
+                ));
             } else if content.peek(kw::api) {
                 content.parse::<kw::api>()?;
                 if api.is_some() {
                     return Err(content.error("system! supports only one `api { ... }` section"));
                 }
-                if contracts.is_some() {
-                    return Err(content.error(
-                        "system! cannot use both `api { ... }` and legacy `contracts { ... }`",
-                    ));
-                }
                 api = Some(parse_api(&content)?);
             } else if content.peek(kw::contracts) {
                 content.parse::<kw::contracts>()?;
-                if contracts.is_some() {
-                    return Err(
-                        content.error("system! supports only one `contracts { ... }` section")
-                    );
-                }
-                if api.is_some() {
-                    return Err(content.error(
-                        "system! cannot use both `api { ... }` and legacy `contracts { ... }`",
-                    ));
-                }
-                contracts = Some(parse_contracts(&content, "system")?);
+                return Err(content.error(
+                    "`contracts { primary ... }` was removed from system! in Fabric 0.5; use `api { ... }`",
+                ));
             } else if content.peek(kw::adapter) {
                 content.parse::<kw::adapter>()?;
-                if realization.is_some() {
-                    return Err(content.error(
-                        "system! supports only one `adapter ... { ... }` realization section",
-                    ));
-                }
-                realization = Some(parse_realization(&content, "system")?);
+                return Err(content.error(
+                    "the legacy `adapter Name { ... }` system realization was removed in Fabric 0.5; use a separate `adapter! { Name for System { ... } }` declaration, or `realization { ... }` for a differential boundary",
+                ));
             } else if content.peek(kw::realization) {
                 content.parse::<kw::realization>()?;
                 if differential_realization.is_some() {
                     return Err(
                         content.error("system! supports only one `realization { ... }` section")
                     );
-                }
-                if realization.is_some() {
-                    return Err(content.error("system! cannot use both `realization { ... }` and legacy `adapter ... { ... }`"));
                 }
                 differential_realization = Some(parse_differential_realization(&content)?);
             } else if content.peek(kw::runtime) {
@@ -396,13 +315,15 @@ impl Parse for SystemInput {
 
         let name_for_errors = name.clone();
         let schema = schema.unwrap_or(VersionLiteral::Provisional);
-        let api = resolve_api(api, contracts, &schema, &name_for_errors, "system")?;
+        let api = resolve_api(api, &schema, &name_for_errors, "system")?;
         validate_differential_realization(
             &api,
             differential_realization.as_ref(),
             runtime_methods.as_deref(),
             "system",
         )?;
+
+        let name_for_errors = name.clone();
 
         Ok(Self {
             visibility,
@@ -418,7 +339,6 @@ impl Parse for SystemInput {
             relations: relations.unwrap_or_default(),
             api,
             differential_realization,
-            realization,
             runtime_methods,
             runtime_state,
             lifecycle: lifecycle.unwrap_or_default(),
@@ -431,27 +351,28 @@ impl Parse for AdapterInput {
         let visibility = input.parse::<Visibility>()?;
         let name = input.parse::<Ident>()?;
         input.parse::<Token![for]>()?;
-        let target_kind = if input.peek(kw::resource) {
+        if input.peek(kw::resource) {
             input.parse::<kw::resource>()?;
-            Some(AdapterTargetKind::Resource)
+            return Err(input.error(
+                "`adapter! { Name for resource Target implements Interface { ... } }` was removed in Fabric 0.5; write `adapter! { Name for Target { ... } }`",
+            ));
         } else if input.peek(kw::system) {
             input.parse::<kw::system>()?;
-            Some(AdapterTargetKind::System)
-        } else {
-            None
-        };
+            return Err(input.error(
+                "`adapter! { Name for system Target implements Interface { ... } }` was removed in Fabric 0.5; write `adapter! { Name for Target { ... } }`",
+            ));
+        }
         let target = input.parse::<Path>()?;
-        let realization_interface = if target_kind.is_some() {
+        if input.peek(kw::implements) {
             input.parse::<kw::implements>()?;
-            Some(input.parse::<Path>()?)
-        } else {
-            None
-        };
+            return Err(input.error(
+                "`implements ...` was removed from canonical adapter! authoring in Fabric 0.5; the target API is the realization contract, so write `adapter! { Name for Target { ... } }`",
+            ));
+        }
         let content;
         braced!(content in input);
 
         let mut schema = None;
-        let mut realization = None;
         let mut config = None;
         let mut relations = None;
         let mut host_requirement = None;
@@ -462,44 +383,29 @@ impl Parse for AdapterInput {
         while !content.is_empty() {
             if content.peek(kw::schema) {
                 content.parse::<kw::schema>()?;
-                content.parse::<Token![:]>()?;
-                if schema.is_some() {
-                    return Err(
-                        content.error("adapter! supports only one `schema: ...;` declaration")
-                    );
-                }
-                schema = Some(parse_requirement_literal(&content)?);
-                content.parse::<Token![;]>()?;
+                return Err(content.error(
+                    "`schema: ...;` was removed from adapter! in Fabric 0.5; use `supports: ...;` for an explicit compatibility override",
+                ));
             } else if content.peek(kw::supports) {
                 content.parse::<kw::supports>()?;
                 content.parse::<Token![:]>()?;
                 if schema.is_some() {
-                    return Err(content.error(
-                        "adapter! supports only one `supports: ...;` or legacy `schema: ...;` declaration",
-                    ));
+                    return Err(
+                        content.error("adapter! supports only one `supports: ...;` declaration")
+                    );
                 }
                 schema = Some(parse_requirement_literal(&content)?);
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::realization) {
                 content.parse::<kw::realization>()?;
-                content.parse::<Token![:]>()?;
-                if realization.is_some() {
-                    return Err(
-                        content.error("adapter! supports only one `realization: ...;` declaration")
-                    );
-                }
-                realization = Some(parse_version_literal(&content)?);
-                content.parse::<Token![;]>()?;
+                return Err(content.error(
+                    "`realization: ...;` was removed from adapter! in Fabric 0.5; target compatibility is inferred, or use `supports: ...;` for an explicit compatibility override",
+                ));
             } else if content.peek(kw::version) {
                 content.parse::<kw::version>()?;
-                content.parse::<Token![:]>()?;
-                if realization.is_some() {
-                    return Err(content.error(
-                        "adapter! supports only one `version: ...;` or legacy `realization: ...;` declaration",
-                    ));
-                }
-                realization = Some(parse_version_literal(&content)?);
-                content.parse::<Token![;]>()?;
+                return Err(content.error(
+                    "`version: ...;` is not an Adapter compatibility declaration in Fabric 0.5; compatibility is inferred from the target or declared with `supports: ...;`",
+                ));
             } else if content.peek(kw::config) {
                 content.parse::<kw::config>()?;
                 if config.is_some() {
@@ -518,21 +424,9 @@ impl Parse for AdapterInput {
                 relations = Some(parse_relations(&content)?);
             } else if content.peek(kw::system) {
                 content.parse::<kw::system>()?;
-                if relations.is_some() {
-                    return Err(
-                        content.error("adapter! supports only one `system { ... }` section")
-                    );
-                }
-                relations = Some(
-                    parse_system_dependencies(&content)?
-                        .into_iter()
-                        .map(|item| RelationDefinition {
-                            field: item.field,
-                            target: item.system,
-                            compatibility: Some(item.compatibility),
-                        })
-                        .collect(),
-                );
+                return Err(content.error(
+                    "`system { ... }` dependencies were removed from adapter! in Fabric 0.5; use `relations { requires { dependency: Target; } }`",
+                ));
             } else if content.peek(kw::host) {
                 content.parse::<kw::host>()?;
                 content.parse::<Token![:]>()?;
@@ -570,27 +464,11 @@ impl Parse for AdapterInput {
 
         let name_for_errors = name.clone();
 
-        // A canonical adapter implements the target's primary semantic API
-        // directly. Its effective realization-contract version is therefore
-        // the target API version; accepting a separate provider version here
-        // would make a normal declaration appear to select a contract it
-        // cannot actually provide. The explicit legacy form retains
-        // `realization:`/`version:` for custom realization contracts.
-        if target_kind.is_none() && realization.is_some() {
-            return Err(Error::new(
-                name_for_errors.span(),
-                "canonical adapter! authoring derives its realization contract version from the target API; omit `version: ...;` (use the explicit `for resource/system ... implements ...` form for a custom realization contract)",
-            ));
-        }
-
         Ok(Self {
             visibility,
             name,
-            target_kind,
             target,
-            realization_interface,
             schema,
-            realization: realization.unwrap_or(VersionLiteral::Provisional),
             config: config.unwrap_or(ConfigDefinition::None),
             relations: relations.unwrap_or_default(),
             host_requirement,
@@ -739,63 +617,6 @@ fn parse_config_definition(input: ParseStream<'_>) -> Result<ConfigDefinition> {
     }
 }
 
-fn parse_contracts(
-    input: ParseStream<'_>,
-    subject: &'static str,
-) -> Result<Vec<PendingContractDefinition>> {
-    let content;
-    braced!(content in input);
-    let mut contracts = Vec::new();
-    while !content.is_empty() {
-        let is_primary = if content.peek(kw::primary) {
-            content.parse::<kw::primary>()?;
-            true
-        } else {
-            false
-        };
-        let name = content.parse::<Ident>()?;
-        let contract_content;
-        braced!(contract_content in content);
-
-        let mut contract_id = None;
-        let mut version = None;
-        let mut methods = Vec::new();
-
-        while !contract_content.is_empty() {
-            if contract_content.peek(kw::id) {
-                contract_content.parse::<kw::id>()?;
-                contract_content.parse::<Token![:]>()?;
-                contract_id = Some(contract_content.parse::<LitStr>()?);
-                contract_content.parse::<Token![;]>()?;
-            } else if contract_content.peek(kw::version) {
-                contract_content.parse::<kw::version>()?;
-                contract_content.parse::<Token![:]>()?;
-                version = Some(parse_version_literal(&contract_content)?);
-                contract_content.parse::<Token![;]>()?;
-            } else {
-                let method = contract_content.parse::<syn::TraitItemFn>()?;
-                methods.push(ContractMethod {
-                    signature: method.sig,
-                });
-            }
-        }
-
-        contracts.push(PendingContractDefinition {
-            is_primary,
-            name: name.clone(),
-            contract_id: contract_id.ok_or_else(|| {
-                Error::new(
-                    name.span(),
-                    format!("{subject} contract requires an `id: ...;` declaration"),
-                )
-            })?,
-            version,
-            methods,
-        });
-    }
-    Ok(contracts)
-}
-
 fn parse_api(input: ParseStream<'_>) -> Result<PendingApiDefinition> {
     let content;
     braced!(content in input);
@@ -817,53 +638,20 @@ fn parse_api(input: ParseStream<'_>) -> Result<PendingApiDefinition> {
 
 fn resolve_api(
     api: Option<PendingApiDefinition>,
-    contracts: Option<Vec<PendingContractDefinition>>,
     default_version: &VersionLiteral,
     name_for_errors: &Ident,
     subject: &'static str,
 ) -> Result<ApiDefinition> {
-    if let Some(api) = api {
-        return Ok(ApiDefinition {
-            name: Ident::new("Api", name_for_errors.span()),
-            identity: ApiIdentity::OwnerDerived,
-            version: default_version.clone(),
-            methods: api.methods,
-        });
-    }
-
-    let contracts = contracts.ok_or_else(|| {
+    let api = api.ok_or_else(|| {
         Error::new(
             name_for_errors.span(),
             format!("{subject}! requires an `api {{ ... }}` section"),
         )
     })?;
-    let mut primary = None;
-    for contract in contracts {
-        if !contract.is_primary {
-            return Err(Error::new(
-                contract.name.span(),
-                format!("additional {subject} contracts are not supported"),
-            ));
-        }
-        if primary.is_some() {
-            return Err(Error::new(
-                contract.name.span(),
-                format!("{subject}! supports only one `primary` contract"),
-            ));
-        }
-        primary = Some(contract);
-    }
-    let primary = primary.ok_or_else(|| {
-        Error::new(
-            name_for_errors.span(),
-            format!("{subject}! requires exactly one `primary` contract"),
-        )
-    })?;
     Ok(ApiDefinition {
-        name: primary.name,
-        identity: ApiIdentity::LegacyExplicit(primary.contract_id),
-        version: primary.version.unwrap_or_else(|| default_version.clone()),
-        methods: primary.methods,
+        name: Ident::new("Api", name_for_errors.span()),
+        version: default_version.clone(),
+        methods: api.methods,
     })
 }
 
@@ -987,57 +775,6 @@ fn parse_system_dependency_invocation(input: ParseStream<'_>) -> Result<Requirem
     Err(content.error(
         "system dependency requires explicit `provisional` or `version = \"...\"` compatibility",
     ))
-}
-
-fn parse_realization(
-    input: ParseStream<'_>,
-    subject: &'static str,
-) -> Result<RealizationDefinition> {
-    let name = input.parse::<Ident>()?;
-    let content;
-    braced!(content in input);
-
-    let mut contract_id = None;
-    let mut compatibility = None;
-    let mut methods = Vec::new();
-
-    while !content.is_empty() {
-        if content.peek(kw::id) {
-            content.parse::<kw::id>()?;
-            content.parse::<Token![:]>()?;
-            contract_id = Some(content.parse::<LitStr>()?);
-            content.parse::<Token![;]>()?;
-        } else if content.peek(kw::compatibility) {
-            content.parse::<kw::compatibility>()?;
-            content.parse::<Token![:]>()?;
-            compatibility = Some(parse_requirement_literal(&content)?);
-            content.parse::<Token![;]>()?;
-        } else {
-            let method = content.parse::<syn::TraitItemFn>()?;
-            methods.push(ContractMethod {
-                signature: method.sig,
-            });
-        }
-    }
-
-    Ok(RealizationDefinition {
-        name: name.clone(),
-        contract_id: contract_id.ok_or_else(|| {
-            Error::new(
-                name.span(),
-                format!("{subject} realization contract requires an `id: ...;` declaration"),
-            )
-        })?,
-        compatibility: compatibility.ok_or_else(|| {
-            Error::new(
-                name.span(),
-                format!(
-                    "{subject} realization contract requires a `compatibility: ...;` declaration"
-                ),
-            )
-        })?,
-        methods,
-    })
 }
 
 fn parse_differential_realization(
@@ -1365,3 +1102,6 @@ fn parse_component_operations(input: ParseStream<'_>) -> Result<Vec<ComponentOpe
 
     Ok(operations)
 }
+syn::custom_keyword!(contracts);
+syn::custom_keyword!(implements);
+syn::custom_keyword!(primary);

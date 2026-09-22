@@ -1,4 +1,4 @@
-use fabric::prelude::{
+use fabric::authoring::{
     AdaptableResourceDefinition, PrimaryResourceContract, Requires, ResourceDefinition,
 };
 use fabric_core::{

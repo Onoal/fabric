@@ -1,0 +1,5 @@
+error: `adapter! { Name for resource Target implements Interface { ... } }` was removed in Fabric 0.5; write `adapter! { Name for Target { ... } }`
+ --> tests/ui/legacy_adapter_header_removed.rs:4:32
+  |
+4 |     LegacyAdapter for resource example::Store implements example::StoreRealization {
+  |                                ^^^^^^^

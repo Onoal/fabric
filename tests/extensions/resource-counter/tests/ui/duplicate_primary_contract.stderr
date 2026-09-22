@@ -1,5 +1,0 @@
-error: resource! supports only one `primary` contract
-  --> tests/ui/duplicate_primary_contract.rs:20:21
-   |
-20 |             primary Secondary {
-   |                     ^^^^^^^^^

@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+use fabric::authoring::*;
 use fabric::prelude::*;
+use fabric::resource::AdapterResourceSchemaSupport;
 use fabric::{
     authoring::{CompositionExt, FabricBuilder},
     ids::module,

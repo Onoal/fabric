@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.3" }
+fabric = { package = "onoal-fabric", version = "0.4.4" }
 ```
 
 ```rust
@@ -114,10 +114,10 @@ live runtime.
 
 ## Project status
 
-Fabric 0.4.3 retains the 0.4 lifecycle spine and normal-authoring defaults.
-It establishes one typed Config law for Resources, Systems, and Adapters: no
-Config declaration means no Config ceremony; inline Config stays concise; and
-creator-owned Rust types can express richer Config without a Fabric wrapper.
+Fabric 0.4.4 retains the lifecycle and Config authoring lines and establishes
+universal `relations { requires { ... } }` authoring for Resources, Systems,
+and Adapters. Relations bind typed Resource/System capabilities through a
+Composition; they are not Config, lifecycle ordering, or transport.
 
 Normal high-level authoring is available from `fabric::*`; the optional
 `fabric::prelude::*` remains a compatibility convenience. Experimental APIs,

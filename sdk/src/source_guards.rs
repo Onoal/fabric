@@ -790,7 +790,7 @@ fn sdk_docs_describe_the_current_public_contract() {
     assert!(
         readme.contains("ExampleAdapter for ExampleResource")
             && readme.contains("target determines whether it is a Resource or System")
-            && readme.contains("no generated interface"),
+            && readme.contains("names no generated\ninterface"),
         "SDK README must document target-derived canonical Adapter authoring for both targets"
     );
     assert!(

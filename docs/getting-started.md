@@ -38,8 +38,11 @@ put its mutable state and lifecycle hooks here, not in `Store` Config.
 
 ## 3. Consume the semantic API
 
-Components require semantic capabilities, never a concrete Adapter. The
-handler receives the selected `Store` as a typed dependency and calls its API.
+Components require semantic capabilities, never a concrete Adapter. Canonical
+Component declaration names those needs through `relations` and declares its
+callable behavior through `api`. The current tutorial then uses the
+transitional legacy self-realizing frontend solely because canonical Component
+runtime authoring is the next slice.
 
 ```rust
 fabric::component! {

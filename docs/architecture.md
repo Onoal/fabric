@@ -172,29 +172,26 @@ methods and typed-delegating direct methods. The Adapter exports the effective
 realization contract. A direct Adapter realization does not add this layer.
 Neither form recreates a mandatory Resource/System forwarding runtime.
 
-## Components and operations
+## Components, API, and invocation lowering
 
-Components declare Resource dependencies in `requires {}` and System
-dependencies in `system {}`. A Component Resource requirement is owned by the
-Component and identified by `ComponentId + local requirement name`. Its local
-role is distinct from the selected Resource's `ResourceName`, so roles with the
-same target type can bind independently to different Resource occurrences.
+A Component is a semantic behavioral participant. Its canonical declaration is
+`id` plus optional `config`, `relations`, and `api` sections. A relation is a
+Component-local role targeting either a Resource or System; the target's type
+supplies the capability requirement. The role is distinct from a selected
+Resource occurrence, so two roles can bind independently to the same target.
 
-Handlers receive typed resolved contracts through a dependencies value. Config
-is Component-owned lexical configuration; it is distinct from dependencies,
-invocation context, and operation input. Declarative Component-to-Component
-dependencies are outside Fabric 0.1.
+`api` declares typed callable behavior only. Current Component invocation
+machinery lowers API methods to deterministic operations and typed keys; it is
+not a second declaration language and does not make the Component live. A
+declaration-only Component is valid in Composition, but participation requires
+a realization.
 
-An operation is a typed `Input -> Output` endpoint. Its output may be a
-package-owned `Result<Success, DomainError>`. `ComponentError` is the outer
-runtime/control plane, so external invocation can yield
-`Result<Result<Success, DomainError>, ComponentError>` without erasing domain
-typing.
-
-`context: invocation;` opts an operation into a runtime-supplied
-`InvocationContext`. The context contains invocation provenance: InstanceId,
-InstanceGeneration, InvocationId, and root InvocationOrigin. It is not an
-identity, authority, authentication, tracing, or network-metadata model.
+The older `operations { ... }` frontend remains a transitional
+self-realizing path. It alone currently accepts handlers, typed dependency
+values, and `context: invocation`. `InvocationContext` is runtime-supplied
+provenance—InstanceId, InstanceGeneration, InvocationId, and root
+InvocationOrigin—not identity, authority, authentication, tracing, or network
+metadata. Canonical Component runtime authoring is intentionally deferred.
 
 ## Runtime boundary
 

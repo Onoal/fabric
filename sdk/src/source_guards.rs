@@ -794,14 +794,15 @@ fn sdk_docs_describe_the_current_public_contract() {
         "SDK README must document target-derived canonical Adapter authoring for both targets"
     );
     assert!(
-        readme.contains("Component-local role")
-            && readme.contains("`Notes::requirements::storage()"),
-        "SDK README must document local Component requirement occurrences"
+        readme.contains("Canonical `component!` declaration")
+            && readme.contains("Relation fields are Component-local roles")
+            && readme.contains("transitional legacy\nself-realizing path"),
+        "SDK README must document canonical declaration roles and isolate legacy Component realization authoring"
     );
     assert!(
-        readme.contains("context: invocation;")
+        readme.contains("Context in that legacy path is opt-in")
             && readme.contains("Result<Result<Document, DocumentError>, ComponentError>"),
-        "SDK README must document optional invocation provenance and nested domain results"
+        "SDK README must document legacy invocation provenance and nested domain results"
     );
     assert!(
         readme.contains("`FabricManifest` is immutable semantic Composition inspection")

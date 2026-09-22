@@ -163,6 +163,8 @@ fabric::resource! {
     }
 }
 
+// Transitional self-realizing Component frontend. Canonical declaration uses
+// `relations` and `api`; canonical Component runtime authoring follows later.
 fabric::component! {
     pub StoreProbe {
         id: "example.store-probe";

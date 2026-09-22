@@ -11,6 +11,9 @@ struct Greeting(String);
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct GreetingReply(String);
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DeclarationError;
+
 resource! {
     DeclarationStore {
         id: "fabric.test.component-declaration.store";
@@ -25,9 +28,28 @@ system! {
     }
 }
 
+resource! {
+    VersionedDeclarationStore {
+        id: "fabric.test.component-declaration.versioned-store";
+        version: "1.2.0";
+        api { fn get(&self, key: String) -> Option<String>; }
+    }
+}
+
 component! {
     EmptyDeclaration {
         id: "fabric.test.component-declaration.empty";
+    }
+}
+
+component! {
+    CompatibleRelatedDeclaration {
+        id: "fabric.test.component-declaration.compatible-related";
+        relations {
+            requires {
+                store: VersionedDeclarationStore(version = "^1");
+            }
+        }
     }
 }
 
@@ -62,9 +84,26 @@ component! {
     ApiOnlyDeclaration {
         id: "fabric.test.component-declaration.api-only";
         api {
+            fn ping(&self);
+            fn revision(&self) -> u64;
             fn greet(&self, input: Greeting) -> GreetingReply;
             fn pair(&self, first: String, second: String) -> String;
+            fn fallible(&self, input: String) -> Result<String, DeclarationError>;
         }
+    }
+}
+
+component! {
+    CompleteDeclaration {
+        id: "fabric.test.component-declaration.complete";
+        config { label: String; }
+        relations {
+            requires {
+                store: DeclarationStore;
+                clock: DeclarationClock;
+            }
+        }
+        api { fn inspect(&self, input: String) -> Result<String, DeclarationError>; }
     }
 }
 
@@ -100,12 +139,26 @@ fn canonical_component_relations_are_generic_and_roles_remain_distinct() {
         declaration.relations()[0].requirement().id(),
         declaration.relations()[1].requirement().id()
     );
+
+    let compatible = CompatibleRelatedDeclaration::define().declaration().clone();
+    assert_eq!(compatible.relations().len(), 1);
+    assert_eq!(
+        compatible.relations()[0]
+            .requirement()
+            .compatibility()
+            .to_string(),
+        "^1"
+    );
 }
 
 #[test]
 fn canonical_component_api_lowers_to_deterministic_operation_metadata_without_handlers() {
     let declaration = ApiOnlyDeclaration::define().declaration().clone();
-    assert_eq!(declaration.operations().len(), 2);
+    assert_eq!(declaration.operations().len(), 5);
+    let ping = api_only_declaration::operations::ping();
+    let _: fabric::component::OperationKey<(), ()> = ping;
+    let revision = api_only_declaration::operations::revision();
+    let _: fabric::component::OperationKey<(), u64> = revision;
     let greet = api_only_declaration::operations::greet();
     assert_eq!(
         greet.id().as_str(),
@@ -121,6 +174,19 @@ fn canonical_component_api_lowers_to_deterministic_operation_metadata_without_ha
     );
     let pair = api_only_declaration::operations::pair();
     let _: fabric::component::OperationKey<(String, String), String> = pair;
+    let fallible = api_only_declaration::operations::fallible();
+    let _: fabric::component::OperationKey<String, Result<String, DeclarationError>> = fallible;
+}
+
+#[test]
+fn canonical_component_declaration_axes_compose_without_runtime_attachment() {
+    let complete = CompleteDeclaration::define(CompleteDeclarationConfig {
+        label: "complete".to_owned(),
+    });
+    assert_eq!(complete.config().label, "complete");
+    assert_eq!(complete.declaration().relations().len(), 2);
+    assert_eq!(complete.declaration().operations().len(), 1);
+    assert!(complete.into_self_realization().is_none());
 }
 
 #[test]

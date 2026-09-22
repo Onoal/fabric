@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.5.0" }
+fabric = { package = "onoal-fabric", version = "0.5.1" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -120,55 +120,51 @@ stays normal typed Rust, and Adapter selection stays Composition truth. A
 differential realization boundary is available when a semantic owner
 intentionally uses a different lower-level contract.
 
-## Component dependencies and operations
+## Component declaration and transitional operations
 
-`component!` declares Resource requirements in `requires {}` and System
-requirements in `system {}`. Handlers receive resolved semantic contracts in a
-generated dependencies value; a Component never depends on an Adapter.
+Canonical `component!` declaration uses the same incremental Fabric language
+as Resources and Systems: identity, optional Config, optional Relations, and
+optional API. It declares a semantic behavioral participant; it does not
+create a handler, participation, or self realization.
 
 ```rust
 fabric::component! {
     Notes {
         id: "example.notes";
         config { prefix: String; }
-        requires { storage: ExampleStore(provisional); }
-        system { operations: ExampleOperations(version = "^1"); }
-        operations {
-            save {
-                id: "example.notes.save";
-                input: SaveInput = "example.notes.save.input";
-                output: SaveOutput = "example.notes.save.output";
-                context: invocation;
-                handler |context, dependencies, input: SaveInput| async move {
-                    let _ = (&config.prefix, &context, &dependencies.storage, input);
-                    Ok(SaveOutput {})
-                };
+        relations {
+            requires {
+                storage: ExampleStore;
+                operations: ExampleOperations;
             }
         }
+        api { fn save(&self, input: SaveInput) -> SaveOutput; }
     }
 }
 ```
 
-Context is opt-in. Handler shapes are `|input|`, `|dependencies, input|`,
-`|context, input|`, and `|context, dependencies, input|`. `InvocationContext`
-is runtime-supplied provenance (InstanceId, InstanceGeneration, InvocationId,
-and root InvocationOrigin), not identity, authorization, tracing, or network
-metadata.
+Relation fields are Component-local roles. `storage` and `cache` can name two
+distinct requirements for the same target; the target determines whether it is
+a Resource or System. Composition supplies matching semantic capabilities when
+a realization later needs them.
 
-A Resource field is a Component-local role. Two same-target requirements have
-different local names and can be selected independently:
+The existing `operations { ... }` syntax remains a **transitional legacy
+self-realizing path** until canonical Component runtime authoring arrives. It
+is the only current macro path that accepts handlers, invocation context, and
+the old `requires` / `system` dependency split. It is not canonical
+declaration authoring.
 
 ```rust
+// Transitional legacy realization syntax.
 requires {
     storage: ExampleStore(provisional);
     cache: ExampleStore(provisional);
 }
-// Composition selects `Notes::requirements::storage()` and
-// `Notes::requirements::cache()` independently.
 ```
 
-The local role is not the selected ResourceName. The Component declares a need;
-Composition binds it to an occurrence.
+Context in that legacy path is opt-in. `InvocationContext` is runtime-supplied
+provenance (InstanceId, InstanceGeneration, InvocationId, and root
+InvocationOrigin), not identity, authorization, tracing, or network metadata.
 
 An operation has one typed output. Domain failure belongs in that output;
 `ComponentError` remains the outer Fabric runtime/control plane:

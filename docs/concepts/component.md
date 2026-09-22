@@ -243,13 +243,15 @@ startup is abandoned after host initialization, the same cleanup path is
 `Starting -> Stopping -> Stopped`; `Stopping` remains the one deactivation
 phase for both cases.
 
-Preparation may establish runtime machinery owned by one participation. Normal
-`component!` authoring may add an optional `teardown { ... }` section; direct
-authors use `ComponentRuntimePreparation::with_teardown`. Fabric runs that
-action exactly once after disabling participation-owned authority, on failed
-preparation rollback, explicit dematerialization, or host stop. Base
-preparation runs before augmentations; successful teardown runs in reverse
-order, so later augmentation contributions clean up before the base.
+Preparation may establish runtime machinery owned by one participation. The
+transitional legacy `operations` frontend may add an optional `teardown { ... }`
+section; direct authors use `ComponentRuntimePreparation::with_teardown`.
+Canonical declaration authoring has no teardown section because it has no
+runtime attachment. Fabric runs a real preparation action exactly once after
+disabling participation-owned authority, on failed preparation rollback,
+explicit dematerialization, or host stop. Base preparation runs before
+augmentations; successful teardown runs in reverse order, so later augmentation
+contributions clean up before the base.
 
 ## Build time and runtime
 

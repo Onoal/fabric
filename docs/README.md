@@ -31,7 +31,7 @@ Normal examples use `fabric::*`; `fabric::prelude::*` is an optional
 compatibility convenience. Explicit experiments, when needed, live under
 `fabric::experimental` and are not part of the normal learning path.
 
-Release notes record their contract changes in [release notes](releases/0.4.0.md).
+Release notes record their contract changes in [release notes](releases/0.4.1.md).
 
 The concept sequence is intentional. Composition comes first because it
 declares the assembled system; Instance then distinguishes that declaration

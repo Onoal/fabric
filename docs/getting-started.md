@@ -7,7 +7,7 @@ operation. It shows the full path from declaration to a running Instance.
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.0" }
+fabric = { package = "onoal-fabric", version = "0.4.1" }
 futures = "0.3"
 ```
 

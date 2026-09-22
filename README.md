@@ -71,7 +71,7 @@ cutover, rollback, or which concurrent generation is authoritative. Read the
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.4.0" }
+fabric = { package = "onoal-fabric", version = "0.4.1" }
 ```
 
 ```rust

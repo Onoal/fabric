@@ -3,11 +3,13 @@ use quote::{format_ident, quote};
 use syn::{Expr, PatType, parse_quote};
 
 use crate::ast::{
-    ComponentInput, ComponentOperationContext, ComponentOperationDefinition, RequirementDefinition,
-    RequirementLiteral, SystemDependencyDefinition,
+    ComponentInput, ComponentOperationContext, ComponentOperationDefinition, ContractMethod,
+    RelationDefinition, RequirementDefinition, RequirementLiteral, SystemDependencyDefinition,
 };
 
-use super::common::{fabric_path, to_snake_case};
+use super::common::{
+    config_type_tokens, fabric_path, has_config, inline_config_definition_tokens, to_snake_case,
+};
 
 pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let sdk = fabric_path();
@@ -17,13 +19,64 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let dependencies_name = format_ident!("{}Dependencies", component_name);
     let component_mod = format_ident!("{}", to_snake_case(component_name));
     let component_id = &input.component_id;
-    let config_fields = input.config_fields.iter().map(|field| {
-        let name = &field.name;
-        let ty = &field.ty;
-        quote!(pub #name: #ty,)
+    let legacy_self_realization = input.legacy_operations.is_some();
+    // Preserve the old operations frontend's empty Config type temporarily.
+    // Canonical declaration authoring never takes this branch.
+    let config_ty = if legacy_self_realization && !has_config(&input.config) {
+        quote!(#config_name)
+    } else {
+        config_type_tokens(&input.config, &config_name)
+    };
+    let config_definition = if legacy_self_realization && !has_config(&input.config) {
+        quote!(#[derive(Clone)] #visibility struct #config_name {})
+    } else {
+        inline_config_definition_tokens(&input.config, visibility, &config_name)
+    };
+    let legacy_operations = input.legacy_operations.as_deref().unwrap_or(&[]);
+    let canonical_operations = input
+        .api
+        .as_ref()
+        .map(|api| api.methods.as_slice())
+        .unwrap_or(&[]);
+    let operation_tokens = if input.api.is_some() {
+        canonical_operations
+            .iter()
+            .map(|method| canonical_operation_tokens(&sdk, &input.component_id, method))
+            .collect::<Vec<_>>()
+    } else {
+        legacy_operations
+            .iter()
+            .map(|operation| operation_tokens(&sdk, operation))
+            .collect::<Vec<_>>()
+    };
+    let operation_names = if input.api.is_some() {
+        canonical_operations
+            .iter()
+            .map(|method| method.signature.ident.clone())
+            .collect::<Vec<_>>()
+    } else {
+        legacy_operations
+            .iter()
+            .map(|operation| operation.name.clone())
+            .collect::<Vec<_>>()
+    };
+    let relation_declarations = input.relations.iter().map(|relation| {
+        let field = &relation.field;
+        let requirement = relation_requirement_tokens(&sdk, relation);
+        let name = field.to_string();
+        quote!(#sdk::component::ComponentRelationDeclaration::new(
+            #sdk::component::ComponentRelationName::new(#name)
+                .expect("component! generated a non-empty relation role"),
+            #requirement.declaration().clone(),
+        ))
     });
+    let declaration_relations = if input.relations.is_empty() {
+        quote!()
+    } else {
+        quote!(.with_relations(::std::vec![#(#relation_declarations),*]))
+    };
     let resource_requirements = input
-        .requires
+        .legacy_requires
         .iter()
         .map(|requirement| {
             let field = &requirement.field;
@@ -31,7 +84,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
     let requirement_accessors = input
-        .requires
+        .legacy_requires
         .iter()
         .map(|requirement| {
             let field = &requirement.field;
@@ -50,20 +103,20 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
     let system_requirements = input
-        .systems
+        .legacy_systems
         .iter()
         .map(|dependency| component_system_requirement_tokens(&sdk, dependency))
         .collect::<Vec<_>>();
-    let dependency_fields = input.requires.iter().map(|requirement| {
+    let dependency_fields = input.legacy_requires.iter().map(|requirement| {
         let field = &requirement.field;
         let resource = &requirement.resource;
         quote!(pub #field: ::std::sync::Arc<<#resource as #sdk::authoring::PrimaryResourceContract>::Contract>,)
-    }).chain(input.systems.iter().map(|dependency| {
+    }).chain(input.legacy_systems.iter().map(|dependency| {
         let field = &dependency.field;
         let system = &dependency.system;
         quote!(pub #field: ::std::sync::Arc<<#system as #sdk::authoring::PrimarySystemContract>::Contract>,)
     })).collect::<Vec<_>>();
-    let dependency_initializers = input.requires.iter().map(|requirement| {
+    let dependency_initializers = input.legacy_requires.iter().map(|requirement| {
         let field = &requirement.field;
         let field_accessor = &requirement.field;
         quote!(
@@ -72,7 +125,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 &#component_mod::requirements::#field_accessor(),
             )?,
         )
-    }).chain(input.systems.iter().map(|dependency| {
+    }).chain(input.legacy_systems.iter().map(|dependency| {
         let field = &dependency.field;
         let requirement_tokens = component_system_requirement_tokens(&sdk, dependency);
         quote!(
@@ -82,15 +135,8 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             )?,
         )
     })).collect::<Vec<_>>();
-    let has_dependencies = !input.requires.is_empty() || !input.systems.is_empty();
-    let operation_tokens = input
-        .operations
-        .iter()
-        .map(|operation| operation_tokens(&sdk, operation))
-        .collect::<Vec<_>>();
-    let operation_names = input.operations.iter().map(|operation| &operation.name);
-    let operation_registrations = input
-        .operations
+    let has_dependencies = !input.legacy_requires.is_empty() || !input.legacy_systems.is_empty();
+    let operation_registrations = legacy_operations
         .iter()
         .enumerate()
         .map(|(index, operation)| {
@@ -203,11 +249,36 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         }
     };
 
-    quote! {
-        #[derive(Clone)]
-        #visibility struct #config_name {
-            #(#config_fields)*
+    let define_method = if legacy_self_realization {
+        quote! {
+            pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> {
+                Self::self_realizing(config)
+                    .expect("component! generated a matching self realization")
+                    #(.requires_named_resource(#resource_requirements))*
+                    #(.requires_system(#system_requirements))*
+            }
         }
+    } else if has_config(&input.config) {
+        quote!(pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> { #sdk::authoring::ComponentSpec::<Self>::new(config) })
+    } else {
+        quote!(pub fn define() -> #sdk::authoring::ComponentSpec<Self> { #sdk::authoring::ComponentSpec::<Self>::new(()) })
+    };
+    let self_realizing_impl = legacy_self_realization.then(|| quote! {
+        impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
+            fn self_realization(config: &Self::Config) -> #sdk::component::ComponentRuntimeDefinition {
+                let config = config.clone();
+                #self_realization
+            }
+        }
+    });
+    let legacy_define = legacy_self_realization.then(|| quote! {
+        pub fn self_realizing(config: #config_ty) -> ::std::result::Result<#sdk::authoring::ComponentSpec<Self>, #sdk::component::ComponentError> {
+            #sdk::authoring::ComponentSpec::<Self>::self_realizing(config)
+        }
+    });
+
+    quote! {
+        #config_definition
 
         #[derive(Clone)]
         #visibility struct #dependencies_name {
@@ -217,16 +288,12 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         #visibility struct #component_name;
 
         impl #component_name {
-            pub fn define(config: #config_name) -> #sdk::authoring::ComponentSpec<Self> {
-                #sdk::authoring::ComponentSpec::<Self>::self_realizing(config)
-                    .expect("component! generated a matching self realization")
-                    #(.requires_named_resource(#resource_requirements))*
-                    #(.requires_system(#system_requirements))*
-            }
+            #define_method
+            #legacy_define
         }
 
         impl #sdk::authoring::ComponentDefinition for #component_name {
-            type Config = #config_name;
+            type Config = #config_ty;
 
             fn component_id() -> #sdk::component::ComponentId {
                 #component_mod::component_id()
@@ -238,19 +305,12 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                     ::std::vec![
                         #(#component_mod::operations::#operation_names().definition().clone()),*
                     ],
-                )
+                ) #declaration_relations
             }
 
         }
 
-        impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
-            fn self_realization(
-                config: &Self::Config,
-            ) -> #sdk::component::ComponentRuntimeDefinition {
-                let config = config.clone();
-                #self_realization
-            }
-        }
+        #self_realizing_impl
 
         #visibility mod #component_mod {
             use super::*;
@@ -389,5 +449,77 @@ fn operation_tokens(sdk: &TokenStream, operation: &ComponentOperationDefinition)
                 #output_type_id_fn(),
             )
         }
+    }
+}
+
+/// Lowers the shared declaration-only `api` grammar into the existing
+/// Component invocation representation. Operation and slot identities are
+/// deterministic lowering details; authors declare neither.
+fn canonical_operation_tokens(
+    sdk: &TokenStream,
+    component_id: &syn::LitStr,
+    method: &ContractMethod,
+) -> TokenStream {
+    let method_name = &method.signature.ident;
+    let operation_id_fn = format_ident!("{}_id", method_name);
+    let input_type_id_fn = format_ident!("{}_input_type_id", method_name);
+    let output_type_id_fn = format_ident!("{}_output_type_id", method_name);
+    let argument_types = method
+        .signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => Some(&argument.ty),
+        })
+        .collect::<Vec<_>>();
+    let input_ty = match argument_types.as_slice() {
+        [] => quote!(()),
+        [only] => quote!(#only),
+        many => quote!((#(#many),*)),
+    };
+    let output_ty = match &method.signature.output {
+        syn::ReturnType::Default => quote!(()),
+        syn::ReturnType::Type(_, ty) => quote!(#ty),
+    };
+    let operation_id = format!("{}.api.{}", component_id.value(), method_name);
+    let input_type_id = format!("{}.input", operation_id);
+    let output_type_id = format!("{}.output", operation_id);
+    quote! {
+        pub fn #operation_id_fn() -> #sdk::component::OperationId {
+            #sdk::component::OperationId::new(#operation_id)
+                .expect("component! generated a deterministic API operation id")
+        }
+        pub fn #input_type_id_fn() -> #sdk::component::OperationTypeId {
+            #sdk::component::OperationTypeId::new(#input_type_id)
+                .expect("component! generated a deterministic API input slot id")
+        }
+        pub fn #output_type_id_fn() -> #sdk::component::OperationTypeId {
+            #sdk::component::OperationTypeId::new(#output_type_id)
+                .expect("component! generated a deterministic API output slot id")
+        }
+        pub fn #method_name() -> #sdk::component::OperationKey<#input_ty, #output_ty> {
+            #sdk::component::OperationKey::new(
+                #operation_id_fn(),
+                #input_type_id_fn(),
+                #output_type_id_fn(),
+            )
+        }
+    }
+}
+
+fn relation_requirement_tokens(sdk: &TokenStream, relation: &RelationDefinition) -> TokenStream {
+    let target = &relation.target;
+    match &relation.compatibility {
+        None => quote!(<#target as #sdk::authoring::RelationTarget>::relation_requirement()),
+        Some(RequirementLiteral::Provisional) => quote!(
+            <#target as #sdk::authoring::RelationTarget>::relation_requirement()
+        ),
+        Some(RequirementLiteral::Versioned(version)) => quote!(
+            <#target as #sdk::authoring::RelationTarget>::relation_requirement_versioned(
+                #sdk::core::ContractVersionRequirement::parse(#version)
+                    .expect("component! generated a static relation version requirement"),
+            )
+        ),
     }
 }

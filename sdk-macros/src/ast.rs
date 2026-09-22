@@ -53,10 +53,18 @@ pub struct ComponentInput {
     pub visibility: Visibility,
     pub name: Ident,
     pub component_id: LitStr,
-    pub config_fields: Vec<ConfigField>,
-    pub requires: Vec<RequirementDefinition>,
-    pub systems: Vec<SystemDependencyDefinition>,
-    pub operations: Vec<ComponentOperationDefinition>,
+    pub config: ConfigDefinition,
+    /// The canonical declaration-time requirements.  Their target kind is
+    /// intentionally absent: `RelationTarget` owns that lowering detail.
+    pub relations: Vec<RelationDefinition>,
+    /// Canonical Component callable declaration.  It has no handler or
+    /// realization attachment.
+    pub api: Option<ApiDefinition>,
+    /// Transitional 0.5.0 self-realizing frontend.  It remains isolated so
+    /// canonical declaration lowering never depends on it.
+    pub legacy_requires: Vec<RequirementDefinition>,
+    pub legacy_systems: Vec<SystemDependencyDefinition>,
+    pub legacy_operations: Option<Vec<ComponentOperationDefinition>>,
     pub teardown: Option<Block>,
 }
 

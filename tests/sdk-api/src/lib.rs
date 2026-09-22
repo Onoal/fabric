@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod component_augmentation_witness;
 #[cfg(test)]
+mod component_declaration_witness;
+#[cfg(test)]
 mod extension_witness;
 #[cfg(test)]
 mod fabric_witness;

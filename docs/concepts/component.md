@@ -1,8 +1,9 @@
 # Component
 
-A **Component** is Fabric's semantic unit of behavior. It has stable behavior
-identity, may declare typed Operations, and may require Resources and Systems
-without knowing which concrete realizations satisfy those requirements.
+A **Component** is Fabric's semantic behavioral participant. It owns stable
+behavior identity and may declare configuration, typed capability relations,
+and a callable API without knowing which concrete realizations satisfy those
+relations or make the Component live.
 
 ```text
 Component = semantic behavior participant
@@ -13,24 +14,26 @@ locator. A Component may validly have zero Operations.
 
 ## Why Components exist
 
-Components describe behavior, typed configuration, required Resource
-capabilities, required shared Systems, and typed Operations without directly
-depending on an Adapter implementation, provider module, runtime registry,
-Host machine, or placement. This keeps behavior semantic while Composition and
-Core resolve the capability providers.
+Components describe behavior, typed configuration, required capabilities, and
+optional callable behavior without directly depending on an Adapter
+implementation, provider module, runtime registry, Host machine, or placement.
+This keeps declaration truth semantic while Composition and Core resolve
+providers and a realization path creates participation.
 
 ## Definition, declaration, specification, participation
 
 | Layer | Meaning |
 | --- | --- |
 | `ComponentDefinition` | Typed semantic definition: Config type, `ComponentId`, and declaration. |
-| `ComponentDeclaration` | Runtime-free semantic truth: `ComponentId`, Operations, Resource requirements, and System requirements. |
-| `ComponentSpec` | One configured declarative use, such as `Greeter::define(GreeterConfig { ... })`, including requirements and provider-selection lowering. |
+| `ComponentDeclaration` | Runtime-free semantic truth: `ComponentId`, callable endpoint metadata, and named capability relations. |
+| `ComponentSpec` | One configured declarative use, such as `Greeter::define(GreeterConfig { ... })`, including composition-facing requirement/provider-selection lowering. |
 | `ComponentParticipation` | One active runtime incarnation, scoped to an Instance generation and participation identity. |
 
-`component!` implements the normal semantic definition and explicit native
-self-realization path, but it is authoring convenience rather than ontology.
-Handwritten definitions use the same public machinery.
+`component!` normally implements only the semantic definition. A declaration
+is authoring convenience rather than ontology; handwritten definitions use the
+same public machinery. The older `operations { ... handler ... }` frontend
+temporarily remains as an explicit legacy self-realizing path while canonical
+Component runtime authoring is converged separately.
 
 A Component may be declaration-only or explicitly own native runtime
 participation. Component realization internals are distinct from the canonical
@@ -76,24 +79,38 @@ authority cannot silently operate in a fresh generation.
 Macro config is typed Component authoring/runtime-preparation input. It is not
 Resource, Adapter, or System configuration.
 
-## Normal authoring and dependencies
+## Canonical declaration authoring
 
 ```rust
 fabric::component! {
-    Notes {
-        id: "example.notes";
+    NotesIndexer {
+        id: "example.notes-indexer";
+
         config { prefix: String; }
-        requires { storage: NoteStore(provisional); }
-        system { operations: OperationsSystem(version = "^1"); }
-        operations {
-            // typed endpoints
+
+        relations {
+            requires {
+                storage: NoteStore;
+                clock: Clock;
+            }
+        }
+
+        api {
+            fn index(&self, note: Note) -> IndexResult;
         }
     }
 }
 ```
 
-Each section is optional. A Component requires semantic Resources and Systems,
-not Adapters:
+Each section after `id` is optional. This macro declares semantic truth only:
+it does not attach handlers, state, health, cleanup, or a runtime
+participation. `api` describes callable behavior; it is not an implementation.
+A local materialization therefore requires a separate realization path. Until
+canonical Component runtime authoring arrives, the existing `operations`
+frontend is the transitional self-realizing path and is not the recommended
+declaration syntax.
+
+A Component requires semantic Resources and Systems, not Adapters:
 
 ```text
 Component -> Resource/System
@@ -107,7 +124,15 @@ they do not rename selected occurrences such as `NoteStore("primary")` and
 occurrences. [Systems](system.md) remain a distinct semantic world with one
 coherent normal typed occurrence per `SystemId`.
 
-At runtime the flow is:
+Relation roles are Component-local semantic names. `primary_store` and
+`cache_store` remain distinct requirements even when both target `NoteStore`.
+The target itself determines whether it is a Resource or System; canonical
+authoring does not make the author repeat that fact. The existing lower-level
+Resource/System carrier and binding machinery remains available to the
+transitional realization path. Canonical declaration relations deliberately do
+not create a runtime scope or a local binding by themselves.
+
+When a realization is present, the runtime flow is:
 
 ```text
 Component declares requirements
@@ -117,14 +142,25 @@ Component declares requirements
 ```
 
 There is no Component registry lookup, Adapter search, or arbitrary service
-lookup. For requirements, `component!` generates typed dependency fields:
+lookup. The legacy self-realizing frontend generates typed dependency fields:
 
 ```rust
 handler |dependencies, input: Input| async move { /* typed contracts */ }
 handler |context, dependencies, input: Input| async move { /* also provenance */ }
 ```
 
-## Operations and invocation
+## API, operations, and invocation
+
+Canonical `api` methods use the same signature grammar as Resource and System
+API declarations. Fabric deterministically lowers each method into the current
+Component invocation metadata (`OperationDefinition`, `OperationId`, input and
+output slots, and `OperationKey`) so ordinary authors do not write duplicate
+operation or type-identity strings. That metadata remains invocation lowering,
+not a second public Component authoring language.
+
+The current `operations { ... }` block is legacy runtime authoring. It joins a
+declaration to handler closures and therefore creates a self realization. It
+remains supported only until a canonical realization language replaces it.
 
 An Operation has an `OperationId`, semantic input/output type identities, typed
 Rust input/output, and a runtime handler. `OperationDefinition` is not a
@@ -177,10 +213,12 @@ zero-operation Components—are valid semantic truth. They are known to the
 Component environment, but native local materialization without a realization
 fails with the existing `MissingComponentRuntimeAttachment` error.
 
-Normally `component!` generates an attachment that obtains Core-resolved
-dependencies, constructs the typed dependencies value, registers operations,
-and reports initial health. This lower-level preparation occurs when the
-Component is materialized, not when its declaration is added to Composition.
+Canonical `component!` never generates that attachment. The legacy
+`operations` frontend does: it obtains Core-resolved dependencies, constructs
+the typed dependencies value, registers operations, and reports initial health
+when materialized. This lower-level preparation occurs when that legacy
+self-realizing Component is materialized, not when its declaration is added to
+Composition.
 
 After an Instance is running, activate Component participation explicitly:
 

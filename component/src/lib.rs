@@ -64,8 +64,9 @@ pub use control::{
 };
 pub use control_snapshot::{ComponentControlSnapshot, ComponentControlSnapshotEntry};
 pub use declaration::{
-    ComponentDeclaration, ComponentResourceRequirementDeclaration,
-    ComponentResourceRequirementName, ComponentSystemRequirementDeclaration,
+    ComponentDeclaration, ComponentRelationDeclaration, ComponentRelationName,
+    ComponentResourceRequirementDeclaration, ComponentResourceRequirementName,
+    ComponentSystemRequirementDeclaration,
 };
 pub use error::{
     ComponentError, ComponentRuntimeFailurePhase, ComponentRuntimeTeardownError,

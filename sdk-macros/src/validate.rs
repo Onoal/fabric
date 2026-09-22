@@ -220,9 +220,31 @@ pub fn validate_component(input: &ComponentInput) -> Result<()> {
     let mut names = BTreeMap::new();
 
     validate_component_dependency_fields(input, &mut errors);
-    let dependencies_required = !input.requires.is_empty() || !input.systems.is_empty();
+    validate_relation_names(&input.relations, &mut errors, "component");
+    for relation in &input.relations {
+        if let Some(compatibility) = &relation.compatibility {
+            validate_requirement_literal(
+                compatibility,
+                "invalid component relation version requirement",
+                &mut errors,
+            );
+        }
+    }
+    if let Some(api) = &input.api {
+        validate_api(
+            api,
+            &ApiValidation {
+                async_message: "async component API methods are not supported",
+                method_kind: "component API methods",
+                generic_message: "generic component API methods are not supported",
+            },
+            &mut errors,
+        );
+    }
+    let dependencies_required =
+        !input.legacy_requires.is_empty() || !input.legacy_systems.is_empty();
 
-    for operation in &input.operations {
+    for operation in input.legacy_operations.iter().flatten() {
         if let Some(first_span) = names.insert(operation.name.to_string(), operation.name.span()) {
             let mut error = Error::new(
                 operation.name.span(),
@@ -284,7 +306,19 @@ fn validate_self_realization_sections(
 
 fn validate_api(api: &ApiDefinition, rules: &ApiValidation<'_>, errors: &mut Option<Error>) {
     validate_version_literal(&api.version, "invalid API version", errors);
+    let mut names = BTreeMap::new();
     for method in &api.methods {
+        if let Some(first_span) = names.insert(
+            method.signature.ident.to_string(),
+            method.signature.ident.span(),
+        ) {
+            let mut error = Error::new(
+                method.signature.ident.span(),
+                format!("duplicate API method `{}`", method.signature.ident),
+            );
+            error.combine(Error::new(first_span, "first API method declared here"));
+            push_error(errors, error);
+        }
         if method.signature.asyncness.is_some() {
             push_error(
                 errors,
@@ -463,7 +497,7 @@ fn validate_component_dependency_fields(input: &ComponentInput, errors: &mut Opt
     let mut fields = BTreeMap::new();
     let mut systems = BTreeMap::new();
 
-    for requirement in &input.requires {
+    for requirement in &input.legacy_requires {
         let name = requirement.field.to_string();
         if let Some(first_span) = fields.insert(name.clone(), requirement.field.span()) {
             let mut error = Error::new(
@@ -480,7 +514,7 @@ fn validate_component_dependency_fields(input: &ComponentInput, errors: &mut Opt
         );
     }
 
-    for dependency in &input.systems {
+    for dependency in &input.legacy_systems {
         let name = dependency.field.to_string();
         if let Some(first_span) = fields.insert(name.clone(), dependency.field.span()) {
             let mut error = Error::new(
@@ -559,14 +593,22 @@ fn validate_relation_names(
     for dependency in dependencies {
         let field = dependency.field.to_string();
         if let Some(first_span) = seen.insert(field.clone(), dependency.field.span()) {
-            let mut error = Error::new(
-                dependency.field.span(),
-                format!("duplicate system dependency field `{field}` is not supported"),
-            );
-            error.combine(Error::new(
-                first_span,
-                format!("first dependency field `{field}` declared here"),
-            ));
+            let (duplicate_message, first_message) = if subject == "component" {
+                (
+                    format!("duplicate component relation role `{field}` is not supported"),
+                    format!("first component relation role `{field}` declared here"),
+                )
+            } else {
+                // Resource, System, and Adapter diagnostics preserve their established
+                // dependency vocabulary. Component's new canonical declaration owns
+                // a general relation role instead.
+                (
+                    format!("duplicate system dependency field `{field}` is not supported"),
+                    format!("first dependency field `{field}` declared here"),
+                )
+            };
+            let mut error = Error::new(dependency.field.span(), duplicate_message);
+            error.combine(Error::new(first_span, first_message));
             push_error(errors, error);
         }
 
@@ -576,7 +618,7 @@ fn validate_relation_names(
                 Error::new(
                     dependency.field.span(),
                     format!(
-                        "{subject} system dependency field `{field}` is reserved by generated runtime state"
+                        "{subject} relation role `{field}` is reserved by generated runtime state"
                     ),
                 ),
             );

@@ -1,0 +1,11 @@
+error: duplicate API method `call`
+ --> tests/ui/duplicate_component_api_method.rs:8:16
+  |
+8 |             fn call(&self, input: String) -> String;
+  |                ^^^^
+
+error: first API method declared here
+ --> tests/ui/duplicate_component_api_method.rs:7:16
+  |
+7 |             fn call(&self, input: String) -> String;
+  |                ^^^^

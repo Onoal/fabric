@@ -35,8 +35,26 @@ Relations are typed capabilities supplied through Composition. They also do not
 define ownership, lifecycle ordering, transport, placement, or networking.
 
 For example, a Postgres Resource can require a Volume and Clock, an
-Observability System can require LogStore and Clock, and a Redis Adapter can
-require SecretStore, Network, and Clock. Those are ordinary API capability
-needs, not new Fabric relation kinds. Components do not yet expose Relations
-syntax, although the authoring machinery is deliberately reusable by future
-definition kinds.
+Observability System can require LogStore and Clock, a Redis Adapter can
+require SecretStore, Network, and Clock, and a Component can require either
+kind with the same canonical declaration:
+
+```rust
+fabric::component! {
+    Indexer {
+        id: "example.indexer";
+        relations {
+            requires {
+                storage: Volume;
+                clock: Clock;
+            }
+        }
+    }
+}
+```
+
+For Components, each relation name is a Component-local behavioral role:
+`primary_store` and `cache_store` are distinct even when both target the same
+Resource. Declaring a relation does not materialize a Component or attach a
+runtime binding; a realization later receives its resolved typed dependencies.
+Those are ordinary API capability needs, not new Fabric relation kinds.

@@ -492,7 +492,9 @@ impl Parse for ComponentInput {
         braced!(content in input);
 
         let mut component_id = None;
-        let mut config_fields = None;
+        let mut config = None;
+        let mut relations = None;
+        let mut api = None;
         let mut requires = None;
         let mut systems = None;
         let mut operations = None;
@@ -511,12 +513,26 @@ impl Parse for ComponentInput {
                 content.parse::<Token![;]>()?;
             } else if content.peek(kw::config) {
                 content.parse::<kw::config>()?;
-                if config_fields.is_some() {
+                if config.is_some() {
                     return Err(
                         content.error("component! supports only one `config { ... }` section")
                     );
                 }
-                config_fields = Some(parse_config_fields(&content)?);
+                config = Some(parse_config_definition(&content)?);
+            } else if content.peek(kw::relations) {
+                content.parse::<kw::relations>()?;
+                if relations.is_some() {
+                    return Err(
+                        content.error("component! supports only one `relations { ... }` section")
+                    );
+                }
+                relations = Some(parse_relations(&content)?);
+            } else if content.peek(kw::api) {
+                content.parse::<kw::api>()?;
+                if api.is_some() {
+                    return Err(content.error("component! supports only one `api { ... }` section"));
+                }
+                api = Some(parse_api(&content)?);
             } else if content.peek(kw::requires) {
                 content.parse::<kw::requires>()?;
                 if requires.is_some() {
@@ -556,6 +572,25 @@ impl Parse for ComponentInput {
 
         let name_for_errors = name.clone();
 
+        if api.is_some() && operations.is_some() {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "component! cannot combine canonical `api { ... }` with transitional `operations { ... }`; api declares semantics while operations remains the legacy self-realizing path",
+            ));
+        }
+        if relations.is_some() && (requires.is_some() || systems.is_some()) {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "component! cannot combine canonical `relations { ... }` with legacy `requires { ... }` or `system { ... }` dependencies",
+            ));
+        }
+        if teardown.is_some() && operations.is_none() {
+            return Err(Error::new(
+                name_for_errors.span(),
+                "component! `teardown { ... }` belongs to the transitional self-realizing `operations { ... }` path; a canonical declaration has no runtime attachment",
+            ));
+        }
+
         Ok(Self {
             visibility,
             name,
@@ -565,15 +600,16 @@ impl Parse for ComponentInput {
                     "component! requires an `id: ...;` declaration",
                 )
             })?,
-            config_fields: config_fields.unwrap_or_default(),
-            requires: requires.unwrap_or_default(),
-            systems: systems.unwrap_or_default(),
-            operations: operations.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component! requires an `operations { ... }` section",
-                )
-            })?,
+            config: config.unwrap_or(ConfigDefinition::None),
+            relations: relations.unwrap_or_default(),
+            api: api.map(|api| ApiDefinition {
+                name: Ident::new("Api", name_for_errors.span()),
+                version: VersionLiteral::Provisional,
+                methods: api.methods,
+            }),
+            legacy_requires: requires.unwrap_or_default(),
+            legacy_systems: systems.unwrap_or_default(),
+            legacy_operations: operations,
             teardown,
         })
     }

@@ -4,21 +4,47 @@ use fabric_system::SystemId;
 
 use crate::{ComponentId, OperationDefinition};
 
-/// A stable name for a Resource requirement local to one Component declaration.
+/// A stable local role for one capability relation owned by a Component.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ComponentResourceRequirementName(String);
+pub struct ComponentRelationName(String);
 
-impl ComponentResourceRequirementName {
+impl ComponentRelationName {
     pub fn new(value: impl Into<String>) -> Result<Self, &'static str> {
         let value = value.into();
         if value.is_empty() {
-            return Err("Component Resource requirement name must not be empty");
+            return Err("Component relation name must not be empty");
         }
         Ok(Self(value))
     }
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+/// Legacy spelling retained for the existing Resource-specific lowering.
+/// Canonical Component authoring uses [`ComponentRelationName`] for every
+/// relation target, regardless of whether it is a Resource or System.
+pub type ComponentResourceRequirementName = ComponentRelationName;
+
+/// Runtime-free declaration of one named semantic capability relation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComponentRelationDeclaration {
+    name: ComponentRelationName,
+    requirement: ContractRequirementDeclaration,
+}
+
+impl ComponentRelationDeclaration {
+    pub fn new(name: ComponentRelationName, requirement: ContractRequirementDeclaration) -> Self {
+        Self { name, requirement }
+    }
+
+    pub fn name(&self) -> &ComponentRelationName {
+        &self.name
+    }
+
+    pub fn requirement(&self) -> &ContractRequirementDeclaration {
+        &self.requirement
     }
 }
 
@@ -90,6 +116,7 @@ impl ComponentResourceRequirementDeclaration {
 pub struct ComponentDeclaration {
     component_id: ComponentId,
     operations: Vec<OperationDefinition>,
+    relations: Vec<ComponentRelationDeclaration>,
     resource_requirements: Vec<ComponentResourceRequirementDeclaration>,
     system_requirements: Vec<ComponentSystemRequirementDeclaration>,
 }
@@ -99,6 +126,7 @@ impl ComponentDeclaration {
         Self {
             component_id,
             operations,
+            relations: Vec::new(),
             resource_requirements: Vec::new(),
             system_requirements: Vec::new(),
         }
@@ -110,6 +138,15 @@ impl ComponentDeclaration {
 
     pub fn operations(&self) -> &[OperationDefinition] {
         &self.operations
+    }
+
+    pub fn with_relations(mut self, relations: Vec<ComponentRelationDeclaration>) -> Self {
+        self.relations = relations;
+        self
+    }
+
+    pub fn relations(&self) -> &[ComponentRelationDeclaration] {
+        &self.relations
     }
 
     pub fn with_resource_requirements(

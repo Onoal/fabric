@@ -3,6 +3,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use fabric::authoring::{ResourceAugmentation, SystemAugmentation};
 use fabric::prelude::*;
 use third_party_augmentation_consumers::{
     ComponentXConsumer, ComponentYConsumer, ResourceConsumer, SystemConsumer,
@@ -16,16 +17,15 @@ use third_party_augmentation_support::{
 };
 use third_party_base_semantics::{
     EchoInput, EchoOutput, ThirdPartyClock, ThirdPartyClockConfig, ThirdPartyComponent,
-    ThirdPartyComponentConfig, ThirdPartyStore, ThirdPartyStoreConfig, third_party_component,
+    ThirdPartyStore, ThirdPartyStoreConfig, third_party_component,
 };
 
 fn run_witness() -> Result<(), String> {
     let store = ThirdPartyStore::select("primary", ThirdPartyStoreConfig { value: 7 })
         .map_err(|error| error.to_string())?;
-    let resource =
-        fabric::ResourceAugmentation::<ThirdPartyStore, ResourceSemantic>::attach(&store, ())
-            .map_err(|error| error.to_string())?
-            .using(ResourceSupport);
+    let resource = ResourceAugmentation::<ThirdPartyStore, ResourceSemantic>::attach(&store, ())
+        .map_err(|error| error.to_string())?
+        .using(ResourceSupport);
     let resource_requirement = resource
         .require_from(&store)
         .map_err(|error| error.to_string())?;
@@ -36,7 +36,7 @@ fn run_witness() -> Result<(), String> {
 
     let clock = ThirdPartyClock::select(ThirdPartyClockConfig { value: 11 })
         .map_err(|error| error.to_string())?;
-    let system = fabric::SystemAugmentation::<ThirdPartyClock, SystemSemantic>::attach(&clock, ())
+    let system = SystemAugmentation::<ThirdPartyClock, SystemSemantic>::attach(&clock, ())
         .map_err(|error| error.to_string())?
         .using(SystemSupport);
     let system_requirement = system
@@ -48,7 +48,7 @@ fn run_witness() -> Result<(), String> {
 
     let x_prepared = Arc::new(AtomicUsize::new(0));
     let y_prepared = Arc::new(AtomicUsize::new(0));
-    let x = ThirdPartyComponent::define(ThirdPartyComponentConfig {})
+    let x = ThirdPartyComponent::define()
         .augment::<ComponentX>(())
         .map_err(|error| error.to_string())?
         .using(ComponentXSupport(Arc::clone(&x_prepared)));
@@ -110,7 +110,7 @@ fn run_witness() -> Result<(), String> {
     assert_eq!(x_prepared.load(Ordering::SeqCst), 1);
     assert_eq!(y_prepared.load(Ordering::SeqCst), 1);
     let output: EchoOutput = futures::executor::block_on(
-        components.invoke_external(&third_party_component::operations::echo(), EchoInput),
+        components.invoke_external(&third_party_component::api::echo(), EchoInput),
     )
     .map_err(|error| error.to_string())?;
     assert_eq!(output.0, "base");

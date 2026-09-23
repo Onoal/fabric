@@ -3,9 +3,14 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use fabric::authoring::{
+    ComponentAugmentationDefinition, ComponentAugmentationSupportDefinition,
+    ResourceAugmentation as ResourceAttachment, ResourceAugmentationDefinition,
+    ResourceAugmentationSupportDefinition, SystemAugmentation as SystemAttachment,
+    SystemAugmentationDefinition, SystemAugmentationSupportDefinition,
+};
 use fabric::prelude::*;
 use fabric::{
-    ResourceAugmentation as ResourceAttachment, SystemAugmentation as SystemAttachment,
     component::ComponentParticipationScope,
     core::{
         ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
@@ -41,7 +46,9 @@ macro_rules! runtime {
             fn start(&mut self) -> Result<(), ModuleError> {
                 Ok(())
             }
-            fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
+            fn stop(&mut self) -> Result<(), ModuleError> {
+                Ok(())
+            }
             fn health(&self) -> Health {
                 Health::Healthy
             }

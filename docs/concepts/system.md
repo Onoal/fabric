@@ -195,7 +195,8 @@ Component requires System contract
 ```
 
 For example, a Component requirement names `Operations`, not a concrete
-`LocalOperationsAdapter`. See [Component](component.md) for handler syntax.
+`LocalOperationsAdapter`. See [Component](component.md) for canonical
+Component API and runtime-method authoring.
 `system!` also supports typed System-to-System dependencies:
 
 ```text

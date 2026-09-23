@@ -5,6 +5,6 @@ edition = "2024"
 publish = false
 
 [dependencies]
-fabric = { package = "onoal-fabric", git = "https://github.com/Onoal/fabric.git", rev = "a4607d842a1d8fbf727667fa3a0333da4ac81c84" }
+fabric = { package = "onoal-fabric", git = "https://github.com/Onoal/fabric.git", rev = "d1a0db65337439cb658702dcce3e4fb07ab71a99" }
 third-party-base-semantics = { path = "../base-semantics" }
 third-party-augmentation-semantics = { path = "../augmentation-semantics" }

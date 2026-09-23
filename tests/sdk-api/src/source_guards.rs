@@ -95,13 +95,13 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     for dependency in [
-        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.5.3\", path = \"host\" }",
-        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.5.3\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.5.3\", path = \"resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.5.3\", path = \"system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.5.3\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.5.3\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.5.3\", path = \"sdk\" }",
+        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.5.4\", path = \"host\" }",
+        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.5.4\", path = \"core\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.5.4\", path = \"resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.5.4\", path = \"system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.5.4\", path = \"component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.5.4\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.5.4\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -137,8 +137,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     assert!(
-        workspace_manifest.contains("version = \"0.5.3\""),
-        "the Fabric family source graph must share the 0.5.3 workspace version"
+        workspace_manifest.contains("version = \"0.5.4\""),
+        "the Fabric family source graph must share the 0.5.4 workspace version"
     );
     for manifest in [
         "host/Cargo.toml",
@@ -273,6 +273,39 @@ fn canonical_sdk_and_extension_fixtures_do_not_depend_on_the_experimental_regist
             !source.contains("fabric-resource-registry"),
             "canonical extension manifest must not depend on the experimental registry: {}",
             manifest.display()
+        );
+    }
+}
+
+#[test]
+fn third_party_augmentation_witness_uses_only_canonical_component_authoring() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonical repository root");
+    let base = fs::read_to_string(
+        repository.join("verification/third-party-augmentation/base-semantics/src/lib.rs"),
+    )
+    .expect("read third-party Component declaration");
+    let app = fs::read_to_string(
+        repository.join("verification/third-party-augmentation/app/src/main.rs"),
+    )
+    .expect("read third-party Component consumer");
+
+    assert!(
+        base.contains("api {") && base.contains("runtime {") && app.contains("::api::echo()"),
+        "the independent augmentation witness must exercise canonical Component API/runtime lowering"
+    );
+    for removed in [
+        "operations {",
+        "handler |",
+        "context: invocation",
+        "::operations::",
+        "ComponentResourceRequirementName",
+    ] {
+        assert!(
+            !base.contains(removed) && !app.contains(removed),
+            "the independent augmentation witness must not retain removed Component frontend syntax: {removed}"
         );
     }
 }

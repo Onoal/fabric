@@ -3,6 +3,10 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
+use fabric::authoring::{
+    ComponentAugmentationRequirement, ResourceAugmentationRequirement,
+    SystemAugmentationRequirement,
+};
 use fabric::core::{ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime};
 use fabric::prelude::*;
 use third_party_augmentation_semantics::{
@@ -58,7 +62,9 @@ macro_rules! simple_component_consumer {
             fn start(&mut self) -> Result<(), ModuleError> {
                 Ok(())
             }
-            fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
+            fn stop(&mut self) -> Result<(), ModuleError> {
+                Ok(())
+            }
             fn health(&self) -> Health {
                 Health::Healthy
             }
@@ -117,7 +123,9 @@ impl ModuleRuntime for ResourceConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }
@@ -174,7 +182,9 @@ impl ModuleRuntime for SystemConsumer {
     fn start(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
-    fn stop(&mut self) -> Result<(), ModuleError> { Ok(()) }
+    fn stop(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
     fn health(&self) -> Health {
         Health::Healthy
     }

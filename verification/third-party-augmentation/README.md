@@ -1,7 +1,8 @@
 # Third-party augmentation equality witness
 
 This independent Cargo workspace proves Fabric's public augmentation surface at
-the pinned freeze-candidate revision `a4607d842a1d8fbf727667fa3a0333da4ac81c84`.
+the pinned Component-convergence hard-cut revision
+`d1a0db65337439cb658702dcce3e4fb07ab71a99`.
 It is deliberately not a member of Fabric's workspace and obtains Fabric only
 through its public Git dependency.
 

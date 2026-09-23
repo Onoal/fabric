@@ -282,8 +282,8 @@ Canonical `component!` generates that attachment only when it contains
 `runtime`. The generated self realization obtains Core-resolved dependencies,
 constructs participation-local state, registers operations, and reports the
 default initial health only when materialized—not when the declaration is
-added to Composition. The legacy `operations` frontend remains supported but
-is not the canonical path.
+added to Composition. `operations { ... }` is removed Component authoring;
+callable behavior is declared in `api` and implemented in `runtime`.
 
 After an Instance is running, activate Component participation explicitly:
 

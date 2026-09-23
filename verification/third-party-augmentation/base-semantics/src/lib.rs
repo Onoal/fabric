@@ -31,13 +31,13 @@ pub struct EchoOutput(pub &'static str);
 fabric::component! {
     pub ThirdPartyComponent {
         id: "third.party.component";
-        config {}
-        operations {
-            echo {
-                id: "third.party.component.echo";
-                input: crate::EchoInput = "third.party.component.echo.input";
-                output: crate::EchoOutput = "third.party.component.echo.output";
-                handler |_input: crate::EchoInput| async move { Ok(crate::EchoOutput("base")) };
+        api {
+            fn echo(&self, input: crate::EchoInput) -> crate::EchoOutput;
+        }
+        runtime {
+            fn echo(&self, input: crate::EchoInput) -> crate::EchoOutput {
+                let _ = input;
+                crate::EchoOutput("base")
             }
         }
     }

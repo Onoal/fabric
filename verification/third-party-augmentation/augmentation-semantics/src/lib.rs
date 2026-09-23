@@ -1,4 +1,6 @@
-use fabric::prelude::*;
+use fabric::authoring::{
+    ComponentAugmentationDefinition, ResourceAugmentationDefinition, SystemAugmentationDefinition,
+};
 use third_party_base_semantics::{ThirdPartyClock, ThirdPartyComponent, ThirdPartyStore};
 
 #[derive(Clone)]

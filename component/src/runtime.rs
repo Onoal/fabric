@@ -64,7 +64,7 @@ impl ComponentParticipationPreparation {
 }
 
 /// The result of preparing one additive augmentation contribution for a
-/// ComponentInstanceBinding participation.
+/// Component participation.
 pub struct ComponentAugmentationParticipationPreparation {
     teardown: Option<ComponentParticipationCleanup>,
 }
@@ -323,7 +323,7 @@ impl ComponentParticipationRealization {
         &self.component_id
     }
 
-    /// Prepares one generation-scoped ComponentInstanceBinding participation.
+    /// Prepares one generation-scoped Component participation.
     pub fn prepare(&self, scope: &ComponentParticipationScope) -> Result<Health, ComponentError> {
         Ok((self.prepare)(scope)?.health())
     }

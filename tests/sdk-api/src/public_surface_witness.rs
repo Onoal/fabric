@@ -36,7 +36,7 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
 
 #[test]
 fn raw_capabilities_remain_available_through_named_sdk_modules() {
-    use fabric::component::{InvocationRail, OperationRail};
+    use fabric::component::invocation::{InvocationRail, OperationRail};
     use fabric::core::{Module, ModuleBindings, ModuleRuntime};
 
     let _: Option<InvocationRail> = None;
@@ -44,4 +44,37 @@ fn raw_capabilities_remain_available_through_named_sdk_modules() {
     let _: Option<Box<dyn Module>> = None;
     let _: Option<Box<dyn ModuleRuntime>> = None;
     let _: Option<ModuleBindings> = None;
+}
+
+#[test]
+fn advanced_component_authoring_remains_deliberately_namespaced() {
+    use fabric::authoring::component::{
+        ComponentDefinition, ComponentRealizationContract, ComponentSpec,
+    };
+    use fabric::component::advanced::{
+        ComponentParticipationPreparation, ComponentParticipationRealization,
+        ComponentParticipationScope,
+    };
+
+    let _: Option<ComponentSpec<Greeter>> = None;
+    let _: Option<ComponentRealizationContract<Greeter>> = None;
+    let _: Option<ComponentParticipationRealization> = None;
+    let _: Option<ComponentParticipationPreparation> = None;
+    let _: Option<&ComponentParticipationScope> = None;
+    let _ = <Greeter as ComponentDefinition>::component_id();
+}
+
+#[test]
+fn component_operator_capabilities_remain_deliberately_namespaced() {
+    use fabric::component::operator::{
+        ComponentControlRail, ComponentHost, ComponentMaterializer, ComponentReadinessRail,
+        ComponentReconstructionRail, ComponentRegistry,
+    };
+
+    let _: Option<ComponentHost> = None;
+    let _: Option<ComponentRegistry> = None;
+    let _: Option<ComponentMaterializer> = None;
+    let _: Option<ComponentControlRail> = None;
+    let _: Option<ComponentReadinessRail> = None;
+    let _: Option<ComponentReconstructionRail> = None;
 }

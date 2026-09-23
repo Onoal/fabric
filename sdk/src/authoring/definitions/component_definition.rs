@@ -46,7 +46,7 @@ impl ComponentResourceScope for fabric_component::ComponentParticipationScope {
         R: PrimaryResourceContract,
     {
         let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
-            .expect("contract ids are valid default ComponentInstanceBinding requirement names");
+            .expect("contract ids are valid default Component relation names");
         self.named_resource_dependency(&name, requirement.as_contract_requirement())
     }
 
@@ -450,7 +450,7 @@ pub trait ComponentDefinition: Sized + Send + Sync + 'static {
     }
 }
 
-/// Internal target-driven lowering for canonical ComponentInstanceBinding relations.
+/// Internal target-driven lowering for canonical Component relations.
 ///
 /// Resource and System targets retain their distinct carrier machinery; this
 /// trait prevents that distinction from leaking into `component!` authoring.
@@ -471,7 +471,7 @@ pub trait ComponentRelationTarget: RelationTarget {
     ) -> Result<Arc<Self::Contract>, ComponentError>;
 }
 
-/// Version compatibility supplied by canonical ComponentInstanceBinding relation syntax.
+/// Version compatibility supplied by canonical Component relation syntax.
 /// The target definition reconstructs its own typed requirement from it.
 #[doc(hidden)]
 #[derive(Clone)]
@@ -713,7 +713,7 @@ where
         R: PrimaryResourceContract,
     {
         let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
-            .expect("contract ids are valid default ComponentInstanceBinding requirement names");
+            .expect("contract ids are valid default Component relation names");
         self = self.requires_named_resource(ComponentResourceRequirement::new(name, requirement));
         self
     }

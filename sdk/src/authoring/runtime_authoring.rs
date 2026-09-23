@@ -36,7 +36,7 @@ impl<S> RuntimeState<S> {
 /// Resource and System Adapters own provider-lifetime state. A ComponentInstanceBinding
 /// Adapter instead creates its state only while preparing one
 /// `ComponentParticipation`. The absent variant preserves the generated
-/// runtime method surface without allocating ComponentInstanceBinding participation state in
+/// runtime method surface without allocating Component participation state in
 /// the provider module.
 #[doc(hidden)]
 pub enum AdapterRuntimeState<S> {
@@ -76,7 +76,7 @@ impl<S> AdapterRuntimeState<S> {
         match self {
             Self::Present(state) => state,
             Self::Absent => panic!(
-                "Adapter provider state is unavailable while preparing a ComponentInstanceBinding participation"
+                "Adapter provider state is unavailable while preparing a Component participation"
             ),
         }
     }

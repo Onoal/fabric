@@ -42,8 +42,6 @@ fabric::component! {
 
 #[test]
 fn getting_started_flow_builds_inspects_materializes_and_invokes() {
-    let _component_id =
-        <Greeter as fabric::authoring::component::ComponentDefinition>::component_id();
     let built = Fabric::new("example.greeter")
         .expect("valid composition")
         .resource(

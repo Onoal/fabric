@@ -8,8 +8,7 @@ use crate::{
     ComponentParticipationContribution, OperationId, OperationTypeId, SurfaceId,
 };
 
-/// One best-effort cleanup failure from one ComponentInstanceBinding participation
-/// contribution.
+/// One best-effort cleanup failure from one Component participation contribution.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentParticipationCleanupFailure {
     component_id: ComponentId,
@@ -49,8 +48,8 @@ impl ComponentParticipationCleanupFailure {
     }
 }
 
-/// Aggregated best-effort cleanup evidence for one ComponentInstanceBinding participation
-/// operation. This remains ComponentInstanceBinding-specific because preparation
+/// Aggregated best-effort cleanup evidence for one Component participation
+/// operation. This remains participation-specific because preparation
 /// contributions are not Core ModuleRuntime participants.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentParticipationCleanupError {
@@ -73,7 +72,7 @@ impl fmt::Display for ComponentParticipationCleanupError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ComponentInstanceBinding participation teardown failed for {} contribution(s): ",
+            "Component participation cleanup failed for {} contribution(s): ",
             self.failures.len()
         )?;
         for (index, failure) in self.failures.iter().enumerate() {

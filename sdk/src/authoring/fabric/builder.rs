@@ -452,7 +452,7 @@ impl Fabric {
         } = self;
 
         let mut default_modules = typed_modules;
-        // The native host carries every composed ComponentInstanceBinding declaration, even
+        // The native host carries every composed Component declaration, even
         // when no local self realization exists. Declaration-only Components are
         // host-known without any fake runtime behavior.
         let component_host_export = if !component_declarations.is_empty() {

@@ -18,7 +18,7 @@ pub fn component_host_handle_contract_key() -> ContractKey<ComponentHostHandle> 
     ContractKey::provisional(component_host_handle_contract_id())
 }
 
-/// Operator-oriented, Instance-local ComponentInstanceBinding runtime façade. It composes the
+/// Operator-oriented, Instance-local Component host façade. It composes the
 /// existing rails without exposing their binding or provider mechanics.
 #[derive(Clone)]
 pub struct ComponentHostHandle {

@@ -15,7 +15,7 @@ use crate::authoring::ComponentDefinition;
 use fabric_component::{ComponentError, ComponentParticipationScope};
 
 /// Target-owned context needed only when a canonical Adapter realizes a
-/// ComponentInstanceBinding participation. Resource and System targets provide an empty
+/// Component participation. Resource and System targets provide an empty
 /// implementation so `adapter!` remains one type-driven language.
 #[doc(hidden)]
 pub trait ComponentAdapterTarget: Send + Sync + 'static {
@@ -27,7 +27,7 @@ pub trait ComponentAdapterTarget: Send + Sync + 'static {
         scope: &ComponentParticipationScope,
     ) -> Result<(Self::ComponentConfig, Self::ComponentRelations), ComponentError>;
 
-    /// Whether this target is a ComponentInstanceBinding participation rather than a
+    /// Whether this target is a Component participation rather than a
     /// Resource or System provider.  Canonical Adapter lowering uses this
     /// target-owned fact to avoid allocating participation state for the
     /// provider-module lifetime.

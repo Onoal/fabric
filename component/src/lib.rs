@@ -155,6 +155,9 @@ pub use surface::{
 };
 
 /// Instance-local host, control, readiness, reconstruction, and observation APIs.
+///
+/// Requirement and effective-health values in this module are live operator
+/// projections. They are not the semantic relations declared by a Component.
 pub mod operator {
     pub use crate::{
         ComponentAggregateBlocker, ComponentAggregateReadiness, ComponentControl,
@@ -174,6 +177,9 @@ pub mod operator {
 }
 
 /// Deliberate low-level realization, communication, surface, and rail APIs.
+///
+/// These APIs support manual integrations; they are not required for normal
+/// `component!` declaration, realization, or invocation authoring.
 pub mod advanced {
     pub use crate::{
         ComponentAugmentationParticipationPreparation,

@@ -55,6 +55,47 @@ fn component_public_families_distinguish_declaration_participation_and_operator_
 }
 
 #[test]
+fn component_host_renames_preserve_established_graph_identity_strings() {
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let sources = [
+        fs::read_to_string(format!("{manifest_dir}/src/contract.rs")).expect("host contract"),
+        fs::read_to_string(format!("{manifest_dir}/src/operational.rs"))
+            .expect("host handle contract"),
+        fs::read_to_string(format!("{manifest_dir}/src/runtime.rs")).expect("materializer"),
+        fs::read_to_string(format!("{manifest_dir}/src/registry.rs")).expect("registry"),
+        fs::read_to_string(format!("{manifest_dir}/src/operations.rs")).expect("operations"),
+        fs::read_to_string(format!("{manifest_dir}/src/invocation.rs")).expect("invocation"),
+        fs::read_to_string(format!("{manifest_dir}/src/readiness.rs")).expect("readiness"),
+        fs::read_to_string(format!("{manifest_dir}/src/control.rs")).expect("control"),
+        fs::read_to_string(format!("{manifest_dir}/src/reconstruction.rs"))
+            .expect("reconstruction"),
+        fs::read_to_string(format!("{manifest_dir}/src/native/module.rs"))
+            .expect("native host module"),
+    ]
+    .join("\n");
+
+    for stable_id in [
+        "fabric.component.runtime",
+        "fabric.component.runtime-handle",
+        "fabric.component.materializer",
+        "fabric.component.registry",
+        "fabric.component.operation",
+        "fabric.component.operation.registrar",
+        "fabric.component.invocation",
+        "fabric.component.readiness",
+        "fabric.component.control",
+        "fabric.component.reconstruction",
+        "fabric.component.runtime.unbound",
+        "fabric.component.runtime.module",
+    ] {
+        assert!(
+            sources.contains(stable_id),
+            "Component host vocabulary changes must not rewrite stable graph identity {stable_id}"
+        );
+    }
+}
+
+#[test]
 fn component_source_stays_headless_and_foundational() {
     for file in [
         "/src/component.rs",

@@ -31,11 +31,16 @@ pub mod invocation {
 }
 
 /// Instance-local host, control, readiness, reconstruction, and observation APIs.
+///
+/// Requirement and health values here are live operator projections, not
+/// semantic Component relation declarations.
 pub mod operator {
     pub use fabric_component::operator::*;
 }
 
 /// Handwritten realization, communication, surface, and low-level rail APIs.
+///
+/// Normal macro users do not need this module.
 pub mod advanced {
     pub use fabric_component::advanced::*;
     pub use fabric_component::{

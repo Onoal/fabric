@@ -159,14 +159,30 @@ fn component_normal_surface_is_small_and_named_surfaces_keep_advanced_capability
         fs::read_to_string(crate_root().join("src/authoring/mod.rs")).expect("read authoring API");
 
     for leaked in [
+        "ComponentDefinition",
+        "ComponentSpec",
+        "ComponentInstanceBinding",
+        "ComponentParticipation",
+        "ComponentHost",
+        "ComponentHostService",
+        "ComponentHostLifecycle",
+        "ComponentHostStatus",
+        "ComponentHostModule",
+        "ComponentHostHandle",
+        "ComponentParticipationRealization",
         "OperationId",
         "OperationTypeId",
         "OperationKey",
+        "OperationRail",
+        "OperationRegistrar",
+        "ComponentParticipationContribution",
         "ComponentParticipationPreparation",
         "ComponentParticipationScope",
-        "ComponentHostStatus",
         "InvocationContext",
-        "ComponentDefinition",
+        "ComponentRegistry",
+        "ComponentControl",
+        "ComponentReadiness",
+        "ComponentReconstruction",
     ] {
         assert!(
             !root.contains(leaked) && !prelude.contains(leaked),
@@ -188,6 +204,16 @@ fn component_normal_surface_is_small_and_named_surfaces_keep_advanced_capability
     assert!(
         component.contains("#[doc(hidden)]") && authoring.contains("pub mod component"),
         "macro ABI must be hidden and handwritten Component APIs must have a named authoring module"
+    );
+}
+
+#[test]
+fn component_host_export_identity_stays_stable_during_surface_purification() {
+    let builder = fs::read_to_string(crate_root().join("src/authoring/fabric/builder.rs"))
+        .expect("read Fabric builder");
+    assert!(
+        builder.contains("fabric.sdk.export.component-runtime"),
+        "renaming the Rust host vocabulary must not rewrite the Fabric manifest export identity"
     );
 }
 

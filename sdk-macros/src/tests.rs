@@ -539,7 +539,9 @@ fn component_macro_codegen_supports_typed_operations() {
     assert!(
         codegen
             .contains("let component_mod = format_ident!(\"{}\", to_snake_case(component_name));")
-            && codegen.contains("pub mod operations {")
+            && codegen.contains("format_ident!(\"api\")")
+            && codegen.contains("format_ident!(\"operations\")")
+            && codegen.contains("pub mod #endpoint_module {")
             && codegen.contains("impl #sdk::authoring::ComponentDefinition for #component_name")
             && codegen.contains("#sdk::authoring::ComponentSpec::<Self>::self_realizing(config)")
             && codegen.contains("scope.operation(")
@@ -547,7 +549,7 @@ fn component_macro_codegen_supports_typed_operations() {
             && codegen.contains("#sdk::component::InvocationContext")
             && !codegen.contains("InvocationContext::new")
             && !codegen.contains("InvocationRail"),
-        "component! should lower into semantic ComponentDefinition, explicit self realization, and ComponentParticipationScope registration"
+        "component! should lower canonical APIs through an api module, retain operations only for the transitional frontend, and register participation realization handlers"
     );
     assert!(
         codegen.contains("fn declaration() -> #sdk::component::ComponentDeclaration")

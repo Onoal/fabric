@@ -5,7 +5,7 @@ use fabric_system::SystemId;
 pub use crate::ComponentId;
 use crate::OperationDefinition;
 
-/// A stable local role for one capability relation owned by a ComponentInstanceBinding.
+/// A stable local role for one capability relation owned by a Component.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComponentRelationName(String);
 
@@ -13,7 +13,7 @@ impl ComponentRelationName {
     pub fn new(value: impl Into<String>) -> Result<Self, &'static str> {
         let value = value.into();
         if value.is_empty() {
-            return Err("ComponentInstanceBinding relation name must not be empty");
+            return Err("Component relation name must not be empty");
         }
         Ok(Self(value))
     }
@@ -23,8 +23,8 @@ impl ComponentRelationName {
     }
 }
 
-/// Legacy spelling retained for the existing Resource-specific lowering.
-/// Canonical ComponentInstanceBinding authoring uses [`ComponentRelationName`] for every
+/// Hidden compatibility spelling retained for existing Resource-specific lowering.
+/// Canonical Component authoring uses [`ComponentRelationName`] for every
 /// relation target, regardless of whether it is a Resource or System.
 #[doc(hidden)]
 pub type ComponentResourceRequirementName = ComponentRelationName;
@@ -50,7 +50,7 @@ impl ComponentRelationDeclaration {
     }
 }
 
-/// Runtime-free declaration of a Resource capability required by a ComponentInstanceBinding.
+/// Runtime-free declaration of a Resource capability required by a Component.
 #[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentResourceRequirementDeclaration {
@@ -106,16 +106,17 @@ impl ComponentResourceRequirementDeclaration {
     }
 }
 
-/// Runtime-free declarative truth for one ComponentInstanceBinding.
+/// Runtime-free declarative truth for one Component.
 ///
 /// A declaration carries stable semantic behavior identity (the
 /// `ComponentId`) plus zero or more behavior endpoint declarations. It is
 /// independent of runtime scope, health, instances, and handler attachment:
 ///
-/// - a declaration with operations describes invocable behavior endpoints;
-/// - a declaration without operations describes a valid ComponentInstanceBinding whose
+/// - a declaration with API endpoints describes invocable behavior (lowered internally as
+///   operations);
+/// - a declaration without API endpoints describes a valid Component whose
 ///   behavior is not invocation-based (pure consumer, coordinator, or a
-///   ComponentInstanceBinding using other semantic rails).
+///   Component using other semantic rails).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentDeclaration {
     component_id: ComponentId,

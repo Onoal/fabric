@@ -28,7 +28,8 @@ The canonical Core law is:
 - Module structural truth != materialized runtime truth
 - Block != generic runtime owner
 
-Composition owns reusable structure, resolution, and dependency order. A
+Composition owns reusable structure, a frozen declaration snapshot, provider
+and export bindings, and dependency order. A
 `ModuleDeclaration` owns graph truth and can exist without any runtime
 implementation. A `Module` may optionally materialize a `ModuleRuntime` when
 an Instance is requested. Instance owns the generic runtime lifecycle, health

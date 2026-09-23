@@ -197,9 +197,10 @@ metadata.
 ## Runtime boundary
 
 Composition can explicitly export a bounded typed runtime capability. Core
-retains only declared exports for one materialization; Instance does not expose
-arbitrary contract lookup. A Component-bearing high-level Fabric build exports
-one Component operational capability.
+freezes each declared export's provider ownership at build; each Instance then
+retains that selected provider's live value for its own materialization.
+Instance does not expose arbitrary contract lookup. A Component-bearing
+high-level Fabric build exports one Component operational capability.
 
 `BuiltFabric` materializes to `FabricInstance`, which delegates identity,
 generation, lifecycle, and reporting to the Core Instance. Its optional

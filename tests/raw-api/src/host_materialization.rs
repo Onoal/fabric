@@ -7,6 +7,8 @@ use fabric_host::{
     HostArchitecture, HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem,
     HostRequirement,
 };
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Clone)]
 struct PlainModuleRuntime {
@@ -80,6 +82,40 @@ impl Module for HostDeclaredModule {
     }
 }
 
+struct MutableHostDeclaredModule {
+    module_id: ModuleId,
+    declares_host_requirement: Arc<AtomicBool>,
+}
+
+impl MutableHostDeclaredModule {
+    fn new(module_id: &str, declares_host_requirement: Arc<AtomicBool>) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id).expect("module id"),
+            declares_host_requirement,
+        }
+    }
+}
+
+impl Module for MutableHostDeclaredModule {
+    fn declaration(&self) -> ModuleDeclaration {
+        let declaration = ModuleDeclaration::new(self.module_id.clone());
+        if self.declares_host_requirement.load(Ordering::SeqCst) {
+            declaration.with_host_requirement(HostMaterializationRequirement::new(
+                self.module_id.clone(),
+                HostRequirement::new(),
+            ))
+        } else {
+            declaration
+        }
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(PlainModuleRuntime {
+            module_id: self.module_id.clone(),
+        }))
+    }
+}
+
 fn build_composition(module: impl Module + 'static) -> Composition {
     CompositionBuilder::new(
         CompositionId::new("fabric.test.raw.host-materialization".to_owned())
@@ -132,6 +168,26 @@ fn host_constrained_module_requires_explicit_host_descriptor() {
         error,
         CompositionError::HostDescriptorRequired { module_ids }
             if module_ids == vec![module_id]
+    ));
+}
+
+#[test]
+fn host_validation_uses_the_declaration_snapshot_from_build() {
+    let declares_host_requirement = Arc::new(AtomicBool::new(true));
+    let composition = build_composition(MutableHostDeclaredModule::new(
+        "host.snapshot.module",
+        Arc::clone(&declares_host_requirement),
+    ));
+    declares_host_requirement.store(false, Ordering::SeqCst);
+
+    let error = composition
+        .materialize(InstanceId::new("fabric.test.raw.host-snapshot".to_owned()).expect("instance"))
+        .expect_err("materialization must use the frozen host declaration");
+    assert!(matches!(
+        error,
+        CompositionError::HostDescriptorRequired { module_ids }
+            if module_ids
+                == vec![ModuleId::new("host.snapshot.module").expect("module id")]
     ));
 }
 

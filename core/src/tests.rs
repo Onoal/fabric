@@ -1,7 +1,8 @@
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::block::BlockBuilder;
-use crate::composition::ModuleBindings;
+use crate::composition::{ContractProviderSelection, ModuleBindings};
 use crate::contract::{
     ContractIdentity, ContractKey, ContractRequirement, ContractRequirementDeclaration,
     ContractVersion, ContractVersionRequirement, ModuleContract, ProvidedContractDeclaration,
@@ -110,6 +111,35 @@ impl Module for BuildPanicRuntimeModule {
     }
 }
 
+/// A module whose declaration reads are observable while its runtime remains
+/// independent of declaration construction. It characterizes the Core
+/// boundary: build snapshots authoring truth and every materialization uses
+/// that snapshot.
+struct DeclarationCountingProbe {
+    runtime: RuntimeCleanupProbe,
+    declaration_calls: Arc<AtomicUsize>,
+}
+
+impl DeclarationCountingProbe {
+    fn new(module_id: &str, recorder: Arc<Recorder>, declaration_calls: Arc<AtomicUsize>) -> Self {
+        Self {
+            runtime: RuntimeCleanupProbe::new(module_id, recorder, None, false),
+            declaration_calls,
+        }
+    }
+}
+
+impl Module for DeclarationCountingProbe {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        self.declaration_calls.fetch_add(1, Ordering::SeqCst);
+        crate::ModuleDeclaration::from_runtime(&self.runtime)
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        Some(Box::new(self.runtime.clone()))
+    }
+}
+
 #[test]
 fn declaration_only_modules_validate_without_runtime_materialization() {
     let contract_id = ContractId::new("fabric.test.declaration-only").expect("contract id");
@@ -141,6 +171,39 @@ fn declaration_only_modules_validate_without_runtime_materialization() {
         Err(CompositionError::MissingRuntimeMaterializer { module_id })
             if module_id.as_str() == "fabric.test.declaration-only.provider"
     ));
+}
+
+#[test]
+fn build_snapshots_module_declarations_for_every_materialization() {
+    let recorder = Recorder::new();
+    let declaration_calls = Arc::new(AtomicUsize::new(0));
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("frozen-declarations".to_owned()).expect("block"))
+            .register_module(DeclarationCountingProbe::new(
+                "first",
+                Arc::clone(&recorder),
+                Arc::clone(&declaration_calls),
+            ))
+            .register_module(DeclarationCountingProbe::new(
+                "second",
+                recorder,
+                Arc::clone(&declaration_calls),
+            ))
+            .build(),
+    )
+    .expect("composition");
+    let calls_after_build = declaration_calls.load(Ordering::SeqCst);
+    assert_eq!(calls_after_build, 2, "each declaration is snapshotted once");
+
+    let mut first = materialize_test_instance(&composition, "frozen-declarations-first")
+        .expect("first materialization");
+    first.stop().expect("stop first instance");
+    assert_eq!(declaration_calls.load(Ordering::SeqCst), calls_after_build);
+
+    let mut second = materialize_test_instance(&composition, "frozen-declarations-second")
+        .expect("second materialization");
+    second.stop().expect("stop second instance");
+    assert_eq!(declaration_calls.load(Ordering::SeqCst), calls_after_build);
 }
 
 impl Recorder {
@@ -916,6 +979,145 @@ fn explicit_composition_export_retains_only_the_declared_runtime_contract() {
 }
 
 #[test]
+fn declared_export_provider_errors_fail_composition_build() {
+    let contract_id = ContractId::new("test.export.build-errors".to_owned()).expect("contract");
+    let export = || {
+        CompositionExport::<TestContract>::new(
+            ContractId::new("test.export.build-errors.export".to_owned()).expect("export"),
+            ContractRequirement::versioned(
+                contract_id.clone(),
+                ContractVersionRequirement::parse("^1").expect("requirement"),
+            ),
+        )
+    };
+
+    let missing = CompositionBuilder::new(
+        CompositionId::new("test.export.build-errors.missing".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(
+            BlockId::new("test.export.build-errors.missing".to_owned()).expect("block"),
+        )
+        .build(),
+    )
+    .export(export())
+    .build()
+    .expect_err("missing export provider must fail build");
+    assert!(matches!(
+        missing,
+        CompositionError::MissingExportProvider { .. }
+    ));
+
+    let incompatible = CompositionBuilder::new(
+        CompositionId::new("test.export.build-errors.incompatible".to_owned())
+            .expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(
+            BlockId::new("test.export.build-errors.incompatible".to_owned()).expect("block"),
+        )
+        .register_module(TestProvider::new(
+            "provider",
+            ContractKey::versioned(
+                contract_id.clone(),
+                ContractVersion::parse("2.0.0").expect("version"),
+            ),
+            Recorder::new(),
+        ))
+        .build(),
+    )
+    .export(export())
+    .build()
+    .expect_err("incompatible export provider must fail build");
+    assert!(matches!(
+        incompatible,
+        CompositionError::IncompatibleExportProvider { .. }
+    ));
+
+    let ambiguous = CompositionBuilder::new(
+        CompositionId::new("test.export.build-errors.ambiguous".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(
+            BlockId::new("test.export.build-errors.ambiguous".to_owned()).expect("block"),
+        )
+        .register_module(TestProvider::new(
+            "first",
+            ContractKey::versioned(
+                contract_id.clone(),
+                ContractVersion::parse("1.0.0").expect("version"),
+            ),
+            Recorder::new(),
+        ))
+        .register_module(TestProvider::new(
+            "second",
+            ContractKey::versioned(
+                contract_id.clone(),
+                ContractVersion::parse("1.1.0").expect("version"),
+            ),
+            Recorder::new(),
+        ))
+        .build(),
+    )
+    .export(export())
+    .build()
+    .expect_err("ambiguous export provider must fail build");
+    assert!(matches!(
+        ambiguous,
+        CompositionError::AmbiguousExportProvider { .. }
+    ));
+}
+
+#[test]
+fn external_export_uses_its_frozen_declared_provider() {
+    let contract_id = ContractId::new("test.export.frozen-provider".to_owned()).expect("contract");
+    let export = CompositionExport::<TestContract>::new(
+        ContractId::new("test.export.frozen-provider.operator".to_owned()).expect("export"),
+        ContractRequirement::versioned(
+            contract_id.clone(),
+            ContractVersionRequirement::parse("^1").expect("requirement"),
+        ),
+    );
+    let composition = CompositionBuilder::new(
+        CompositionId::new("test.export.frozen-provider".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("test.export.frozen-provider".to_owned()).expect("block"))
+            .register_module(
+                TestProvider::new(
+                    "provider-v2",
+                    ContractKey::versioned(
+                        contract_id.clone(),
+                        ContractVersion::parse("2.0.0").expect("version"),
+                    ),
+                    Recorder::new(),
+                )
+                .with_greeting("v2"),
+            )
+            .register_module(
+                TestProvider::new(
+                    "provider-v1",
+                    ContractKey::versioned(
+                        contract_id,
+                        ContractVersion::parse("1.0.0").expect("version"),
+                    ),
+                    Recorder::new(),
+                )
+                .with_greeting("v1"),
+            )
+            .build(),
+    )
+    .export(export.clone())
+    .build()
+    .expect("one compatible declared export provider");
+
+    let mut instance = materialize_test_instance(&composition, "test.export.frozen-provider")
+        .expect("selected provider produces its promised runtime export");
+    assert_eq!(instance.export(&export).expect("export").greet(), "v1");
+    instance.stop().expect("stop instance");
+}
+
+#[test]
 fn cross_block_contract_resolution_orders_lifecycle_and_aggregates_health() {
     let recorder = Recorder::new();
     let key =
@@ -1386,6 +1588,73 @@ fn same_composition_materializes_fresh_instances_with_shared_identity_and_fresh_
             "use:hello from provider",
             "stop:consumer",
             "stop:provider",
+        ]
+    );
+}
+
+#[test]
+fn explicit_provider_selection_and_dependency_order_are_reused_for_each_instance() {
+    let recorder = Recorder::new();
+    let contract_id = ContractId::new("test.frozen-selection".to_owned()).expect("contract");
+    let key = ContractKey::provisional(contract_id.clone());
+    let requirement = ContractRequirement::provisional(contract_id.clone());
+    let composition = CompositionBuilder::new(
+        CompositionId::new("test.frozen-selection".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("test.frozen-selection".to_owned()).expect("block"))
+            .register_module(
+                TestProvider::new("chosen", key.clone(), Arc::clone(&recorder))
+                    .with_greeting("chosen"),
+            )
+            .register_module(
+                TestProvider::new("unchosen", key, Arc::clone(&recorder)).with_greeting("unchosen"),
+            )
+            .register_module(TestConsumer::new(
+                "consumer",
+                requirement,
+                Arc::clone(&recorder),
+            ))
+            .build(),
+    )
+    .select_provider(ContractProviderSelection::new(
+        ModuleId::new("consumer".to_owned()).expect("consumer"),
+        contract_id,
+        ModuleId::new("chosen".to_owned()).expect("provider"),
+    ))
+    .build()
+    .expect("composition");
+
+    for instance_id in ["frozen-selection-one", "frozen-selection-two"] {
+        let mut instance = materialize_test_instance(&composition, instance_id)
+            .expect("materialize selected provider");
+        instance.start().expect("start selected provider");
+        instance.stop().expect("stop selected provider");
+    }
+
+    assert_eq!(
+        recorder.snapshot(),
+        vec![
+            "initialize:chosen",
+            "initialize:unchosen",
+            "initialize:consumer",
+            "start:chosen",
+            "start:unchosen",
+            "start:consumer",
+            "use:chosen",
+            "stop:consumer",
+            "stop:unchosen",
+            "stop:chosen",
+            "initialize:chosen",
+            "initialize:unchosen",
+            "initialize:consumer",
+            "start:chosen",
+            "start:unchosen",
+            "start:consumer",
+            "use:chosen",
+            "stop:consumer",
+            "stop:unchosen",
+            "stop:chosen",
         ]
     );
 }
@@ -3616,6 +3885,39 @@ impl Module for NoRuntimeProbe {
     }
 }
 
+struct FlakyMaterializerProbe {
+    module_id: ModuleId,
+    recorder: Arc<Recorder>,
+    succeeds: Arc<AtomicBool>,
+}
+
+impl FlakyMaterializerProbe {
+    fn new(module_id: &str, recorder: Arc<Recorder>, succeeds: Arc<AtomicBool>) -> Self {
+        Self {
+            module_id: ModuleId::new(module_id.to_owned()).expect("module id"),
+            recorder,
+            succeeds,
+        }
+    }
+}
+
+impl Module for FlakyMaterializerProbe {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        crate::ModuleDeclaration::new(self.module_id.clone())
+    }
+
+    fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
+        self.succeeds.load(Ordering::SeqCst).then(|| {
+            Box::new(RuntimeCleanupProbe::new(
+                self.module_id.as_str(),
+                Arc::clone(&self.recorder),
+                None,
+                false,
+            )) as Box<dyn ModuleRuntime>
+        })
+    }
+}
+
 struct MismatchedRuntimeIdProbe {
     declared_module_id: ModuleId,
     runtime: RuntimeCleanupProbe,
@@ -3757,6 +4059,58 @@ fn materialization_failures_cleanup_all_existing_runtimes_in_reverse_order() {
 }
 
 #[test]
+fn failed_materialization_does_not_contaminate_frozen_composition_resolution() {
+    let recorder = Recorder::new();
+    let succeeds = Arc::new(AtomicBool::new(false));
+    let composition = composition_for(
+        BlockBuilder::new(BlockId::new("cleanup.reusable".to_owned()).expect("block"))
+            .register_module(RuntimeCleanupProbe::new(
+                "provider",
+                Arc::clone(&recorder),
+                None,
+                false,
+            ))
+            .register_module(FlakyMaterializerProbe::new(
+                "flaky",
+                Arc::clone(&recorder),
+                Arc::clone(&succeeds),
+            ))
+            .build(),
+    )
+    .expect("composition");
+
+    assert!(matches!(
+        materialize_test_instance(&composition, "cleanup.reusable.failed"),
+        Err(CompositionError::MissingRuntimeMaterializer { module_id }) if module_id.as_str() == "flaky"
+    ));
+    assert_eq!(recorder.snapshot(), vec!["stop:provider"]);
+
+    succeeds.store(true, Ordering::SeqCst);
+    let mut instance = materialize_test_instance(&composition, "cleanup.reusable.retry")
+        .expect("the same resolved composition remains reusable");
+    instance.start().expect("start retry");
+    instance.stop().expect("stop retry");
+    assert_eq!(
+        recorder.snapshot(),
+        vec![
+            "stop:provider",
+            "context:provider",
+            "context:flaky",
+            "export:provider",
+            "export:flaky",
+            "bind:provider",
+            "bind:flaky",
+            "initialize:provider",
+            "initialize:flaky",
+            "start:provider",
+            "start:flaky",
+            "stop:flaky",
+            "stop:provider",
+        ]
+    );
+}
+
+#[test]
 fn materialization_cleanup_failures_preserve_the_primary_error() {
     let recorder = Recorder::new();
     let composition = composition_for(
@@ -3846,14 +4200,22 @@ fn runtime_validation_and_external_export_failures_cleanup_materialized_runtimes
     let declared_contract = ContractKey::<String>::provisional(
         ContractId::new("cleanup.declared-contract".to_owned()).expect("contract"),
     );
-    let export_composition = composition_for(
+    let export_composition = CompositionBuilder::new(
+        CompositionId::new("cleanup.runtime-export".to_owned()).expect("composition"),
+    )
+    .register_block(
         BlockBuilder::new(BlockId::new("cleanup.runtime-export".to_owned()).expect("block"))
             .register_module(DeclaredButUnexportedProbe::new(
                 RuntimeCleanupProbe::new("provider", Arc::clone(&export_recorder), None, false),
-                declared_contract,
+                declared_contract.clone(),
             ))
             .build(),
     )
+    .export(CompositionExport::<String>::new(
+        ContractId::new("cleanup.runtime-export.operator".to_owned()).expect("export"),
+        ContractRequirement::provisional(declared_contract.id().clone()),
+    ))
+    .build()
     .expect("composition");
     assert!(matches!(
         materialize_test_instance(&export_composition, "cleanup.runtime-export"),
@@ -3871,7 +4233,7 @@ fn runtime_validation_and_external_export_failures_cleanup_materialized_runtimes
             ContractId::new("cleanup.absent-contract".to_owned()).expect("contract"),
         ),
     );
-    let external_composition = CompositionBuilder::new(
+    let external_error = CompositionBuilder::new(
         CompositionId::new("cleanup.external-export".to_owned()).expect("composition"),
     )
     .register_block(
@@ -3886,10 +4248,10 @@ fn runtime_validation_and_external_export_failures_cleanup_materialized_runtimes
     )
     .export(external_export)
     .build()
-    .expect("composition");
+    .expect_err("missing declared export providers must fail build");
     assert!(matches!(
-        materialize_test_instance(&external_composition, "cleanup.external-export"),
-        Err(CompositionError::MissingExportProvider { .. })
+        external_error,
+        CompositionError::MissingExportProvider { .. }
     ));
     assert!(
         external_recorder.snapshot().is_empty(),

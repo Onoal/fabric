@@ -56,8 +56,24 @@ fn core_keeps_canonical_resolution_seams() {
         "core composition should expose explicit host-aware materialization"
     );
     assert!(
-        composition.contains("validated.start_order.iter()"),
+        composition.contains("resolution.start_order.iter()"),
         "runtime binding must follow the resolved dependency order, not authoring order"
+    );
+    let built_composition = composition
+        .split("pub struct Composition {")
+        .nth(1)
+        .and_then(|source| source.split("impl std::fmt::Debug for Composition").next())
+        .expect("Composition definition");
+    assert!(
+        composition.contains("struct CompositionResolution")
+            && built_composition.contains("resolution: CompositionResolution")
+            && !built_composition.contains("provider_selections"),
+        "a built Composition must retain only frozen declarative resolution, not raw selections"
+    );
+    assert!(
+        !composition.contains("validate_declarations(&self.blocks")
+            && !composition.contains("resolve_runtime_exports("),
+        "materialization must consume frozen declaration and export bindings rather than resolve again"
     );
     assert!(
         !composition.contains("HostDescriptor::native"),

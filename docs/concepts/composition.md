@@ -248,11 +248,16 @@ Correct: build() creates validated declaration and inspection truth;
 
 ## Build, then materialize
 
-`build()` is validation, not startup. Core validates structural identities,
-requirements and providers, selected-provider compatibility, declaration
-compatibility, and unique declared export identities. Materialization then
-checks that each declared export resolves to one compatible runtime contract.
-An invalid declarative system therefore fails before it becomes an Instance.
+`build()` is validation and declarative resolution, not startup. Core snapshots
+module declarations, validates structural identities, requirements and
+providers, freezes selected-provider bindings and dependency order, and assigns
+each declared export to one compatible declared provider. An invalid
+declarative system therefore fails before it becomes an Instance.
+
+Materialization does not choose providers again. It validates the target Host,
+constructs fresh runtimes, and verifies that each already-selected provider
+produces the live contracts promised by its frozen declaration. A live runtime
+can still fail that verification, but it cannot change Composition ownership.
 
 Continuing Example C, only after a successful build can the Composition be
 materialized:

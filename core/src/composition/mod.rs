@@ -36,11 +36,18 @@ pub(crate) struct DeclaredBinding {
 }
 
 pub(crate) type DeclaredBindings = BTreeMap<ModuleId, BTreeMap<ContractId, DeclaredBinding>>;
+type DeclaredExportBindings = BTreeMap<ContractId, DeclaredBinding>;
 
-struct ValidatedDeclarations {
+/// The complete, immutable declarative truth of a built composition.
+///
+/// It is deliberately private: Core callers build a `Composition`, rather
+/// than managing a separate resolution lifecycle. Materialization borrows
+/// this snapshot to construct fresh live runtime occurrences.
+struct CompositionResolution {
     declarations: Vec<ModuleDeclaration>,
     bindings: DeclaredBindings,
     start_order: Vec<usize>,
+    export_bindings: DeclaredExportBindings,
 }
 
 pub struct CompositionBuilder {
@@ -53,8 +60,8 @@ pub struct CompositionBuilder {
 pub struct Composition {
     composition_id: CompositionId,
     blocks: Vec<Block>,
-    provider_selections: Vec<ContractProviderSelection>,
     exports: Vec<CompositionExportDeclaration>,
+    resolution: CompositionResolution,
 }
 
 impl std::fmt::Debug for Composition {
@@ -97,13 +104,14 @@ impl CompositionBuilder {
 
     pub fn build(self) -> Result<Composition, CompositionError> {
         ensure_unique_block_ids(&self.blocks)?;
-        validate_declarations(&self.blocks, &self.provider_selections)?;
         ensure_unique_exports(&self.exports)?;
+        let resolution =
+            resolve_declarations(&self.blocks, &self.provider_selections, &self.exports)?;
         Ok(Composition {
             composition_id: self.composition_id,
             blocks: self.blocks,
-            provider_selections: self.provider_selections,
             exports: self.exports,
+            resolution,
         })
     }
 }
@@ -118,7 +126,8 @@ impl Composition {
     }
 
     pub fn materialize(&self, instance_id: InstanceId) -> Result<Instance, CompositionError> {
-        let requirements = declared_host_materialization_requirements(&self.blocks);
+        let requirements =
+            declared_host_materialization_requirements(&self.resolution.declarations);
         if !requirements.is_empty() {
             return Err(CompositionError::HostDescriptorRequired {
                 module_ids: requirements
@@ -144,16 +153,13 @@ impl Composition {
         host: Option<&HostDescriptor>,
     ) -> Result<Instance, CompositionError> {
         if let Some(host) = host {
-            validate_host_materialization_requirements(&self.blocks, host)?;
+            validate_host_materialization_requirements(&self.resolution.declarations, host)?;
         }
-        let declarations = validate_declarations(&self.blocks, &self.provider_selections)?;
-        validate_export_declarations(&self.exports, &declarations.declarations)?;
         let context = InstanceRuntimeContext::new(instance_id, crate::InstanceGeneration::mint());
         let (blocks, start_order, exports) = materialize_runtime_blocks(
             &self.composition_id,
             &self.blocks,
-            declarations,
-            &self.exports,
+            &self.resolution,
             &context,
         )?;
         Ok(Instance::materialize(
@@ -190,10 +196,11 @@ fn ensure_unique_exports(exports: &[CompositionExportDeclaration]) -> Result<(),
     Ok(())
 }
 
-fn validate_export_declarations(
+fn declared_export_bindings(
     exports: &[CompositionExportDeclaration],
     declarations: &[ModuleDeclaration],
-) -> Result<(), CompositionError> {
+) -> Result<DeclaredExportBindings, CompositionError> {
+    let mut bindings = BTreeMap::new();
     for export in exports {
         let providers = declarations
             .iter()
@@ -227,7 +234,16 @@ fn validate_export_declarations(
                     contract_id: export.requirement().id().clone(),
                 });
             }
-            1 => {}
+            1 => {
+                let (provider, declaration) = *compatible[0];
+                bindings.insert(
+                    export.id().clone(),
+                    DeclaredBinding {
+                        provider: provider.clone(),
+                        declaration: declaration.clone(),
+                    },
+                );
+            }
             _ => {
                 return Err(CompositionError::AmbiguousExportProvider {
                     export_id: export.id().clone(),
@@ -240,14 +256,14 @@ fn validate_export_declarations(
             }
         }
     }
-    Ok(())
+    Ok(bindings)
 }
 
 fn declared_host_materialization_requirements(
-    blocks: &[Block],
+    declarations: &[ModuleDeclaration],
 ) -> Vec<HostMaterializationRequirement> {
-    let mut requirements = declarations(blocks)
-        .into_iter()
+    let mut requirements = declarations
+        .iter()
         .filter_map(|declaration| declaration.host_requirement().cloned())
         .collect::<Vec<_>>();
     requirements.sort_by(|left, right| left.module_id().cmp(right.module_id()));
@@ -255,10 +271,10 @@ fn declared_host_materialization_requirements(
 }
 
 fn validate_host_materialization_requirements(
-    blocks: &[Block],
+    declarations: &[ModuleDeclaration],
     host: &HostDescriptor,
 ) -> Result<(), CompositionError> {
-    for requirement in declared_host_materialization_requirements(blocks) {
+    for requirement in declared_host_materialization_requirements(declarations) {
         requirement.requirement().evaluate(host).map_err(|source| {
             CompositionError::HostIncompatible {
                 module_id: requirement.module_id().clone(),
@@ -276,10 +292,11 @@ fn declarations(blocks: &[Block]) -> Vec<ModuleDeclaration> {
         .collect()
 }
 
-fn validate_declarations(
+fn resolve_declarations(
     blocks: &[Block],
     provider_selections: &[ContractProviderSelection],
-) -> Result<ValidatedDeclarations, CompositionError> {
+    exports: &[CompositionExportDeclaration],
+) -> Result<CompositionResolution, CompositionError> {
     let declarations = declarations(blocks);
     ensure_unique_module_ids(&declarations)?;
     ensure_unique_requirement_contract_ids(&declarations)?;
@@ -287,49 +304,54 @@ fn validate_declarations(
     let provider_selections = validate_selected_providers(&declarations, provider_selections)?;
     let bindings = declaration_bindings(&declarations, &provider_selections)?;
     let start_order = dependency_order(&declarations, &bindings)?;
-    Ok(ValidatedDeclarations {
+    let export_bindings = declared_export_bindings(exports, &declarations)?;
+    Ok(CompositionResolution {
         declarations,
         bindings,
         start_order,
+        export_bindings,
     })
 }
 
 fn materialize_runtime_blocks(
     composition_id: &CompositionId,
     blocks: &[Block],
-    validated: ValidatedDeclarations,
-    external_export_declarations: &[CompositionExportDeclaration],
+    resolution: &CompositionResolution,
     context: &InstanceRuntimeContext,
 ) -> Result<MaterializedRuntimeBlocks, CompositionError> {
     let counts = blocks
         .iter()
         .map(|block| block.modules.len())
         .collect::<Vec<_>>();
-    let mut modules = Vec::with_capacity(validated.declarations.len());
-    for module in blocks.iter().flat_map(|block| block.modules.iter()) {
+    let mut modules = Vec::with_capacity(resolution.declarations.len());
+    for (module_index, module) in blocks
+        .iter()
+        .flat_map(|block| block.modules.iter())
+        .enumerate()
+    {
         let Some(runtime) = module.materialize() else {
             return Err(abandon_materialized_runtimes(
                 CompositionError::MissingRuntimeMaterializer {
-                    module_id: module.declaration().module_id().clone(),
+                    module_id: resolution.declarations[module_index].module_id().clone(),
                 },
                 &mut modules,
-                &validated.start_order,
+                &resolution.start_order,
             ));
         };
         modules.push(runtime);
     }
-    if let Err(primary) = ensure_runtime_module_ids(&validated.declarations, &modules) {
+    if let Err(primary) = ensure_runtime_module_ids(&resolution.declarations, &modules) {
         return Err(abandon_materialized_runtimes(
             primary,
             &mut modules,
-            &validated.start_order,
+            &resolution.start_order,
         ));
     }
     if let Err(primary) = bind_instance_context(composition_id, &mut modules, context) {
         return Err(abandon_materialized_runtimes(
             primary,
             &mut modules,
-            &validated.start_order,
+            &resolution.start_order,
         ));
     }
     let exported = match collect_exports(composition_id, &modules) {
@@ -338,47 +360,47 @@ fn materialize_runtime_blocks(
             return Err(abandon_materialized_runtimes(
                 primary,
                 &mut modules,
-                &validated.start_order,
+                &resolution.start_order,
             ));
         }
     };
-    if let Err(primary) = ensure_runtime_exports(&validated.declarations, &exported) {
+    if let Err(primary) = ensure_runtime_exports(&resolution.declarations, &exported) {
         return Err(abandon_materialized_runtimes(
             primary,
             &mut modules,
-            &validated.start_order,
+            &resolution.start_order,
         ));
     }
-    let external_exports = match resolve_runtime_exports(external_export_declarations, &exported) {
+    let external_exports = match runtime_export_bindings(&resolution.export_bindings, &exported) {
         Ok(exports) => exports,
         Err(primary) => {
             return Err(abandon_materialized_runtimes(
                 primary,
                 &mut modules,
-                &validated.start_order,
+                &resolution.start_order,
             ));
         }
     };
-    let bindings = match runtime_bindings(&validated.bindings, &exported) {
+    let bindings = match runtime_bindings(&resolution.bindings, &exported) {
         Ok(bindings) => bindings,
         Err(primary) => {
             return Err(abandon_materialized_runtimes(
                 primary,
                 &mut modules,
-                &validated.start_order,
+                &resolution.start_order,
             ));
         }
     };
-    if let Err(primary) = bind_runtime_modules(composition_id, &validated, &mut modules, &bindings)
+    if let Err(primary) = bind_runtime_modules(composition_id, resolution, &mut modules, &bindings)
     {
         return Err(abandon_materialized_runtimes(
             primary,
             &mut modules,
-            &validated.start_order,
+            &resolution.start_order,
         ));
     }
 
-    let start_order = module_start_locations(&counts, &validated.start_order);
+    let start_order = module_start_locations(&counts, &resolution.start_order);
     let runtime_blocks = into_runtime_blocks(blocks, counts, modules);
     Ok((runtime_blocks, start_order, external_exports))
 }
@@ -410,46 +432,14 @@ fn abandon_materialized_runtimes(
     }
 }
 
-fn resolve_runtime_exports(
-    declarations: &[CompositionExportDeclaration],
+fn runtime_export_bindings(
+    declarations: &DeclaredExportBindings,
     exported: &BTreeMap<ModuleId, Vec<ModuleContract>>,
 ) -> Result<BTreeMap<ContractId, ModuleContract>, CompositionError> {
     let mut result = BTreeMap::new();
-    for export in declarations {
-        let matches = exported
-            .iter()
-            .flat_map(|(module_id, contracts)| {
-                contracts.iter().map(move |contract| (module_id, contract))
-            })
-            .filter(|(_, contract)| contract.declaration().id() == export.requirement().id())
-            .filter(|(_, contract)| {
-                export
-                    .requirement()
-                    .compatibility()
-                    .accepts(contract.declaration().identity())
-            })
-            .collect::<Vec<_>>();
-        match matches.as_slice() {
-            [] => {
-                return Err(CompositionError::MissingExportProvider {
-                    export_id: export.id().clone(),
-                    contract_id: export.requirement().id().clone(),
-                });
-            }
-            [(_, contract)] => {
-                result.insert(export.id().clone(), (*contract).clone());
-            }
-            _ => {
-                return Err(CompositionError::AmbiguousExportProvider {
-                    export_id: export.id().clone(),
-                    contract_id: export.requirement().id().clone(),
-                    providers: matches
-                        .into_iter()
-                        .map(|(module_id, _)| (*module_id).clone())
-                        .collect(),
-                });
-            }
-        }
+    for (export_id, binding) in declarations {
+        let contract = find_exact_export(&binding.provider, &binding.declaration, exported)?;
+        result.insert(export_id.clone(), contract.clone());
     }
     Ok(result)
 }
@@ -489,14 +479,14 @@ fn bind_instance_context(
 
 fn bind_runtime_modules(
     composition_id: &CompositionId,
-    validated: &ValidatedDeclarations,
+    resolution: &CompositionResolution,
     modules: &mut [Box<dyn ModuleRuntime>],
     bindings: &bindings::ResolvedBindings,
 ) -> Result<(), CompositionError> {
     // Binding follows the already-resolved provider-before-consumer dependency
     // order, never authoring or Block order. Stored module order is untouched.
-    for module_index in validated.start_order.iter().copied() {
-        let declaration = &validated.declarations[module_index];
+    for module_index in resolution.start_order.iter().copied() {
+        let declaration = &resolution.declarations[module_index];
         let scoped = scoped_bindings(declaration, bindings);
         modules[module_index]
             .bind(&scoped)

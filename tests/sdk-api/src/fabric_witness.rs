@@ -2148,6 +2148,10 @@ fn sdk_composition_preserves_manifest_and_explicit_core_escape_hatches() {
         .expect("composition build");
 
     assert_eq!(composition.id().as_str(), "fabric.test.fabric.parts");
+    assert_eq!(composition.id(), composition.core().id());
+    let debug = format!("{composition:?}");
+    assert!(debug.contains("Composition") && debug.contains("fabric.test.fabric.parts"));
+    assert!(!debug.contains("manifest") && !debug.contains("component_host_export"));
     assert_eq!(composition.manifest().resources().len(), 1);
     let core: &fabric::core::Composition = composition.core();
     takes_raw_composition(core);

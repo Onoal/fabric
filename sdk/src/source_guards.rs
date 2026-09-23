@@ -706,10 +706,19 @@ fn normal_prelude_quarantines_legacy_and_raw_machinery() {
         "BlockAuthor",
         "FabricBuilder",
         "CompositionExt",
+        "BuiltFabric",
+        "FabricManifest",
+        "FabricManifestDiagnostics",
     ] {
         assert!(
             !prelude.contains(forbidden),
             "normal prelude must not expose {forbidden}"
+        );
+    }
+    for forbidden in ["BuiltFabric", "FabricManifest", "FabricManifestDiagnostics"] {
+        assert!(
+            !lib.contains(forbidden),
+            "normal root must keep {forbidden} outside the canonical Composition surface"
         );
     }
     assert!(lib.contains("pub mod experimental;"));

@@ -1,0 +1,5 @@
+error: component! top-level `teardown { ... }` was removed; place it inside `runtime { teardown { ... } }`
+ --> tests/ui/removed_teardown.rs:6:9
+  |
+6 |         teardown { Ok(()) }
+  |         ^^^^^^^^

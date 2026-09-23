@@ -31,8 +31,8 @@ providers and a realization path creates participation.
 
 `component!` normally implements the semantic definition. Adding its optional
 `runtime` section supplies a default self realization; omitting it remains a
-declaration-only Component. The older `operations { ... handler ... }`
-frontend remains transitional legacy self-realizing authoring.
+declaration-only Component. `operations`, handler closures, and the old
+top-level dependency sections were removed in 0.5.4.
 
 ## Normal and advanced Rust surfaces
 
@@ -76,8 +76,8 @@ ComponentParticipation --registers--> typed invocation
 ```
 
 `ComponentDeclaration` does not contain a live Instance, health, runtime
-scope, active handler, or participation. A declaration with API methods says
-endpoints exist; it does not say handlers are running.
+scope, active implementation, or participation. A declaration with API methods
+says endpoints exist; it does not say implementations are running.
 
 ## Identity and configuration
 
@@ -225,12 +225,8 @@ Component declares requirements
 ```
 
 There is no Component registry lookup, Adapter search, or arbitrary service
-lookup. The legacy self-realizing frontend still generates typed dependency fields:
-
-```rust
-handler |dependencies, input: Input| async move { /* typed contracts */ }
-handler |context, dependencies, input: Input| async move { /* also provenance */ }
-```
+lookup. Canonical runtime methods receive typed dependencies through
+`self.relations()`, preserving each declared local role.
 
 ## API, operations, and invocation
 
@@ -241,32 +237,17 @@ output slots, and `OperationKey`) so ordinary authors do not write duplicate
 operation or type-identity strings. That metadata remains invocation lowering,
 not a second public Component authoring language.
 
-The current `operations { ... }` block is legacy runtime authoring. It joins a
-declaration to handler closures and therefore creates a self realization. New
-authoring should use `api` plus `runtime`; legacy operations remain supported
-only during the transition.
+`operations { ... }` is not Component authoring. It was removed in 0.5.4;
+use `api` plus `runtime` for a self realization.
 
 An Operation has an `OperationId`, semantic input/output type identities, typed
 Rust input/output, and a runtime handler. `OperationDefinition` is not a
 running handler. `OperationKey<Input, Output>` carries both Rust typing and the
 semantic operation/input/output identities agreed by caller and runtime.
 
-The supported normal handler shapes are:
-
-```text
-|input|
-|dependencies, input|
-|context, input|
-|context, dependencies, input|
-```
-
-`context: invocation;` opts into `InvocationContext`, which carries
-`InstanceId`, `InstanceGeneration`, `InvocationId`, and root
-`InvocationOrigin`. It is provenance—not authentication, authorization,
-identity, tracing, network metadata, or request headers. Current origins are
-`External` and `Component(Component)`; the normal high-level path is external
-invocation, and Fabric 0.1 does not define declarative Component-to-Component
-dependencies.
+`InvocationContext` remains a named advanced invocation API for integrations
+that explicitly work at the invocation layer. It is not a Component macro
+argument and is not semantic API input.
 
 ### Domain outcome versus runtime error
 
@@ -327,10 +308,9 @@ startup is abandoned after host initialization, the same cleanup path is
 `Starting -> Stopping -> Stopped`; `Stopping` remains the one deactivation
 phase for both cases.
 
-Preparation may establish runtime machinery owned by one participation. The
-transitional legacy `operations` frontend may add an optional `teardown { ... }`
-section; direct authors use `ComponentParticipationPreparation::with_teardown`.
-Canonical declaration authoring has no teardown section because it has no
+Preparation may establish runtime machinery owned by one participation. A
+canonical `runtime` may add `prepare { ... }` and `teardown { ... }`; a
+declaration without `runtime` has no teardown section because it has no
 runtime attachment. Fabric runs a real preparation action exactly once after
 disabling participation-owned authority, on failed preparation rollback,
 explicit dematerialization, or host stop. Base preparation runs before

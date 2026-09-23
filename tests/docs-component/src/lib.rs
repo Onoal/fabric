@@ -1,6 +1,5 @@
 #[cfg(test)]
 use fabric::authoring::component::ComponentDefinition;
-use fabric::component::invocation::InvocationOrigin;
 #[allow(unused_imports)]
 use fabric::prelude::*;
 #[cfg(test)]
@@ -31,17 +30,11 @@ enum DocumentError {
 fabric::component! {
     pub DocumentComponent {
         id: "example.document-component";
-        operations {
-            open {
-                id: "example.document-component.open";
-                input: OpenInput = "example.document-component.open.input";
-                output: Result<Document, DocumentError> = "example.document-component.open.outcome";
-                context: invocation;
-                handler |context, input: OpenInput| async move {
-                    assert_eq!(context.root_origin(), &InvocationOrigin::External);
-                    if input.exists { Ok(Ok(Document { title: "Fabric".to_owned() })) }
-                    else { Ok(Err(DocumentError::NotFound)) }
-                };
+        api { fn open(&self, input: OpenInput) -> Result<Document, DocumentError>; }
+        runtime {
+            fn open(&self, input: OpenInput) -> Result<Document, DocumentError> {
+                if input.exists { Ok(Document { title: "Fabric".to_owned() }) }
+                else { Err(DocumentError::NotFound) }
             }
         }
     }
@@ -56,22 +49,20 @@ fabric::component! {
     pub DependencyComponent {
         id: "example.dependency-component";
         config { multiplier: u64; }
-        requires { counter: DirectCounter(provisional); }
-        system { operations: TestOperations(version = "^1"); }
-        operations {
-            observe {
-                id: "example.dependency-component.observe";
-                input: () = "example.dependency-component.observe.input";
-                output: DependencyOutput = "example.dependency-component.observe.output";
-                context: invocation;
-                handler |context, dependencies, _input: ()| async move {
-                    assert_eq!(context.root_origin(), &InvocationOrigin::External);
-                    Ok(DependencyOutput {
-                        value: dependencies.counter.current_value().value()
-                            + dependencies.operations.current_marker().value()
-                            + config.multiplier,
-                    })
-                };
+        relations {
+            requires {
+                counter: DirectCounter(provisional);
+                operations: TestOperations(version = "^1");
+            }
+        }
+        api { fn observe(&self) -> DependencyOutput; }
+        runtime {
+            fn observe(&self) -> DependencyOutput {
+                DependencyOutput {
+                    value: self.relations().counter.current_value().value()
+                        + self.relations().operations.current_marker().value()
+                        + self.config().multiplier,
+                }
             }
         }
     }
@@ -80,12 +71,11 @@ fabric::component! {
 fabric::component! {
     pub ZeroOperationComponent {
         id: "example.zero-operation-component";
-        operations {}
     }
 }
 
 #[test]
-fn typed_resource_and_system_dependencies_reach_a_context_aware_handler() {
+fn typed_resource_and_system_dependencies_reach_the_canonical_runtime() {
     let counter = DirectCounter::select("primary", DirectCounterConfig { value: 5 })
         .expect("Resource selection");
     let operations =
@@ -114,7 +104,7 @@ fn typed_resource_and_system_dependencies_reach_a_context_aware_handler() {
         .materialize::<DependencyComponent>()
         .expect("participation");
     let output = futures::executor::block_on(
-        components.invoke_external(&dependency_component::operations::observe(), ()),
+        components.invoke_external(&dependency_component::api::observe(), ()),
     )
     .expect("invoke");
     assert_eq!(output, DependencyOutput { value: 14 });
@@ -150,13 +140,11 @@ fn declaration_only_component_is_valid_but_has_no_native_attachment() {
 }
 
 #[test]
-fn component_operations_context_domain_output_and_participation_are_distinct() {
+fn component_api_domain_output_and_participation_are_distinct() {
     let built = Fabric::new("example.component")
         .expect("CompositionId")
-        .component(DocumentComponent::define(DocumentComponentConfig {}))
-        .component(ZeroOperationComponent::define(
-            ZeroOperationComponentConfig {},
-        ))
+        .component(DocumentComponent::define())
+        .component(ZeroOperationComponent::define())
         .build()
         .expect("declarations are valid");
     assert_eq!(built.manifest().components().len(), 2);
@@ -172,7 +160,7 @@ fn component_operations_context_domain_output_and_participation_are_distinct() {
         .materialize::<DocumentComponent>()
         .expect("participation");
     let outcome = futures::executor::block_on(components.invoke_external(
-        &document_component::operations::open(),
+        &document_component::api::open(),
         OpenInput { exists: false },
     ))
     .expect("outer runtime result");

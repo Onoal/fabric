@@ -7,7 +7,7 @@ use fabric_core::{
     ContractId, ContractKey, ContractRequirement, ContractRequirementDeclaration, Health,
 };
 
-use crate::ComponentResourceRequirementName;
+use crate::ComponentRelationName;
 use crate::component_scope::ComponentScopeService;
 use crate::{
     ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation, ComponentScope,
@@ -187,7 +187,7 @@ pub fn component_resource_dependency_contract_key(
 
 pub fn component_named_resource_dependency_contract_key(
     component_id: &ComponentId,
-    name: &ComponentResourceRequirementName,
+    name: &ComponentRelationName,
     requirement: &ContractRequirementDeclaration,
 ) -> ContractKey<ComponentResourceDependency> {
     let encoded = format!(
@@ -470,7 +470,7 @@ impl ComponentParticipationScope {
 
     pub fn named_resource_dependency<T>(
         &self,
-        name: &ComponentResourceRequirementName,
+        name: &ComponentRelationName,
         requirement: &ContractRequirement<T>,
     ) -> Result<Arc<T>, ComponentError>
     where

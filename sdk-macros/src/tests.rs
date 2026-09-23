@@ -500,7 +500,7 @@ fn lifecycle_authoring_is_shared_by_resource_system_and_adapter_and_component_us
 }
 
 #[test]
-fn component_macro_codegen_supports_typed_operations() {
+fn component_macro_codegen_supports_typed_api_lowering() {
     let lib = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read lib");
     let ast = fs::read_to_string(crate_root().join("src/ast.rs")).expect("read ast");
     let parse = fs::read_to_string(crate_root().join("src/parse.rs")).expect("read parse");
@@ -514,42 +514,42 @@ fn component_macro_codegen_supports_typed_operations() {
     );
     assert!(
         ast.contains("pub struct ComponentInput")
-            && ast.contains("pub struct ComponentOperationDefinition")
-            && ast.contains("pub enum ComponentOperationContext"),
-        "component! should parse dedicated component and operation inputs"
+            && ast.contains("pub struct ApiDefinition")
+            && !ast.contains("ComponentOperationDefinition")
+            && !ast.contains("ComponentOperationContext")
+            && !ast.contains("legacy_"),
+        "component! should use the shared API declaration AST without a legacy operation frontend"
     );
     assert!(
         parse.contains("component! requires an `id: ...;` declaration")
-            && parse.contains("component! supports only one `operations { ... }` section")
-            && parse.contains("component operation requires a `handler ...` declaration")
-            && parse.contains("component operation supports only `context: invocation;`"),
-        "component! parsing should define component sections and required operation fields"
+            && parse.contains("`operations { ... }` was removed")
+            && parse.contains("`requires { ... }` was removed")
+            && parse.contains("top-level `teardown { ... }` was removed")
+            && !parse.contains("parse_component_operations")
+            && !parse.contains("parse_requires")
+            && !parse.contains("parse_system_dependencies"),
+        "component! parsing should reject the removed frontend with migration diagnostics"
     );
     assert!(
-        validate.contains("duplicate component operation")
-            && validate.contains(
-                "component operation handlers must use a closure expression like `|input: Type| async move { ... }`"
-            )
-            && validate.contains("component operation handlers must declare exactly one typed input parameter")
-            && validate.contains("component operation handlers must use a simple `name: Type` input binding")
-            && validate.contains("context-aware component operation handlers must declare `|context, input: Type|`")
-            && validate.contains("context-aware component operation handlers with dependencies must declare `|context, dependencies, input: Type|`"),
-        "component! validation should reject duplicate operations and unsupported handler forms clearly"
+        validate.contains("duplicate API method")
+            && !validate.contains("component operation handlers"),
+        "component! validation should retain shared API checks without handler validation"
     );
     assert!(
         codegen
             .contains("let component_mod = format_ident!(\"{}\", to_snake_case(component_name));")
             && codegen.contains("format_ident!(\"api\")")
-            && codegen.contains("format_ident!(\"operations\")")
             && codegen.contains("pub mod #endpoint_module {")
             && codegen.contains("impl #sdk::authoring::ComponentDefinition for #component_name")
             && codegen.contains("#sdk::authoring::ComponentSpec::<Self>::self_realizing(config)")
             && codegen.contains("scope.operation(")
-            && codegen.contains("scope.operation_with_context(")
-            && codegen.contains("#sdk::component::InvocationContext")
+            && !codegen.contains("scope.operation_with_context(")
+            && !codegen.contains("#sdk::component::InvocationContext")
             && !codegen.contains("InvocationContext::new")
-            && !codegen.contains("InvocationRail"),
-        "component! should lower canonical APIs through an api module, retain operations only for the transitional frontend, and register participation realization handlers"
+            && !codegen.contains("InvocationRail")
+            && !codegen.contains("legacy_")
+            && !codegen.contains("requirements_module"),
+        "component! should lower canonical APIs through an api module and register participation realization handlers"
     );
     assert!(
         codegen.contains("fn declaration() -> #sdk::component::ComponentDeclaration")
@@ -558,7 +558,7 @@ fn component_macro_codegen_supports_typed_operations() {
     );
     assert!(
         codegen.contains("impl #sdk::authoring::SelfRealizingComponentDefinition")
-            && codegen.contains("ComponentParticipationRealization::new("),
+            && codegen.contains("ComponentParticipationRealization::new_with_teardown("),
         "component! should attach handlers through the optional native runtime bridge"
     );
     assert!(

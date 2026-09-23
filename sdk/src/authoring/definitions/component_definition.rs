@@ -9,9 +9,9 @@ use crate::authoring::{
 use fabric_component::{
     ComponentAugmentationParticipationRealization, ComponentDeclaration, ComponentError,
     ComponentId, ComponentParticipationPreparation, ComponentParticipationRealization,
-    ComponentResourceDependency, ComponentResourceRequirementDeclaration,
-    ComponentResourceRequirementName, ComponentSystemRequirementDeclaration,
-    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
+    ComponentRelationName, ComponentResourceDependency, ComponentResourceRequirementDeclaration,
+    ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
+    component_system_dependency_contract_key,
 };
 use fabric_core::{
     ContractProviderSelection, ContractRequirement, ContractVersionRequirement, Health, Module,
@@ -45,7 +45,7 @@ impl ComponentResourceScope for fabric_component::ComponentParticipationScope {
     where
         R: PrimaryResourceContract,
     {
-        let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
+        let name = ComponentRelationName::new(requirement.declaration().id().as_str())
             .expect("contract ids are valid default Component relation names");
         self.named_resource_dependency(&name, requirement.as_contract_requirement())
     }
@@ -65,7 +65,7 @@ impl ComponentResourceScope for fabric_component::ComponentParticipationScope {
 }
 
 pub struct ComponentResourceRequirement<R: PrimaryResourceContract> {
-    name: ComponentResourceRequirementName,
+    name: ComponentRelationName,
     requirement: Requires<R>,
 }
 
@@ -76,10 +76,10 @@ impl<R: PrimaryResourceContract> Clone for ComponentResourceRequirement<R> {
 }
 
 impl<R: PrimaryResourceContract> ComponentResourceRequirement<R> {
-    pub fn new(name: ComponentResourceRequirementName, requirement: Requires<R>) -> Self {
+    pub fn new(name: ComponentRelationName, requirement: Requires<R>) -> Self {
         Self { name, requirement }
     }
-    pub fn name(&self) -> &ComponentResourceRequirementName {
+    pub fn name(&self) -> &ComponentRelationName {
         &self.name
     }
     pub fn requirement(&self) -> &Requires<R> {
@@ -388,7 +388,7 @@ impl<R: PrimaryResourceContract> ModuleRuntime for ComponentResourceCarrierRunti
 
 fn component_resource_carrier_module_id(
     component_id: &ComponentId,
-    name: &ComponentResourceRequirementName,
+    name: &ComponentRelationName,
     requirement: &fabric_core::ContractRequirementDeclaration,
 ) -> ModuleId {
     let encoded = format!(
@@ -458,7 +458,7 @@ pub trait ComponentDefinition: Sized + Send + Sync + 'static {
 pub trait ComponentRelationTarget: RelationTarget {
     fn add_component_relation<C>(
         spec: ComponentSpec<C>,
-        name: ComponentResourceRequirementName,
+        name: ComponentRelationName,
         compatibility: ComponentRelationCompatibility,
     ) -> ComponentSpec<C>
     where
@@ -466,7 +466,7 @@ pub trait ComponentRelationTarget: RelationTarget {
 
     fn resolve_component_relation(
         scope: &fabric_component::ComponentParticipationScope,
-        name: &ComponentResourceRequirementName,
+        name: &ComponentRelationName,
         compatibility: &ComponentRelationCompatibility,
     ) -> Result<Arc<Self::Contract>, ComponentError>;
 }
@@ -712,7 +712,7 @@ where
     where
         R: PrimaryResourceContract,
     {
-        let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
+        let name = ComponentRelationName::new(requirement.declaration().id().as_str())
             .expect("contract ids are valid default Component relation names");
         self = self.requires_named_resource(ComponentResourceRequirement::new(name, requirement));
         self
@@ -754,7 +754,7 @@ where
     #[doc(hidden)]
     pub fn requires_relation<T>(
         self,
-        name: ComponentResourceRequirementName,
+        name: ComponentRelationName,
         compatibility: ComponentRelationCompatibility,
     ) -> Self
     where

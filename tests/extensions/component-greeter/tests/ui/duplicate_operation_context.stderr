@@ -1,5 +1,0 @@
-error: component operation supports only one `context: invocation;` declaration
-  --> tests/ui/duplicate_operation_context.rs:16:26
-   |
-16 |                 context: invocation;
-   |                          ^^^^^^^^^^

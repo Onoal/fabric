@@ -515,7 +515,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         impl #sdk::authoring::ComponentRelationTarget for #resource_name {
             fn add_component_relation<C>(
                 spec: #sdk::authoring::ComponentSpec<C>,
-                name: #sdk::component::ComponentResourceRequirementName,
+                name: #sdk::component::ComponentRelationName,
                 compatibility: #sdk::authoring::ComponentRelationCompatibility,
             ) -> #sdk::authoring::ComponentSpec<C>
             where C: #sdk::authoring::ComponentDefinition {
@@ -531,7 +531,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
 
             fn resolve_component_relation(
                 scope: &#sdk::component::ComponentParticipationScope,
-                name: &#sdk::component::ComponentResourceRequirementName,
+                name: &#sdk::component::ComponentRelationName,
                 compatibility: &#sdk::authoring::ComponentRelationCompatibility,
             ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {
                 let requirement = match compatibility {

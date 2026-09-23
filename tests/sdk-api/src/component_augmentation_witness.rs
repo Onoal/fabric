@@ -452,10 +452,9 @@ fn external_component_semantic_prepares_alongside_base_operations() {
     let components = instance.components().expect("components");
     components.materialize::<Greeter>().expect("participate");
     assert_eq!(prepared.load(Ordering::SeqCst), 1);
-    let output: GreeterOutput = futures::executor::block_on(components.invoke_external(
-        &greeter::operations::greet(),
-        GreeterInput { name: "Ada".into() },
-    ))
+    let output: GreeterOutput = futures::executor::block_on(
+        components.invoke_external(&greeter::api::greet(), GreeterInput { name: "Ada".into() }),
+    )
     .expect("invoke");
     assert_eq!(output.message, "hello, Ada");
 }
@@ -506,10 +505,10 @@ fn failed_augmentation_preparation_never_activates_the_component() {
     let components = instance.components().expect("components");
     assert!(components.materialize::<Greeter>().is_err());
     assert!(
-        futures::executor::block_on(components.invoke_external(
-            &greeter::operations::greet(),
-            GreeterInput { name: "Ada".into() },
-        ))
+        futures::executor::block_on(
+            components
+                .invoke_external(&greeter::api::greet(), GreeterInput { name: "Ada".into() },)
+        )
         .is_err()
     );
 }

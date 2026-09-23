@@ -1,0 +1,5 @@
+error: component! `system { ... }` was removed; use `relations { requires { role: Target; } }`
+ --> tests/ui/removed_system.rs:6:9
+  |
+6 |         system {}
+  |         ^^^^^^

@@ -1,5 +1,0 @@
-error: component operation requires an `id: ...;` declaration
-  --> tests/ui/operation_missing_id.rs:16:13
-   |
-16 |             greet {
-   |             ^^^^^

@@ -5,7 +5,7 @@ use fabric::prelude::*;
 fabric::component! {
     pub Greeter {
         id: "example.instance.greeter";
-        operations {}
+        runtime { prepare { Ok(()) } }
     }
 }
 
@@ -27,7 +27,7 @@ fabric::resource! {
 fn component_fabric() -> Fabric {
     Fabric::new("example.instance")
         .expect("valid CompositionId")
-        .component(Greeter::define(GreeterConfig {}))
+        .component(Greeter::define())
 }
 
 #[test]

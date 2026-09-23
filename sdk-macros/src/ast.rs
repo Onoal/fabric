@@ -64,15 +64,9 @@ pub struct ComponentInput {
     /// Canonical Component callable declaration. It has no handler or
     /// realization attachment.
     pub api: Option<ApiDefinition>,
-    /// Canonical self-realization authoring. Unlike the legacy operations
-    /// frontend, this is an implementation of the already-declared API.
+    /// Canonical self-realization authoring. This implements the already
+    /// declared API for one Component participation.
     pub runtime: Option<ComponentParticipationRealization>,
-    /// Transitional 0.5.0 self-realizing frontend.  It remains isolated so
-    /// canonical declaration lowering never depends on it.
-    pub legacy_requires: Vec<RequirementDefinition>,
-    pub legacy_systems: Vec<SystemDependencyDefinition>,
-    pub legacy_operations: Option<Vec<ComponentOperationDefinition>>,
-    pub teardown: Option<Block>,
 }
 
 pub struct ComponentParticipationRealization {
@@ -113,18 +107,6 @@ pub struct ContractMethod {
     pub signature: syn::Signature,
 }
 
-pub struct RequirementDefinition {
-    pub field: Ident,
-    pub resource: Path,
-    pub compatibility: RequirementLiteral,
-}
-
-pub struct SystemDependencyDefinition {
-    pub field: Ident,
-    pub system: Path,
-    pub compatibility: RequirementLiteral,
-}
-
 /// A named, typed capability relation declared by a definition.
 ///
 /// The target kind is deliberately not represented here: the generated SDK
@@ -160,23 +142,6 @@ impl RuntimeLifecycleDefinition {
             && self.stop.is_none()
             && self.health.is_none()
     }
-}
-
-pub struct ComponentOperationDefinition {
-    pub name: Ident,
-    pub operation_id: LitStr,
-    pub input_ty: Type,
-    pub input_type_id: LitStr,
-    pub output_ty: Type,
-    pub output_type_id: LitStr,
-    pub context: ComponentOperationContext,
-    pub handler: Expr,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ComponentOperationContext {
-    None,
-    Invocation,
 }
 
 /// The authored delta used when a semantic owner mediates part of its API.

@@ -1,8 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use fabric::authoring::*;
-use fabric::component::ComponentResourceRequirementName;
-use fabric::component::invocation::InvocationOrigin;
+use fabric::component::declaration::ComponentRelationName;
 use fabric::prelude::*;
 use fabric::{
     core::{ContractProviderSelection, ContractRequirement},
@@ -11,8 +10,8 @@ use fabric::{
 use fabric_component::{ComponentError, ComponentMaterializer, ComponentParticipationScope};
 use fabric_core::{
     BlockBuilder, BlockId, CompositionError, ContractId, ContractKey, ContractVersionRequirement,
-    Health, InstanceGeneration, InstanceId, LifecycleState, ModuleBindings, ModuleContract,
-    ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
+    Health, LifecycleState, ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError,
+    ModuleId, ModuleRuntime,
 };
 use fabric_system::{SystemId, SystemSchemaDescriptor};
 use fabric_test_adapter_clock_memory::{
@@ -59,9 +58,6 @@ struct MacroDependencyInput;
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct MacroDependencyOutput {
     value: u64,
-    instance_id: InstanceId,
-    generation: InstanceGeneration,
-    origin: InvocationOrigin,
 }
 
 fabric::component! {
@@ -72,44 +68,24 @@ fabric::component! {
             multiplier: u64;
         }
 
-        requires {
-            counter: DirectCounter(provisional);
+        relations {
+            requires {
+                counter: DirectCounter(provisional);
+                operations: TestOperations(version = "^1.2");
+            }
         }
-
-        system {
-            operations: TestOperations(version = "^1.2");
-        }
-
-        operations {
-            observe {
-                id: "fabric.test.component.macro-dependency-probe.observe";
-                input: MacroDependencyInput = "fabric.test.component.macro-dependency-probe.input";
-                output: MacroDependencyOutput = "fabric.test.component.macro-dependency-probe.output";
-                context: invocation;
-                handler |context, dependencies, input: MacroDependencyInput| async move {
-                    let _ = input;
-                    Ok(MacroDependencyOutput {
-                        value: dependencies.counter.current_value().value()
-                            + dependencies.operations.current_marker().value()
-                            + config.multiplier,
-                        instance_id: context.instance_id().clone(),
-                        generation: context.generation(),
-                        origin: context.root_origin().clone(),
-                    })
-                };
+        api { fn observe(&self, input: MacroDependencyInput) -> MacroDependencyOutput; }
+        runtime {
+            fn observe(&self, input: MacroDependencyInput) -> MacroDependencyOutput {
+                let _ = input;
+                MacroDependencyOutput {
+                    value: self.relations().counter.current_value().value()
+                        + self.relations().operations.current_marker().value()
+                        + self.config().multiplier,
+                }
             }
         }
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct ContextInput;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct ContextOutput {
-    instance_id: InstanceId,
-    generation: InstanceGeneration,
-    origin: InvocationOrigin,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -123,12 +99,11 @@ fabric::component! {
     Gateway {
         id: "fabric.test.gateway";
         config { prefix: String; }
-        operations {
-            handle {
-                id: "fabric.test.gateway.handle";
-                input: GatewayInput = "fabric.test.gateway.input";
-                output: GatewayOutput = "fabric.test.gateway.output";
-                handler |input: GatewayInput| async move { let _ = input; Ok(GatewayOutput { value: "gateway:native".to_owned() }) };
+        api { fn handle(&self, input: GatewayInput) -> GatewayOutput; }
+        runtime {
+            fn handle(&self, input: GatewayInput) -> GatewayOutput {
+                let _ = input;
+                GatewayOutput { value: "gateway:native".to_owned() }
             }
         }
     }
@@ -142,14 +117,6 @@ struct PingoraAdapter {
 #[derive(Clone)]
 struct AlternateGatewayAdapter {
     implementation: String,
-}
-
-impl AdaptableComponentDefinition for Gateway {
-    fn realization_requirement() -> ContractRequirement<ComponentRealizationContract<Self>> {
-        ContractRequirement::provisional(
-            ContractId::new("fabric.test.gateway.realization").expect("contract"),
-        )
-    }
 }
 
 impl AdapterDefinition for PingoraAdapter {
@@ -225,19 +192,16 @@ impl ModuleRuntime for PingoraRuntime {
                 move |config, scope| {
                     let prefix = config.prefix.clone();
                     let implementation = implementation.clone();
-                    scope.operation(
-                        gateway::operations::handle(),
-                        move |input: GatewayInput| {
-                            let _ = input;
-                            let prefix = prefix.clone();
-                            let implementation = implementation.clone();
-                            async move {
-                                Ok(GatewayOutput {
-                                    value: format!("{prefix}:{implementation}"),
-                                })
-                            }
-                        },
-                    )?;
+                    scope.operation(gateway::api::handle(), move |input: GatewayInput| {
+                        let _ = input;
+                        let prefix = prefix.clone();
+                        let implementation = implementation.clone();
+                        async move {
+                            Ok(GatewayOutput {
+                                value: format!("{prefix}:{implementation}"),
+                            })
+                        }
+                    })?;
                     Ok(Health::Healthy)
                 },
             )),
@@ -434,29 +398,6 @@ impl ModuleRuntime for FailingGenerationStart {
     }
 }
 
-fabric::component! {
-    ContextProbe {
-        id: "fabric.test.component.context-probe";
-        config {}
-        operations {
-            observe {
-                id: "fabric.test.component.context-probe.observe";
-                input: ContextInput = "fabric.test.component.context-probe.input";
-                output: ContextOutput = "fabric.test.component.context-probe.output";
-                context: invocation;
-                handler |context, input: ContextInput| async move {
-                    let _ = input;
-                    Ok(ContextOutput {
-                        instance_id: context.instance_id().clone(),
-                        generation: context.generation(),
-                        origin: context.root_origin().clone(),
-                    })
-                };
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OpenDocumentInput {
     exists: bool,
@@ -475,20 +416,14 @@ enum DocumentError {
 fabric::component! {
     DocumentProbe {
         id: "fabric.test.component.document-probe";
-        config {}
-        operations {
-            open {
-                id: "fabric.test.component.document-probe.open";
-                input: OpenDocumentInput = "fabric.test.component.document-probe.open.input";
-                output: Result<DocumentOutput, DocumentError> = "fabric.test.component.document-probe.open.outcome";
-                handler |input: OpenDocumentInput| async move {
-                    let outcome = if input.exists {
-                        Ok(DocumentOutput { title: "Fabric".to_owned() })
-                    } else {
-                        Err(DocumentError::NotFound)
-                    };
-                    Ok(outcome)
-                };
+        api { fn open(&self, input: OpenDocumentInput) -> Result<DocumentOutput, DocumentError>; }
+        runtime {
+            fn open(&self, input: OpenDocumentInput) -> Result<DocumentOutput, DocumentError> {
+                if input.exists {
+                    Ok(DocumentOutput { title: "Fabric".to_owned() })
+                } else {
+                    Err(DocumentError::NotFound)
+                }
             }
         }
     }
@@ -505,23 +440,20 @@ struct DualCounterOutput {
 fabric::component! {
     DualCounterProbe {
         id: "fabric.test.component.dual-counter-probe";
-        config {}
-        requires {
-            primary_store: DirectCounter(provisional);
-            secondary_store: DirectCounter(provisional);
+        relations {
+            requires {
+                primary_store: DirectCounter(provisional);
+                secondary_store: DirectCounter(provisional);
+            }
         }
-        operations {
-            observe {
-                id: "fabric.test.component.dual-counter-probe.observe";
-                input: DualCounterInput = "fabric.test.component.dual-counter-probe.input";
-                output: DualCounterOutput = "fabric.test.component.dual-counter-probe.output";
-                handler |dependencies, input: DualCounterInput| async move {
-                    let _ = input;
-                    Ok(DualCounterOutput {
-                        primary: dependencies.primary_store.current_value().value(),
-                        secondary: dependencies.secondary_store.current_value().value(),
-                    })
-                };
+        api { fn observe(&self, input: DualCounterInput) -> DualCounterOutput; }
+        runtime {
+            fn observe(&self, input: DualCounterInput) -> DualCounterOutput {
+                let _ = input;
+                DualCounterOutput {
+                    primary: self.relations().primary_store.current_value().value(),
+                    secondary: self.relations().secondary_store.current_value().value(),
+                }
             }
         }
     }
@@ -1344,7 +1276,7 @@ fn fabric_runtime_component_flows_through_normal_authoring() {
         .materialize::<Greeter>()
         .expect("materialize greeter");
     let output: GreeterOutput = futures::executor::block_on(components.invoke_external(
-        &greeter::operations::greet(),
+        &greeter::api::greet(),
         GreeterInput {
             name: "fabric".to_owned(),
         },
@@ -1378,7 +1310,7 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
         .materialize::<Gateway>()
         .expect("adapter realized gateway");
     let output: GatewayOutput = futures::executor::block_on(
-        components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("invoke");
     assert_eq!(output.value, "gateway:pingora");
@@ -1432,7 +1364,7 @@ fn adapter_realized_component_prepares_external_augmentation_without_adapter_kno
         .materialize::<Gateway>()
         .expect("adapter realized gateway participation");
     let output: GatewayOutput = futures::executor::block_on(
-        components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("invoke");
     assert_eq!(output.value, "gateway:pingora");
@@ -1471,7 +1403,7 @@ fn gateway_adapter_realization_keeps_component_config_per_composition() {
             .materialize::<Gateway>()
             .expect("materialize gateway");
         let output: GatewayOutput = futures::executor::block_on(
-            components.invoke_external(&gateway::operations::handle(), GatewayInput),
+            components.invoke_external(&gateway::api::handle(), GatewayInput),
         )
         .expect("invoke");
         assert_eq!(output.value, format!("{prefix}:pingora"));
@@ -1526,7 +1458,7 @@ fn gateway_semantics_support_an_alternate_adapter_realization() {
         .materialize::<Gateway>()
         .expect("materialize gateway");
     let output: GatewayOutput = futures::executor::block_on(
-        components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("invoke");
     assert_eq!(output.value, "edge:alternate");
@@ -1620,11 +1552,11 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
     );
 
     let first_output: GatewayOutput = futures::executor::block_on(
-        first_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        first_components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("first invocation");
     let second_output: GatewayOutput = futures::executor::block_on(
-        second_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        second_components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("second invocation");
     assert_eq!(first_output.value, "edge:pingora");
@@ -1636,7 +1568,7 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
     assert_eq!(first.lifecycle(), LifecycleState::Stopped);
     assert_eq!(second.lifecycle(), LifecycleState::Running);
     let second_output: GatewayOutput = futures::executor::block_on(
-        second_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        second_components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("second remains usable after first stops");
     assert_eq!(second_output.value, "edge:alternate");
@@ -1696,7 +1628,7 @@ fn failed_new_generation_is_isolated_from_a_running_generation() {
     assert_eq!(running.lifecycle(), LifecycleState::Running);
     assert_eq!(running.generation(), running_generation);
     let output: GatewayOutput = futures::executor::block_on(
-        running_components.invoke_external(&gateway::operations::handle(), GatewayInput),
+        running_components.invoke_external(&gateway::api::handle(), GatewayInput),
     )
     .expect("running generation remains usable");
     assert_eq!(output.value, "stable:pingora");
@@ -1811,7 +1743,7 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
                 .components()
                 .expect("second component operator")
                 .invoke_external(
-                    &greeter::operations::greet(),
+                    &greeter::api::greet(),
                     GreeterInput {
                         name: "Ada".to_owned()
                     },
@@ -1829,7 +1761,7 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
             .components()
             .expect("second component operator")
             .invoke_external(
-                &greeter::operations::greet(),
+                &greeter::api::greet(),
                 GreeterInput {
                     name: "Ada".to_owned(),
                 },
@@ -1844,7 +1776,7 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
                 .components()
                 .expect("first component operator")
                 .invoke_external(
-                    &greeter::operations::greet(),
+                    &greeter::api::greet(),
                     GreeterInput {
                         name: "Ada".to_owned()
                     },
@@ -1893,66 +1825,19 @@ fn component_macro_resolves_typed_resource_and_system_dependencies() {
         .materialize::<MacroDependencyProbe>()
         .expect("materialize component");
     let output: MacroDependencyOutput = futures::executor::block_on(components.invoke_external(
-        &macro_dependency_probe::operations::observe(),
+        &macro_dependency_probe::api::observe(),
         MacroDependencyInput,
     ))
     .expect("invoke macro component operation");
     assert_eq!(output.value, 14);
-    assert_eq!(output.instance_id, *instance.instance_id());
-    assert_eq!(output.generation, instance.generation());
-    assert_eq!(output.origin, InvocationOrigin::External);
     instance.stop().expect("stop instance");
-}
-
-#[test]
-fn component_macro_supplies_external_invocation_context_per_instance() {
-    let built = Fabric::new("fabric.test.component.context-probe")
-        .expect("fabric")
-        .component(ContextProbe::define(ContextProbeConfig {}))
-        .build()
-        .expect("build");
-    let mut first = built
-        .materialize_named("fabric.test.component.context-probe.first")
-        .expect("first materialization");
-    let mut second = built
-        .materialize_named("fabric.test.component.context-probe.second")
-        .expect("second materialization");
-    first.start().expect("first start");
-    second.start().expect("second start");
-    let first_components = first.components().expect("first component host");
-    let second_components = second.components().expect("second component host");
-    first_components
-        .materialize::<ContextProbe>()
-        .expect("first component materialization");
-    second_components
-        .materialize::<ContextProbe>()
-        .expect("second component materialization");
-
-    let first_context = futures::executor::block_on(
-        first_components.invoke_external(&context_probe::operations::observe(), ContextInput),
-    )
-    .expect("first invocation");
-    let second_context = futures::executor::block_on(
-        second_components.invoke_external(&context_probe::operations::observe(), ContextInput),
-    )
-    .expect("second invocation");
-
-    assert_eq!(first_context.instance_id, *first.instance_id());
-    assert_eq!(first_context.generation, first.generation());
-    assert_eq!(first_context.origin, InvocationOrigin::External);
-    assert_eq!(second_context.instance_id, *second.instance_id());
-    assert_eq!(second_context.generation, second.generation());
-    assert_eq!(second_context.origin, InvocationOrigin::External);
-    assert_ne!(first_context.instance_id, second_context.instance_id);
-    first.stop().expect("stop runtime");
-    second.stop().expect("stop runtime");
 }
 
 #[test]
 fn component_macro_keeps_domain_results_inside_typed_output() {
     let built = Fabric::new("fabric.test.component.document-probe")
         .expect("fabric")
-        .component(DocumentProbe::define(DocumentProbeConfig {}))
+        .component(DocumentProbe::define())
         .build()
         .expect("build");
     let mut instance = built
@@ -1963,7 +1848,7 @@ fn component_macro_keeps_domain_results_inside_typed_output() {
 
     assert!(matches!(
         futures::executor::block_on(components.invoke_external(
-            &document_probe::operations::open(),
+            &document_probe::api::open(),
             OpenDocumentInput { exists: false },
         ),),
         Err(ComponentError::UnknownOperation(_))
@@ -1973,14 +1858,14 @@ fn component_macro_keeps_domain_results_inside_typed_output() {
         .materialize::<DocumentProbe>()
         .expect("component materialization");
     let missing = futures::executor::block_on(components.invoke_external(
-        &document_probe::operations::open(),
+        &document_probe::api::open(),
         OpenDocumentInput { exists: false },
     ))
     .expect("runtime invocation succeeds");
     assert_eq!(missing, Err(DocumentError::NotFound));
 
     let found = futures::executor::block_on(components.invoke_external(
-        &document_probe::operations::open(),
+        &document_probe::api::open(),
         OpenDocumentInput { exists: true },
     ))
     .expect("runtime invocation succeeds");
@@ -2006,13 +1891,19 @@ fn run_dual_counter_probe(swap: bool) -> DualCounterOutput {
     let built = Fabric::new("fabric.test.component.dual-counter-probe")
         .expect("fabric")
         .component(
-            DualCounterProbe::define(DualCounterProbeConfig {})
+            DualCounterProbe::define()
                 .select_named_resource_provider(
-                    &dual_counter_probe::requirements::primary_store(),
+                    &ComponentResourceRequirement::new(
+                        ComponentRelationName::new("primary_store").expect("relation name"),
+                        Requires::<DirectCounter>::provisional(),
+                    ),
                     primary_provider,
                 )
                 .select_named_resource_provider(
-                    &dual_counter_probe::requirements::secondary_store(),
+                    &ComponentResourceRequirement::new(
+                        ComponentRelationName::new("secondary_store").expect("relation name"),
+                        Requires::<DirectCounter>::provisional(),
+                    ),
                     secondary_provider,
                 ),
         )
@@ -2040,7 +1931,7 @@ fn run_dual_counter_probe(swap: bool) -> DualCounterOutput {
         .materialize::<DualCounterProbe>()
         .expect("component");
     let output = futures::executor::block_on(
-        components.invoke_external(&dual_counter_probe::operations::observe(), DualCounterInput),
+        components.invoke_external(&dual_counter_probe::api::observe(), DualCounterInput),
     )
     .expect("invoke");
     instance.stop().expect("stop instance");
@@ -2071,11 +1962,11 @@ fn handwritten_component_authoring_can_name_same_target_resource_requirements() 
         DirectCounter::select("primary", DirectCounterConfig { value: 1 }).expect("primary");
     let cache = DirectCounter::select("cache", DirectCounterConfig { value: 2 }).expect("cache");
     let storage_requirement = ComponentResourceRequirement::new(
-        ComponentResourceRequirementName::new("storage").expect("name"),
+        ComponentRelationName::new("storage").expect("name"),
         Requires::<DirectCounter>::provisional(),
     );
     let cache_requirement = ComponentResourceRequirement::new(
-        ComponentResourceRequirementName::new("cache").expect("name"),
+        ComponentRelationName::new("cache").expect("name"),
         Requires::<DirectCounter>::provisional(),
     );
     let built = Fabric::new("fabric.test.handwritten.named-resource-requirements")

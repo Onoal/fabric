@@ -1,5 +1,0 @@
-error: component operation requires an `output: Type = "...";` declaration
-  --> tests/ui/operation_missing_output.rs:16:13
-   |
-16 |             greet {
-   |             ^^^^^

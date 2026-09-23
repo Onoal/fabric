@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use quote::ToTokens;
 use semver::{Version, VersionReq};
 use syn::spanned::Spanned;
-use syn::{Error, Expr, ExprClosure, FnArg, Pat, PatIdent, Result, Signature};
+use syn::{Error, FnArg, Pat, PatIdent, Result, Signature};
 
 use crate::ast::{
-    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext, RequirementLiteral,
-    ResourceInput, SystemInput, VersionLiteral,
+    AdapterInput, ApiDefinition, ComponentInput, RequirementLiteral, ResourceInput, SystemInput,
+    VersionLiteral,
 };
 
 struct ApiValidation<'a> {
@@ -217,9 +217,7 @@ pub fn validate_adapter(input: &AdapterInput) -> Result<()> {
 
 pub fn validate_component(input: &ComponentInput) -> Result<()> {
     let mut errors = None;
-    let mut names = BTreeMap::new();
 
-    validate_component_dependency_fields(input, &mut errors);
     validate_relation_names(&input.relations, &mut errors, "component");
     for relation in &input.relations {
         if let Some(compatibility) = &relation.compatibility {
@@ -281,27 +279,6 @@ pub fn validate_component(input: &ComponentInput) -> Result<()> {
             );
         }
     }
-    let dependencies_required =
-        !input.legacy_requires.is_empty() || !input.legacy_systems.is_empty();
-
-    for operation in input.legacy_operations.iter().flatten() {
-        if let Some(first_span) = names.insert(operation.name.to_string(), operation.name.span()) {
-            let mut error = Error::new(
-                operation.name.span(),
-                format!("duplicate component operation `{}`", operation.name),
-            );
-            error.combine(Error::new(first_span, "first operation declared here"));
-            push_error(&mut errors, error);
-        }
-
-        validate_component_handler(
-            &operation.handler,
-            dependencies_required,
-            operation.context == ComponentOperationContext::Invocation,
-            &mut errors,
-        );
-    }
-
     finish(errors)
 }
 
@@ -400,188 +377,6 @@ fn validate_requirement_literal(
         push_error(
             errors,
             Error::new(version.span(), format!("{message}: {source}")),
-        );
-    }
-}
-
-fn validate_component_handler(
-    handler: &Expr,
-    dependencies_required: bool,
-    context_required: bool,
-    errors: &mut Option<Error>,
-) {
-    let closure = match handler {
-        Expr::Closure(closure) => closure,
-        _ => {
-            push_error(
-                errors,
-                Error::new(
-                    handler.span(),
-                    "component operation handlers must use a closure expression like `|input: Type| async move { ... }`",
-                ),
-            );
-            return;
-        }
-    };
-
-    validate_component_handler_closure(closure, dependencies_required, context_required, errors);
-}
-
-fn validate_component_handler_closure(
-    closure: &ExprClosure,
-    dependencies_required: bool,
-    context_required: bool,
-    errors: &mut Option<Error>,
-) {
-    let expected_inputs = 1 + usize::from(dependencies_required) + usize::from(context_required);
-    if closure.inputs.len() != expected_inputs {
-        push_error(
-            errors,
-            Error::new(
-                closure.inputs.span(),
-                match (context_required, dependencies_required) {
-                    (false, false) => {
-                        "component operation handlers must declare exactly one typed input parameter"
-                    }
-                    (false, true) => {
-                        "component operation handlers with dependencies must declare `|dependencies, input: Type|`"
-                    }
-                    (true, false) => {
-                        "context-aware component operation handlers must declare `|context, input: Type|`"
-                    }
-                    (true, true) => {
-                        "context-aware component operation handlers with dependencies must declare `|context, dependencies, input: Type|`"
-                    }
-                },
-            ),
-        );
-        return;
-    }
-
-    let mut input_index = 0;
-    if context_required {
-        let context_input = &closure.inputs[0];
-        if !matches!(
-            context_input,
-            Pat::Ident(PatIdent {
-                by_ref: None,
-                mutability: None,
-                subpat: None,
-                ..
-            })
-        ) {
-            push_error(
-                errors,
-                Error::new(
-                    context_input.span(),
-                    "context-aware component handlers must use a simple `context` binding as their first parameter",
-                ),
-            );
-        }
-        input_index += 1;
-    }
-    if dependencies_required {
-        let dependency_input = &closure.inputs[input_index];
-        if !matches!(
-            dependency_input,
-            Pat::Ident(PatIdent {
-                by_ref: None,
-                mutability: None,
-                subpat: None,
-                ..
-            })
-        ) {
-            push_error(
-                errors,
-                Error::new(
-                    dependency_input.span(),
-                    "component dependency handlers must use a simple `dependencies` binding as their first parameter",
-                ),
-            );
-        }
-        input_index += 1;
-    }
-
-    let Some(first_input) = closure.inputs.iter().nth(input_index) else {
-        return;
-    };
-    let Pat::Type(pat_type) = first_input else {
-        push_error(
-            errors,
-            Error::new(
-                first_input.span(),
-                "component operation handlers must declare their input as `name: Type`",
-            ),
-        );
-        return;
-    };
-    let Pat::Ident(PatIdent {
-        by_ref: None,
-        mutability: None,
-        subpat: None,
-        ..
-    }) = pat_type.pat.as_ref()
-    else {
-        push_error(
-            errors,
-            Error::new(
-                pat_type.pat.span(),
-                "component operation handlers must use a simple `name: Type` input binding",
-            ),
-        );
-        return;
-    };
-}
-
-fn validate_component_dependency_fields(input: &ComponentInput, errors: &mut Option<Error>) {
-    let mut fields = BTreeMap::new();
-    let mut systems = BTreeMap::new();
-
-    for requirement in &input.legacy_requires {
-        let name = requirement.field.to_string();
-        if let Some(first_span) = fields.insert(name.clone(), requirement.field.span()) {
-            let mut error = Error::new(
-                requirement.field.span(),
-                format!("duplicate component dependency field `{name}`"),
-            );
-            error.combine(Error::new(first_span, "first dependency declared here"));
-            push_error(errors, error);
-        }
-        validate_requirement_literal(
-            &requirement.compatibility,
-            "invalid component Resource dependency version requirement",
-            errors,
-        );
-    }
-
-    for dependency in &input.legacy_systems {
-        let name = dependency.field.to_string();
-        if let Some(first_span) = fields.insert(name.clone(), dependency.field.span()) {
-            let mut error = Error::new(
-                dependency.field.span(),
-                format!("duplicate component dependency field `{name}`"),
-            );
-            error.combine(Error::new(first_span, "first dependency declared here"));
-            push_error(errors, error);
-        }
-        let target = dependency.system.to_token_stream().to_string();
-        if let Some(first_span) = systems.insert(target.clone(), dependency.system.span()) {
-            let mut error = Error::new(
-                dependency.system.span(),
-                format!(
-                    "component! does not support duplicate System requirement target `{target}`; ComponentSpec has no requirement occurrence identity"
-                ),
-            );
-            error.combine(Error::new(
-                first_span,
-                "first System requirement declared here",
-            ));
-            push_error(errors, error);
-        }
-        validate_requirement_literal(
-            &dependency.compatibility,
-            "invalid component System dependency version requirement",
-            errors,
         );
     }
 }

@@ -185,27 +185,20 @@ fabric::component! {
             suffix: String;
         }
 
-        operations {
-            greet {
-                id: "fabric.test.scripted.greeter.greet";
-                input: ScriptedInput = "fabric.test.scripted.greeter.input";
-                output: ScriptedOutput = "fabric.test.scripted.greeter.output";
-                handler |input: ScriptedInput| async move {
-                    Ok(ScriptedOutput {
-                        message: format!("{} {}{}", config.prefix, input.name, config.suffix),
-                    })
-                };
+        api {
+            fn greet(&self, input: ScriptedInput) -> ScriptedOutput;
+            fn part(&self, input: ScriptedInput) -> ScriptedOutput;
+        }
+        runtime {
+            fn greet(&self, input: ScriptedInput) -> ScriptedOutput {
+                ScriptedOutput {
+                    message: format!("{} {}{}", self.config().prefix, input.name, self.config().suffix),
+                }
             }
-
-            part {
-                id: "fabric.test.scripted.greeter.part";
-                input: ScriptedInput = "fabric.test.scripted.greeter.part.input";
-                output: ScriptedOutput = "fabric.test.scripted.greeter.part.output";
-                handler |input: ScriptedInput| async move {
-                    Ok(ScriptedOutput {
-                        message: format!("{} until later, {}{}", config.prefix, input.name, config.suffix),
-                    })
-                };
+            fn part(&self, input: ScriptedInput) -> ScriptedOutput {
+                ScriptedOutput {
+                    message: format!("{} until later, {}{}", self.config().prefix, input.name, self.config().suffix),
+                }
             }
         }
     }
@@ -225,18 +218,10 @@ fabric::component! {
     pub AlphaComponent {
         id: "fabric.test.alpha.component";
 
-        config {}
-
-        operations {
-            echo {
-                id: "fabric.test.alpha.component.echo";
-                input: AlphaInput = "fabric.test.alpha.component.input";
-                output: AlphaOutput = "fabric.test.alpha.component.output";
-                handler |input: AlphaInput| async move {
-                    Ok(AlphaOutput {
-                        value: input.value + 1,
-                    })
-                };
+        api { fn echo(&self, input: AlphaInput) -> AlphaOutput; }
+        runtime {
+            fn echo(&self, input: AlphaInput) -> AlphaOutput {
+                AlphaOutput { value: input.value + 1 }
             }
         }
     }
@@ -256,18 +241,10 @@ fabric::component! {
     pub BetaComponent {
         id: "fabric.test.beta.component";
 
-        config {}
-
-        operations {
-            echo {
-                id: "fabric.test.beta.component.echo";
-                input: BetaInput = "fabric.test.beta.component.input";
-                output: BetaOutput = "fabric.test.beta.component.output";
-                handler |input: BetaInput| async move {
-                    Ok(BetaOutput {
-                        value: input.value + 10,
-                    })
-                };
+        api { fn echo(&self, input: BetaInput) -> BetaOutput; }
+        runtime {
+            fn echo(&self, input: BetaInput) -> BetaOutput {
+                BetaOutput { value: input.value + 10 }
             }
         }
     }
@@ -277,8 +254,8 @@ fabric::component! {
 fn greeter_component_uses_declared_component_identity() {
     assert_eq!(greeter::component_id().as_str(), "fabric.test.greeter");
     assert_eq!(
-        greeter::operations::greet().id().as_str(),
-        "fabric.test.greeter.greet"
+        greeter::api::greet().id().as_str(),
+        "fabric.test.greeter.api.greet"
     );
     assert_eq!(Greeter::component_id().as_str(), "fabric.test.greeter");
     let definition: ComponentParticipationRealization = Greeter::define(GreeterConfig {})
@@ -291,17 +268,17 @@ fn greeter_component_uses_declared_component_identity() {
 }
 
 #[test]
-fn greeter_operation_uses_declared_operation_identity_metadata() {
-    let operation = greeter::operations::greet();
+fn greeter_api_lowers_to_declared_invocation_identity_metadata() {
+    let operation = greeter::api::greet();
 
-    assert_eq!(operation.id().as_str(), "fabric.test.greeter.greet");
+    assert_eq!(operation.id().as_str(), "fabric.test.greeter.api.greet");
     assert_eq!(
-        greeter::operations::greet_input_type_id().as_str(),
-        "fabric.test.greeter.input"
+        greeter::api::greet_input_type_id().as_str(),
+        "fabric.test.greeter.api.greet.input"
     );
     assert_eq!(
-        greeter::operations::greet_output_type_id().as_str(),
-        "fabric.test.greeter.output"
+        greeter::api::greet_output_type_id().as_str(),
+        "fabric.test.greeter.api.greet.output"
     );
 }
 
@@ -316,7 +293,7 @@ fn macro_generated_greeter_invokes_through_component_runtime() {
 
     let output: GreeterOutput = invoke(
         &rails,
-        &greeter::operations::greet(),
+        &greeter::api::greet(),
         GreeterInput {
             name: "kernel".to_owned(),
         },
@@ -327,7 +304,7 @@ fn macro_generated_greeter_invokes_through_component_runtime() {
 }
 
 #[test]
-fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
+fn multi_api_component_captures_config_and_invokes_distinct_runtime_methods() {
     let spec = ScriptedGreeter::define(ScriptedGreeterConfig {
         prefix: "hello".to_owned(),
         suffix: "!".to_owned(),
@@ -340,14 +317,14 @@ fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
 
     let greeting: ScriptedOutput = invoke(
         &rails,
-        &scripted_greeter::operations::greet(),
+        &scripted_greeter::api::greet(),
         ScriptedInput {
             name: "delta".to_owned(),
         },
     );
     let parting: ScriptedOutput = invoke(
         &rails,
-        &scripted_greeter::operations::part(),
+        &scripted_greeter::api::part(),
         ScriptedInput {
             name: "delta".to_owned(),
         },
@@ -356,8 +333,8 @@ fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
     assert_eq!(greeting.message, "hello delta!");
     assert_eq!(parting.message, "hello until later, delta!");
     assert_ne!(
-        scripted_greeter::operations::greet().id(),
-        scripted_greeter::operations::part().id()
+        scripted_greeter::api::greet().id(),
+        scripted_greeter::api::part().id()
     );
 
     instance.stop().expect("stop instance");
@@ -365,8 +342,8 @@ fn multi_operation_component_captures_config_and_invokes_distinct_handlers() {
 
 #[test]
 fn multiple_component_macros_can_coexist_in_one_module() {
-    let alpha = AlphaComponent::define(AlphaComponentConfig {});
-    let beta = BetaComponent::define(BetaComponentConfig {});
+    let alpha = AlphaComponent::define();
+    let beta = BetaComponent::define();
     let (mut instance, rails) = runtime_fixture(vec![
         (alpha.declaration().clone(), alpha.into_self_realization()),
         (beta.declaration().clone(), beta.into_self_realization()),
@@ -376,20 +353,16 @@ fn multiple_component_macros_can_coexist_in_one_module() {
 
     let alpha: AlphaOutput = invoke(
         &rails,
-        &alpha_component::operations::echo(),
+        &alpha_component::api::echo(),
         AlphaInput { value: 4 },
     );
-    let beta: BetaOutput = invoke(
-        &rails,
-        &beta_component::operations::echo(),
-        BetaInput { value: 4 },
-    );
+    let beta: BetaOutput = invoke(&rails, &beta_component::api::echo(), BetaInput { value: 4 });
 
     assert_eq!(alpha.value, 5);
     assert_eq!(beta.value, 14);
     assert_ne!(
-        alpha_component::operations::echo().id().as_str(),
-        beta_component::operations::echo().id().as_str()
+        alpha_component::api::echo().id().as_str(),
+        beta_component::api::echo().id().as_str()
     );
 
     instance.stop().expect("stop instance");
@@ -428,7 +401,7 @@ fn package_only_component_defines_identity_config_and_endpoints_without_runtime(
 }
 
 #[test]
-fn empty_component_without_operations_is_valid() {
+fn empty_component_without_api_is_valid() {
     let spec = EmptyComponent::define(EmptyComponentConfig);
 
     assert_eq!(
@@ -449,18 +422,18 @@ fn macro_generated_component_exposes_declaration_and_self_realization() {
     );
     let operations = spec.declaration().operations();
     assert_eq!(operations.len(), 1);
-    assert_eq!(operations[0].id().as_str(), "fabric.test.greeter.greet");
+    assert_eq!(operations[0].id().as_str(), "fabric.test.greeter.api.greet");
     assert_eq!(
         operations[0].input_type().as_str(),
-        "fabric.test.greeter.input"
+        "fabric.test.greeter.api.greet.input"
     );
     assert_eq!(
         operations[0].output_type().as_str(),
-        "fabric.test.greeter.output"
+        "fabric.test.greeter.api.greet.output"
     );
     assert!(
         spec.into_self_realization().is_some(),
-        "generated handlers must still attach a native runtime"
+        "canonical runtime methods must attach a native realization"
     );
 }
 

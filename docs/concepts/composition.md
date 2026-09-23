@@ -163,26 +163,22 @@ fabric::resource! {
     }
 }
 
-// Transitional self-realizing Component frontend. Canonical declaration uses
-// `relations` and `api`; canonical Component runtime authoring follows later.
 fabric::component! {
     pub StoreProbe {
         id: "example.store-probe";
-        requires {
-            primary_store: NoteStore(version = "^0.1");
-            cache_store: NoteStore(version = "^0.1");
+        relations {
+            requires {
+                primary_store: NoteStore(version = "^0.1");
+                cache_store: NoteStore(version = "^0.1");
+            }
         }
-        operations {
-            inspect {
-                id: "example.store-probe.inspect";
-                input: () = "example.store-probe.inspect.input";
-                output: StoreObservation = "example.store-probe.inspect.output";
-                handler |dependencies, _input: ()| async move {
-                    Ok(StoreObservation {
-                        primary: dependencies.primary_store.label(),
-                        cache: dependencies.cache_store.label(),
-                    })
-                };
+        api { fn inspect(&self) -> StoreObservation; }
+        runtime {
+            fn inspect(&self) -> StoreObservation {
+                StoreObservation {
+                    primary: self.relations().primary_store.label(),
+                    cache: self.relations().cache_store.label(),
+                }
             }
         }
     }
@@ -216,24 +212,14 @@ let built = Fabric::new("example.store-composition")
     .resource(primary.clone())
     .resource(cache.clone())
     .component(
-        StoreProbe::define(StoreProbeConfig {})
-            .select_named_resource_provider(
-                &store_probe::requirements::primary_store(),
-                &primary,
-            )
-            .select_named_resource_provider(
-                &store_probe::requirements::cache_store(),
-                &cache,
-            ),
+        StoreProbe::define(),
     )
     .build()
     .expect("unambiguous selected providers");
 
 let bindings = built.manifest().component_resource_bindings();
 assert_eq!(bindings[0].requirement_name().as_str(), "primary_store");
-assert_eq!(bindings[0].resource_name().as_str(), "primary");
 assert_eq!(bindings[1].requirement_name().as_str(), "cache_store");
-assert_eq!(bindings[1].resource_name().as_str(), "cache");
 ```
 
 The same law applies to Component-to-[System](system.md) requirements, but

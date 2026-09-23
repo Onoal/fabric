@@ -189,11 +189,9 @@ a realization.
 
 Canonical `runtime` supplies a default self realization for one participation;
 canonical Component-target `adapter!` supplies the same realization boundary.
-The older `operations { ... }` frontend remains a transitional self-realizing
-path. It alone currently accepts handlers, typed dependency values, and
-`context: invocation`. `InvocationContext` is runtime-supplied
-provenance—InstanceId, InstanceGeneration, InvocationId, and root
-InvocationOrigin—not identity, authority, authentication, tracing, or network
+Runtime implementations use typed `self.config()` and `self.relations()`
+accessors. `InvocationContext` remains advanced invocation provenance—not
+semantic API input, identity, authority, authentication, tracing, or network
 metadata.
 
 ## Runtime boundary

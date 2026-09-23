@@ -42,15 +42,11 @@ mod tests {
     fabric::component! {
         pub AuditConsumer {
             id: "example.audit-consumer";
-            system { audit: AuditSystem(version = "^0.1"); }
-            operations {
-                observe {
-                    id: "example.audit-consumer.observe";
-                    input: () = "example.audit-consumer.observe.input";
-                    output: Marker = "example.audit-consumer.observe.output";
-                    handler |dependencies, _input: ()| async move {
-                        Ok(Marker { value: dependencies.audit.marker() })
-                    };
+            relations { requires { audit: AuditSystem(version = "^0.1"); } }
+            api { fn observe(&self) -> Marker; }
+            runtime {
+                fn observe(&self) -> Marker {
+                    Marker { value: self.relations().audit.marker() }
                 }
             }
         }
@@ -120,7 +116,7 @@ mod tests {
             .expect("composition id")
             .system(audit)
             .system(derived)
-            .component(AuditConsumer::define(AuditConsumerConfig {}))
+            .component(AuditConsumer::define())
             .build()
             .expect("resolved dependencies");
 
@@ -133,7 +129,7 @@ mod tests {
             .materialize::<AuditConsumer>()
             .expect("materialize ComponentInstanceBinding");
         let output = futures::executor::block_on(
-            components.invoke_external(&audit_consumer::operations::observe(), ()),
+            components.invoke_external(&audit_consumer::api::observe(), ()),
         )
         .expect("invoke");
         assert_eq!(output, Marker { value: 7 });

@@ -148,40 +148,15 @@ distinct requirements for the same target; the target determines whether it is
 a Resource or System. Composition supplies matching semantic capabilities when
 a realization later needs them.
 
-The existing `operations { ... }` syntax remains a **transitional legacy
-self-realizing path** during the 0.5 hard-cut transition. It
-is the only current macro path that accepts handlers, invocation context, and
-the old `requires` / `system` dependency split. It is not canonical
-declaration authoring.
+The old `operations`, handler, top-level `requires`/`system`, and top-level
+`teardown` forms were removed in 0.5.4. Use `relations`, `api`, and `runtime`
+instead. Invocation provenance remains available only through the named
+advanced invocation API; it is not a macro-level semantic API argument.
 
-```rust
-// Transitional legacy realization syntax.
-requires {
-    storage: ExampleStore(provisional);
-    cache: ExampleStore(provisional);
-}
-```
-
-Context in that legacy path is opt-in. `InvocationContext` is runtime-supplied
-provenance (InstanceId, InstanceGeneration, InvocationId, and root
-InvocationOrigin), not identity, authorization, tracing, or network metadata.
-
-An operation has one typed output. Domain failure belongs in that output;
-`ComponentError` remains the outer Fabric runtime/control plane:
-
-```rust
-output: Result<Document, DocumentError> = "example.documents.open.outcome";
-handler |input: OpenDocument| async move {
-    Ok(repository.open(input.id))
-};
-
-// Result<Result<Document, DocumentError>, ComponentError>
-let domain_outcome = components.invoke_external(&documents::operations::open(), input).await?;
-match domain_outcome {
-    Ok(document) => { /* success */ }
-    Err(DocumentError::NotFound) => { /* semantic failure */ }
-}
-```
+An API endpoint has one typed output. Domain failure belongs in that output;
+`ComponentError` remains the outer Fabric runtime/control plane. For example,
+an `api` method returning `Result<Document, DocumentError>` is invoked as
+`Result<Result<Document, DocumentError>, ComponentError>`.
 
 ## Inspection
 

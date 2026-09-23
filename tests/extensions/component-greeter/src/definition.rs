@@ -14,16 +14,11 @@ fabric::component! {
 
         config {}
 
-        operations {
-            greet {
-                id: "fabric.test.greeter.greet";
-                input: GreeterInput = "fabric.test.greeter.input";
-                output: GreeterOutput = "fabric.test.greeter.output";
-                handler |input: GreeterInput| async move {
-                    Ok(GreeterOutput {
-                        message: format!("hello, {}", input.name),
-                    })
-                };
+        api { fn greet(&self, input: GreeterInput) -> GreeterOutput; }
+
+        runtime {
+            fn greet(&self, input: GreeterInput) -> GreeterOutput {
+                GreeterOutput { message: format!("hello, {}", input.name) }
             }
         }
     }

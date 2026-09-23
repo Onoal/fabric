@@ -50,25 +50,20 @@ component! {
     ImportedCanonicalProbe {
         id: "fabric.test.macro-context.imported-canonical-probe";
 
-        requires {
-            store: ImportedStore(provisional);
+        relations {
+            requires {
+                store: ImportedStore(provisional);
+                system: ImportedCanonicalSystem(provisional);
+            }
         }
-
-        system {
-            system: ImportedCanonicalSystem(provisional);
-        }
-
-        operations {
-            read {
-                id: "fabric.test.macro-context.imported-canonical-probe.read";
-                input: ImportedReadInput = "fabric.test.macro-context.imported-canonical-probe.read.input";
-                output: ImportedReadOutput = "fabric.test.macro-context.imported-canonical-probe.read.output";
-                handler |dependencies, _input: ImportedReadInput| async move {
-                    Ok(ImportedReadOutput {
-                        store: dependencies.store.get(),
-                        system: dependencies.system.now(),
-                    })
-                };
+        api { fn read(&self, input: ImportedReadInput) -> ImportedReadOutput; }
+        runtime {
+            fn read(&self, input: ImportedReadInput) -> ImportedReadOutput {
+                let _ = input;
+                ImportedReadOutput {
+                    store: self.relations().store.get(),
+                    system: self.relations().system.now(),
+                }
             }
         }
     }
@@ -78,21 +73,15 @@ component! {
     DifferentialImportedResourceProbe {
         id: "fabric.test.macro-context.differential-imported-resource-probe";
 
-        requires {
-            store: ImportedDifferentialStore(provisional);
-        }
-
-        operations {
-            read {
-                id: "fabric.test.macro-context.differential-imported-resource-probe.read";
-                input: DifferentialReadInput = "fabric.test.macro-context.differential-imported-resource-probe.read.input";
-                output: DifferentialReadOutput = "fabric.test.macro-context.differential-imported-resource-probe.read.output";
-                handler |dependencies, _input: DifferentialReadInput| async move {
-                    Ok(DifferentialReadOutput {
-                        read: dependencies.store.read(4),
-                        write: dependencies.store.write(4, 9),
-                    })
-                };
+        relations { requires { store: ImportedDifferentialStore(provisional); } }
+        api { fn read(&self, input: DifferentialReadInput) -> DifferentialReadOutput; }
+        runtime {
+            fn read(&self, input: DifferentialReadInput) -> DifferentialReadOutput {
+                let _ = input;
+                DifferentialReadOutput {
+                    read: self.relations().store.read(4),
+                    write: self.relations().store.write(4, 9),
+                }
             }
         }
     }
@@ -102,21 +91,15 @@ component! {
     DifferentialImportedSystemProbe {
         id: "fabric.test.macro-context.differential-imported-system-probe";
 
-        system {
-            clock: ImportedDifferentialSystem(provisional);
-        }
-
-        operations {
-            read {
-                id: "fabric.test.macro-context.differential-imported-system-probe.read";
-                input: DifferentialClockInput = "fabric.test.macro-context.differential-imported-system-probe.read.input";
-                output: DifferentialClockOutput = "fabric.test.macro-context.differential-imported-system-probe.read.output";
-                handler |dependencies, _input: DifferentialClockInput| async move {
-                    Ok(DifferentialClockOutput {
-                        now: dependencies.clock.now(),
-                        label: dependencies.clock.label(),
-                    })
-                };
+        relations { requires { clock: ImportedDifferentialSystem(provisional); } }
+        api { fn read(&self, input: DifferentialClockInput) -> DifferentialClockOutput; }
+        runtime {
+            fn read(&self, input: DifferentialClockInput) -> DifferentialClockOutput {
+                let _ = input;
+                DifferentialClockOutput {
+                    now: self.relations().clock.now(),
+                    label: self.relations().clock.label(),
+                }
             }
         }
     }
@@ -271,16 +254,16 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
     let built = Fabric::new("fabric.test.macro-context.imported-canonical")
         .expect("fabric")
         .component(
-            ImportedCanonicalProbe::define(ImportedCanonicalProbeConfig {})
+            ImportedCanonicalProbe::define()
                 .select_resource_provider(&resource_selection)
                 .select_system_provider(&system_selection),
         )
         .component(
-            DifferentialImportedResourceProbe::define(DifferentialImportedResourceProbeConfig {})
+            DifferentialImportedResourceProbe::define()
                 .select_resource_provider(&differential_resource_selection),
         )
         .component(
-            DifferentialImportedSystemProbe::define(DifferentialImportedSystemProbeConfig {})
+            DifferentialImportedSystemProbe::define()
                 .select_system_provider(&differential_system_selection),
         )
         .resource(resource)
@@ -304,10 +287,9 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
     components
         .materialize::<ImportedCanonicalProbe>()
         .expect("materialize semantic API consumer");
-    let output = futures::executor::block_on(components.invoke_external(
-        &imported_canonical_probe::operations::read(),
-        ImportedReadInput,
-    ))
+    let output = futures::executor::block_on(
+        components.invoke_external(&imported_canonical_probe::api::read(), ImportedReadInput),
+    )
     .expect("invoke semantic APIs through imported adapters");
     assert_eq!(
         output,
@@ -320,7 +302,7 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
         .materialize::<DifferentialImportedResourceProbe>()
         .expect("materialize imported differential resource consumer");
     let differential_resource_output = futures::executor::block_on(components.invoke_external(
-        &differential_imported_resource_probe::operations::read(),
+        &differential_imported_resource_probe::api::read(),
         DifferentialReadInput,
     ))
     .expect("invoke mediated and delegated Resource API methods");
@@ -332,7 +314,7 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
         .materialize::<DifferentialImportedSystemProbe>()
         .expect("materialize imported differential System consumer");
     let differential_system_output = futures::executor::block_on(components.invoke_external(
-        &differential_imported_system_probe::operations::read(),
+        &differential_imported_system_probe::api::read(),
         DifferentialClockInput,
     ))
     .expect("invoke mediated and delegated System API methods");

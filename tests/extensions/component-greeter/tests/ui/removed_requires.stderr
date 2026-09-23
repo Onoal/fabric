@@ -1,0 +1,5 @@
+error: component! `requires { ... }` was removed; use `relations { requires { role: Target; } }`
+ --> tests/ui/removed_requires.rs:6:9
+  |
+6 |         requires {}
+  |         ^^^^^^^^

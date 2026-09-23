@@ -1,5 +1,0 @@
-error: component operation handlers must declare exactly one typed input parameter
-  --> tests/ui/unexpected_context_handler.rs:15:26
-   |
-15 |                 handler |context, input: Input| async move { let _ = context; Ok(Output) };
-   |                          ^^^^^^^

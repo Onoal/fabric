@@ -1,5 +1,0 @@
-error: component operation supports only `context: invocation;`
-  --> tests/ui/unsupported_operation_context.rs:15:26
-   |
-15 |                 context: external;
-   |                          ^^^^^^^^

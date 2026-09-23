@@ -1,0 +1,5 @@
+error: component! `operations { ... }` was removed; declare callable behavior with `api { ... }` and implement it in `runtime { ... }`
+ --> tests/ui/removed_operations.rs:6:9
+  |
+6 |         operations {}
+  |         ^^^^^^^^^^

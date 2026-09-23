@@ -488,7 +488,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         impl #sdk::authoring::ComponentRelationTarget for #system_name {
             fn add_component_relation<C>(
                 spec: #sdk::authoring::ComponentSpec<C>,
-                _name: #sdk::component::ComponentResourceRequirementName,
+                _name: #sdk::component::ComponentRelationName,
                 compatibility: #sdk::authoring::ComponentRelationCompatibility,
             ) -> #sdk::authoring::ComponentSpec<C>
             where C: #sdk::authoring::ComponentDefinition {
@@ -501,7 +501,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
             fn resolve_component_relation(
                 scope: &#sdk::component::ComponentParticipationScope,
-                _name: &#sdk::component::ComponentResourceRequirementName,
+                _name: &#sdk::component::ComponentRelationName,
                 compatibility: &#sdk::authoring::ComponentRelationCompatibility,
             ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {
                 let requirement = match compatibility {

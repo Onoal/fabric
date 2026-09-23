@@ -1,5 +1,0 @@
-error: component operation handlers must use a closure expression like `|input: Type| async move { ... }`
-  --> tests/ui/unsupported_handler_expression.rs:22:25
-   |
-22 |                 handler greet;
-   |                         ^^^^^

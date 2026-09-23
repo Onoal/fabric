@@ -6,11 +6,10 @@ use syn::{
 };
 
 use crate::ast::{
-    AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext,
-    ComponentOperationDefinition, ComponentParticipationRealization, ConfigDefinition, ConfigField,
-    ContractMethod, DifferentialRealizationDefinition, RelationDefinition, RequirementDefinition,
-    RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
-    RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
+    AdapterInput, ApiDefinition, ComponentInput, ComponentParticipationRealization,
+    ConfigDefinition, ConfigField, ContractMethod, DifferentialRealizationDefinition,
+    RelationDefinition, RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition,
+    RuntimeMethod, RuntimeStateDefinition, SystemInput, VersionLiteral,
 };
 
 mod kw {
@@ -21,19 +20,16 @@ mod kw {
     syn::custom_keyword!(component);
     syn::custom_keyword!(compatibility);
     syn::custom_keyword!(config);
-    syn::custom_keyword!(context);
     syn::custom_keyword!(contracts);
-    syn::custom_keyword!(handler);
     syn::custom_keyword!(host);
     syn::custom_keyword!(id);
     syn::custom_keyword!(implements);
-    syn::custom_keyword!(input);
     syn::custom_keyword!(initialize);
-    syn::custom_keyword!(invocation);
     syn::custom_keyword!(lifecycle);
     syn::custom_keyword!(mediate);
+    // Recognized only to report the Component frontend removal; it is never
+    // lowered into the canonical AST.
     syn::custom_keyword!(operations);
-    syn::custom_keyword!(output);
     syn::custom_keyword!(primary);
     syn::custom_keyword!(prepare);
     syn::custom_keyword!(provisional);
@@ -505,10 +501,6 @@ impl Parse for ComponentInput {
         let mut relations = None;
         let mut api = None;
         let mut runtime = None;
-        let mut requires = None;
-        let mut systems = None;
-        let mut operations = None;
-        let mut teardown = None;
 
         while !content.is_empty() {
             if content.peek(kw::id) {
@@ -552,68 +544,27 @@ impl Parse for ComponentInput {
                 }
                 runtime = Some(parse_component_runtime(&content)?);
             } else if content.peek(kw::requires) {
-                content.parse::<kw::requires>()?;
-                if requires.is_some() {
-                    return Err(
-                        content.error("component! supports only one `requires { ... }` section")
-                    );
-                }
-                requires = Some(parse_requires(&content)?);
+                return Err(content.error(
+                    "component! `requires { ... }` was removed; use `relations { requires { role: Target; } }`",
+                ));
             } else if content.peek(kw::system) {
-                content.parse::<kw::system>()?;
-                if systems.is_some() {
-                    return Err(
-                        content.error("component! supports only one `system { ... }` section")
-                    );
-                }
-                systems = Some(parse_system_dependencies(&content)?);
+                return Err(content.error(
+                    "component! `system { ... }` was removed; use `relations { requires { role: Target; } }`",
+                ));
             } else if content.peek(kw::operations) {
-                content.parse::<kw::operations>()?;
-                if operations.is_some() {
-                    return Err(
-                        content.error("component! supports only one `operations { ... }` section")
-                    );
-                }
-                operations = Some(parse_component_operations(&content)?);
+                return Err(content.error(
+                    "component! `operations { ... }` was removed; declare callable behavior with `api { ... }` and implement it in `runtime { ... }`",
+                ));
             } else if content.peek(kw::teardown) {
-                content.parse::<kw::teardown>()?;
-                if teardown.is_some() {
-                    return Err(
-                        content.error("component! supports only one `teardown { ... }` section")
-                    );
-                }
-                teardown = Some(content.parse::<syn::Block>()?);
+                return Err(content.error(
+                    "component! top-level `teardown { ... }` was removed; place it inside `runtime { teardown { ... } }`",
+                ));
             } else {
                 return Err(content.error("unsupported component! section"));
             }
         }
 
         let name_for_errors = name.clone();
-
-        if api.is_some() && operations.is_some() {
-            return Err(Error::new(
-                name_for_errors.span(),
-                "component! cannot combine canonical `api { ... }` with transitional `operations { ... }`; api declares semantics while operations remains the legacy self-realizing path",
-            ));
-        }
-        if runtime.is_some() && operations.is_some() {
-            return Err(Error::new(
-                name_for_errors.span(),
-                "component! cannot combine canonical `runtime { ... }` with transitional `operations { ... }`",
-            ));
-        }
-        if relations.is_some() && (requires.is_some() || systems.is_some()) {
-            return Err(Error::new(
-                name_for_errors.span(),
-                "component! cannot combine canonical `relations { ... }` with legacy `requires { ... }` or `system { ... }` dependencies",
-            ));
-        }
-        if teardown.is_some() && operations.is_none() {
-            return Err(Error::new(
-                name_for_errors.span(),
-                "component! `teardown { ... }` belongs to the transitional self-realizing `operations { ... }` path; a canonical declaration has no runtime attachment",
-            ));
-        }
 
         Ok(Self {
             visibility,
@@ -632,10 +583,6 @@ impl Parse for ComponentInput {
                 methods: api.methods,
             }),
             runtime,
-            legacy_requires: requires.unwrap_or_default(),
-            legacy_systems: systems.unwrap_or_default(),
-            legacy_operations: operations,
-            teardown,
         })
     }
 }
@@ -764,25 +711,6 @@ fn resolve_api(
     })
 }
 
-fn parse_requires(input: ParseStream<'_>) -> Result<Vec<RequirementDefinition>> {
-    let content;
-    braced!(content in input);
-    let mut requirements = Vec::new();
-    while !content.is_empty() {
-        let field = content.parse::<Ident>()?;
-        content.parse::<Token![:]>()?;
-        let resource = content.parse::<Path>()?;
-        let compatibility = parse_requirement_invocation(&content)?;
-        content.parse::<Token![;]>()?;
-        requirements.push(RequirementDefinition {
-            field,
-            resource,
-            compatibility,
-        });
-    }
-    Ok(requirements)
-}
-
 fn parse_relations(input: ParseStream<'_>) -> Result<Vec<RelationDefinition>> {
     let content;
     braced!(content in input);
@@ -838,51 +766,6 @@ fn parse_requirement_invocation(input: ParseStream<'_>) -> Result<RequirementLit
 
     Err(content.error(
         "resource dependency requires explicit `provisional` or `version = \"...\"` compatibility",
-    ))
-}
-
-fn parse_system_dependencies(input: ParseStream<'_>) -> Result<Vec<SystemDependencyDefinition>> {
-    let content;
-    braced!(content in input);
-    let mut dependencies = Vec::new();
-    while !content.is_empty() {
-        let field = content.parse::<Ident>()?;
-        content.parse::<Token![:]>()?;
-        let system = content.parse::<Path>()?;
-        let compatibility = parse_system_dependency_invocation(&content)?;
-        content.parse::<Token![;]>()?;
-        dependencies.push(SystemDependencyDefinition {
-            field,
-            system,
-            compatibility,
-        });
-    }
-    Ok(dependencies)
-}
-
-fn parse_system_dependency_invocation(input: ParseStream<'_>) -> Result<RequirementLiteral> {
-    let content;
-    parenthesized!(content in input);
-    if content.peek(kw::provisional) {
-        content.parse::<kw::provisional>()?;
-        if !content.is_empty() {
-            return Err(content.error("unexpected tokens after `provisional`"));
-        }
-        return Ok(RequirementLiteral::Provisional);
-    }
-
-    if content.peek(kw::version) {
-        content.parse::<kw::version>()?;
-        content.parse::<Token![=]>()?;
-        let value = content.parse::<LitStr>()?;
-        if !content.is_empty() {
-            return Err(content.error("unexpected tokens after version requirement"));
-        }
-        return Ok(RequirementLiteral::Versioned(value));
-    }
-
-    Err(content.error(
-        "system dependency requires explicit `provisional` or `version = \"...\"` compatibility",
     ))
 }
 
@@ -1083,134 +966,6 @@ fn parse_runtime_lifecycle(input: ParseStream<'_>) -> Result<RuntimeLifecycleDef
     Ok(lifecycle)
 }
 
-fn parse_component_operations(input: ParseStream<'_>) -> Result<Vec<ComponentOperationDefinition>> {
-    let content;
-    braced!(content in input);
-    let mut operations = Vec::new();
-
-    while !content.is_empty() {
-        let name = content.parse::<Ident>()?;
-        let operation_content;
-        braced!(operation_content in content);
-
-        let mut operation_id = None;
-        let mut input_ty = None;
-        let mut input_type_id = None;
-        let mut output_ty = None;
-        let mut output_type_id = None;
-        let mut context = None;
-        let mut handler = None;
-
-        while !operation_content.is_empty() {
-            if operation_content.peek(kw::id) {
-                operation_content.parse::<kw::id>()?;
-                operation_content.parse::<Token![:]>()?;
-                if operation_id.is_some() {
-                    return Err(operation_content
-                        .error("component operation supports only one `id: ...;` declaration"));
-                }
-                operation_id = Some(operation_content.parse::<LitStr>()?);
-                operation_content.parse::<Token![;]>()?;
-            } else if operation_content.peek(kw::input) {
-                operation_content.parse::<kw::input>()?;
-                operation_content.parse::<Token![:]>()?;
-                if input_ty.is_some() || input_type_id.is_some() {
-                    return Err(operation_content.error(
-                        "component operation supports only one `input: Type = \"...\";` declaration",
-                    ));
-                }
-                input_ty = Some(operation_content.parse::<Type>()?);
-                operation_content.parse::<Token![=]>()?;
-                input_type_id = Some(operation_content.parse::<LitStr>()?);
-                operation_content.parse::<Token![;]>()?;
-            } else if operation_content.peek(kw::output) {
-                operation_content.parse::<kw::output>()?;
-                operation_content.parse::<Token![:]>()?;
-                if output_ty.is_some() || output_type_id.is_some() {
-                    return Err(operation_content.error(
-                        "component operation supports only one `output: Type = \"...\";` declaration",
-                    ));
-                }
-                output_ty = Some(operation_content.parse::<Type>()?);
-                operation_content.parse::<Token![=]>()?;
-                output_type_id = Some(operation_content.parse::<LitStr>()?);
-                operation_content.parse::<Token![;]>()?;
-            } else if operation_content.peek(kw::context) {
-                operation_content.parse::<kw::context>()?;
-                operation_content.parse::<Token![:]>()?;
-                if context.is_some() {
-                    return Err(operation_content.error(
-                        "component operation supports only one `context: invocation;` declaration",
-                    ));
-                }
-                if operation_content.peek(kw::invocation) {
-                    operation_content.parse::<kw::invocation>()?;
-                    context = Some(ComponentOperationContext::Invocation);
-                } else {
-                    return Err(operation_content
-                        .error("component operation supports only `context: invocation;`"));
-                }
-                operation_content.parse::<Token![;]>()?;
-            } else if operation_content.peek(kw::handler) {
-                operation_content.parse::<kw::handler>()?;
-                if handler.is_some() {
-                    return Err(operation_content
-                        .error("component operation supports only one `handler ...` declaration"));
-                }
-                handler = Some(operation_content.parse::<Expr>()?);
-                if operation_content.peek(Token![;]) {
-                    operation_content.parse::<Token![;]>()?;
-                }
-            } else {
-                return Err(operation_content.error("unsupported component operation section"));
-            }
-        }
-
-        let name_for_errors = name.clone();
-        operations.push(ComponentOperationDefinition {
-            name,
-            operation_id: operation_id.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires an `id: ...;` declaration",
-                )
-            })?,
-            input_ty: input_ty.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires an `input: Type = \"...\";` declaration",
-                )
-            })?,
-            input_type_id: input_type_id.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires an `input: Type = \"...\";` declaration",
-                )
-            })?,
-            output_ty: output_ty.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires an `output: Type = \"...\";` declaration",
-                )
-            })?,
-            output_type_id: output_type_id.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires an `output: Type = \"...\";` declaration",
-                )
-            })?,
-            context: context.unwrap_or(ComponentOperationContext::None),
-            handler: handler.ok_or_else(|| {
-                Error::new(
-                    name_for_errors.span(),
-                    "component operation requires a `handler ...` declaration",
-                )
-            })?,
-        });
-    }
-
-    Ok(operations)
-}
 syn::custom_keyword!(contracts);
 syn::custom_keyword!(implements);
 syn::custom_keyword!(primary);

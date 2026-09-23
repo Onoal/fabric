@@ -23,12 +23,6 @@ impl ComponentRelationName {
     }
 }
 
-/// Hidden compatibility spelling retained for existing Resource-specific lowering.
-/// Canonical Component authoring uses [`ComponentRelationName`] for every
-/// relation target, regardless of whether it is a Resource or System.
-#[doc(hidden)]
-pub type ComponentResourceRequirementName = ComponentRelationName;
-
 /// Runtime-free declaration of one named semantic capability relation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentRelationDeclaration {
@@ -54,7 +48,7 @@ impl ComponentRelationDeclaration {
 #[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentResourceRequirementDeclaration {
-    name: ComponentResourceRequirementName,
+    name: ComponentRelationName,
     resource_id: ResourceId,
     requirement: ContractRequirementDeclaration,
 }
@@ -82,7 +76,7 @@ impl ComponentSystemRequirementDeclaration {
 
 impl ComponentResourceRequirementDeclaration {
     pub fn new(
-        name: ComponentResourceRequirementName,
+        name: ComponentRelationName,
         resource_id: ResourceId,
         requirement: ContractRequirementDeclaration,
     ) -> Self {
@@ -93,7 +87,7 @@ impl ComponentResourceRequirementDeclaration {
         }
     }
 
-    pub fn name(&self) -> &ComponentResourceRequirementName {
+    pub fn name(&self) -> &ComponentRelationName {
         &self.name
     }
 

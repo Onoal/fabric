@@ -1,4 +1,4 @@
-use fabric_component::{ComponentId, ComponentResourceRequirementName};
+use fabric_component::{ComponentId, ComponentRelationName};
 use fabric_core::{
     BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
     ModuleDeclaration,
@@ -146,7 +146,7 @@ impl SystemAugmentationManifestEntry {
 #[derive(Clone, Debug)]
 pub struct ComponentResourceBindingManifestEntry {
     component_id: ComponentId,
-    requirement_name: ComponentResourceRequirementName,
+    requirement_name: ComponentRelationName,
     resource_id: ResourceId,
     resource_name: ResourceName,
 }
@@ -154,7 +154,7 @@ pub struct ComponentResourceBindingManifestEntry {
 impl ComponentResourceBindingManifestEntry {
     pub(crate) fn new(
         component_id: ComponentId,
-        requirement_name: ComponentResourceRequirementName,
+        requirement_name: ComponentRelationName,
         resource_id: ResourceId,
         resource_name: ResourceName,
     ) -> Self {
@@ -168,7 +168,7 @@ impl ComponentResourceBindingManifestEntry {
     pub fn component_id(&self) -> &ComponentId {
         &self.component_id
     }
-    pub fn requirement_name(&self) -> &ComponentResourceRequirementName {
+    pub fn requirement_name(&self) -> &ComponentRelationName {
         &self.requirement_name
     }
     pub fn resource_id(&self) -> &ResourceId {

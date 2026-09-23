@@ -1,4 +1,12 @@
 // Keep the Composition guide's normal import form in this compile fixture.
+#[cfg(test)]
+use fabric::authoring::Requires;
+#[cfg(test)]
+use fabric::authoring::component::ComponentResourceRequirement;
+#[cfg(test)]
+use fabric::component::declaration::ComponentRelationName;
+#[cfg(test)]
+use fabric::core::ContractVersionRequirement;
 #[allow(unused_imports)]
 use fabric::prelude::*;
 
@@ -25,21 +33,19 @@ fabric::resource! {
 fabric::component! {
     pub StoreProbe {
         id: "example.store-probe";
-        requires {
-            primary_store: NoteStore(version = "^0.1");
-            cache_store: NoteStore(version = "^0.1");
+        relations {
+            requires {
+                primary_store: NoteStore(version = "^0.1");
+                cache_store: NoteStore(version = "^0.1");
+            }
         }
-        operations {
-            inspect {
-                id: "example.store-probe.inspect";
-                input: () = "example.store-probe.inspect.input";
-                output: StoreObservation = "example.store-probe.inspect.output";
-                handler |dependencies, _input: ()| async move {
-                    Ok(StoreObservation {
-                        primary: dependencies.primary_store.label(),
-                        cache: dependencies.cache_store.label(),
-                    })
-                };
+        api { fn inspect(&self) -> StoreObservation; }
+        runtime {
+            fn inspect(&self) -> StoreObservation {
+                StoreObservation {
+                    primary: self.relations().primary_store.label(),
+                    cache: self.relations().cache_store.label(),
+                }
             }
         }
     }
@@ -87,12 +93,25 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
         .resource(primary.clone())
         .resource(cache.clone())
         .component(
-            StoreProbe::define(StoreProbeConfig {})
+            StoreProbe::define()
                 .select_named_resource_provider(
-                    &store_probe::requirements::primary_store(),
+                    &ComponentResourceRequirement::new(
+                        ComponentRelationName::new("primary_store").expect("relation name"),
+                        Requires::<NoteStore>::versioned(
+                            ContractVersionRequirement::parse("^0.1").expect("version"),
+                        ),
+                    ),
                     &primary,
                 )
-                .select_named_resource_provider(&store_probe::requirements::cache_store(), &cache),
+                .select_named_resource_provider(
+                    &ComponentResourceRequirement::new(
+                        ComponentRelationName::new("cache_store").expect("relation name"),
+                        Requires::<NoteStore>::versioned(
+                            ContractVersionRequirement::parse("^0.1").expect("version"),
+                        ),
+                    ),
+                    &cache,
+                ),
         )
         .build()
         .expect("unambiguous selected providers");
@@ -111,10 +130,9 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
     components
         .materialize::<StoreProbe>()
         .expect("materialize ComponentInstanceBinding");
-    let observation = futures::executor::block_on(
-        components.invoke_external(&store_probe::operations::inspect(), ()),
-    )
-    .expect("runtime invocation");
+    let observation =
+        futures::executor::block_on(components.invoke_external(&store_probe::api::inspect(), ()))
+            .expect("runtime invocation");
     assert_eq!(
         observation,
         StoreObservation {
@@ -138,7 +156,7 @@ fn local_store_stack() -> Fabric {
 #[test]
 fn ordinary_rust_can_reuse_partial_fabric_authoring_before_build() {
     let built = local_store_stack()
-        .component(StoreProbe::define(StoreProbeConfig {}))
+        .component(StoreProbe::define())
         .build()
         .expect("one available provider can satisfy both requirements");
 

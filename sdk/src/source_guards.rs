@@ -867,13 +867,13 @@ fn sdk_docs_describe_the_current_public_contract() {
     assert!(
         readme.contains("Canonical `component!` declaration")
             && readme.contains("Relation fields are Component-local roles")
-            && readme.contains("transitional legacy\nself-realizing path"),
-        "SDK README must document canonical declaration roles and isolate legacy Component realization authoring"
+            && readme.contains("were removed in 0.5.4"),
+        "SDK README must document canonical declaration roles and the hard-cut migration"
     );
     assert!(
-        readme.contains("Context in that legacy path is opt-in")
+        readme.contains("advanced invocation API")
             && readme.contains("Result<Result<Document, DocumentError>, ComponentError>"),
-        "SDK README must document legacy invocation provenance and nested domain results"
+        "SDK README must separate advanced invocation provenance from nested domain results"
     );
     assert!(
         readme.contains("`FabricManifest` is immutable semantic Composition inspection")
@@ -930,18 +930,15 @@ fn sdk_trybuild_covers_component_macro_frontend_integrity() {
     let ui_dir = crate_root().join("../tests/extensions/component-greeter/tests/ui");
 
     assert!(
-        compile_fail.contains("tests/ui/*.rs"),
-        "component trybuild suite should execute the component ui fixtures"
+        compile_fail.contains("removed_operations.rs"),
+        "component trybuild suite should execute canonical and removal ui fixtures"
     );
     for case in [
-        "missing_component_id.rs",
-        "duplicate_operations_section.rs",
-        "operation_missing_id.rs",
-        "operation_missing_input.rs",
-        "operation_missing_output.rs",
-        "operation_missing_handler.rs",
-        "duplicate_operation_name.rs",
-        "unsupported_handler_expression.rs",
+        "duplicate_component_api_method.rs",
+        "removed_operations.rs",
+        "removed_requires.rs",
+        "removed_system.rs",
+        "removed_teardown.rs",
     ] {
         assert!(
             ui_dir.join(case).exists(),

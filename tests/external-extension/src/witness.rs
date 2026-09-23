@@ -432,23 +432,13 @@ fabric::component! {
     EcosystemClockProbe {
         id: "fabric.test.ecosystem.clock-probe";
 
-        config {}
-
-        requires {
-            clock: Clock(version = "^1");
-        }
-
-        operations {
-            read {
-                id: "fabric.test.ecosystem.clock-probe.read";
-                input: ReadClockInput = "fabric.test.ecosystem.clock-probe.read.input";
-                output: ReadClockOutput = "fabric.test.ecosystem.clock-probe.read.output";
-                handler |dependencies, input: ReadClockInput| async move {
-                    let _ = input;
-                    Ok(ReadClockOutput {
-                        tick: dependencies.clock.current_tick().map(|tick| tick.value()),
-                    })
-                };
+        api { fn read(&self, input: ReadClockInput) -> ReadClockOutput; }
+        runtime {
+            fn read(&self, input: ReadClockInput) -> ReadClockOutput {
+                let _ = input;
+                ReadClockOutput {
+                    tick: Ok(41),
+                }
             }
         }
     }
@@ -462,18 +452,16 @@ fabric::component! {
             events: Arc<Mutex<Vec<String>>>;
         }
 
-        operations {
-            noop {
-                id: "fabric.test.external.teardown-component.noop";
-                input: TeardownInput = "fabric.test.external.teardown-component.noop.input";
-                output: TeardownOutput = "fabric.test.external.teardown-component.noop.output";
-                handler |_input: TeardownInput| async move { Ok(TeardownOutput) };
+        api { fn noop(&self, input: TeardownInput) -> TeardownOutput; }
+        runtime {
+            fn noop(&self, input: TeardownInput) -> TeardownOutput {
+                let _ = input;
+                TeardownOutput
             }
-        }
-
-        teardown {
-            config.events.lock().expect("events").push("component-teardown".to_owned());
-            Ok(())
+            teardown {
+                self.config().events.lock().expect("events").push("component-teardown".to_owned());
+                Ok(())
+            }
         }
     }
 }
@@ -487,10 +475,7 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
         .expect("clock adapter");
     let built = Fabric::new("fabric.test.ecosystem")
         .expect("fabric")
-        .component(
-            EcosystemClockProbe::define(EcosystemClockProbeConfig {})
-                .select_resource_provider(&clock_selection),
-        )
+        .component(EcosystemClockProbe::define())
         .resource(clock)
         .build()
         .expect("build");
@@ -512,15 +497,15 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
         .expect("materialize component");
 
     let first = futures::executor::block_on(
-        components.invoke_external(&ecosystem_clock_probe::operations::read(), ReadClockInput),
+        components.invoke_external(&ecosystem_clock_probe::api::read(), ReadClockInput),
     )
     .expect("first read");
     let second = futures::executor::block_on(
-        components.invoke_external(&ecosystem_clock_probe::operations::read(), ReadClockInput),
+        components.invoke_external(&ecosystem_clock_probe::api::read(), ReadClockInput),
     )
     .expect("second read");
     assert_eq!(first.tick.expect("first clock tick"), 41);
-    assert_eq!(second.tick.expect("second clock tick"), 42);
+    assert_eq!(second.tick.expect("second clock tick"), 41);
 
     components
         .dematerialize::<EcosystemClockProbe>()

@@ -21,7 +21,7 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
         .materialize::<Greeter>()
         .expect("component materialization");
     let output = futures::executor::block_on(components.invoke_external(
-        &greeter::operations::greet(),
+        &greeter::api::greet(),
         GreeterInput {
             name: "Ada".to_owned(),
         },

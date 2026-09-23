@@ -38,7 +38,8 @@ pub use fabric::{
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};
 pub use runtime_authoring::{
-    RuntimeContext, RuntimeState, StatefulAdapterDefinition, StatefulRuntimeAuthoring,
+    AdapterRuntimeState, RuntimeContext, RuntimeState, StatefulAdapterDefinition,
+    StatefulRuntimeAuthoring,
 };
 pub use system::{
     AdaptableSystemDefinition, PrimarySystemContract, SystemAugmentation,

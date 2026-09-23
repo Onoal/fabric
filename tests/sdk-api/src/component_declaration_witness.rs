@@ -31,6 +31,28 @@ struct RuntimeLifecycleState(std::sync::atomic::AtomicUsize);
 #[derive(Clone)]
 struct AdapterPreparationConfig(std::sync::Arc<std::sync::atomic::AtomicUsize>);
 
+#[derive(Clone)]
+struct AdapterParticipationConfig {
+    state_allocations: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    prepares: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    teardowns: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[derive(Default)]
+struct AdapterParticipationState(std::sync::atomic::AtomicUsize);
+
+#[derive(Clone)]
+struct ReplacementComponentConfig {
+    self_prepares: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    self_teardowns: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[derive(Clone)]
+struct ReplacementAdapterConfig {
+    adapter_prepares: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    adapter_teardowns: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
 resource! {
     DeclarationStore {
         id: "fabric.test.component-declaration.store";
@@ -95,6 +117,143 @@ adapter! {
             prepare { Ok(()) }
             teardown { Ok(()) }
         }
+    }
+}
+
+component! {
+    AdapterParticipationAudit {
+        id: "fabric.test.component-declaration.adapter-participation-audit";
+        config { prefix: String; }
+        relations {
+            requires {
+                component_store: CanonicalRuntimeStore;
+            }
+        }
+        api { fn inspect(&self, key: String) -> String; }
+    }
+}
+
+adapter! {
+    AdapterParticipationAuditRuntime for AdapterParticipationAudit {
+        config: AdapterParticipationConfig;
+        relations {
+            requires {
+                adapter_store: CanonicalRuntimeStore;
+            }
+        }
+        runtime {
+            state {
+                AdapterParticipationState = {
+                    config
+                        .state_allocations
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    AdapterParticipationState::default()
+                };
+            }
+            fn inspect(&self, key: String) -> String {
+                let count = self
+                    .state()
+                    .get()
+                    .0
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                    + 1;
+                format!(
+                    "{}:{}:{}:{count}",
+                    self.component_config().prefix,
+                    self.component_relations()
+                        .component_store
+                        .get(key.clone())
+                        .expect("component relation"),
+                    self.relations()
+                        .adapter_store
+                        .get(key)
+                        .expect("adapter relation"),
+                )
+            }
+            prepare {
+                self.config()
+                    .prepares
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+            teardown {
+                self.config()
+                    .teardowns
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+        }
+    }
+}
+
+component! {
+    ReplacementAudit {
+        id: "fabric.test.component-declaration.replacement-audit";
+        config: ReplacementComponentConfig;
+        runtime {
+            prepare {
+                self.config()
+                    .self_prepares
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+            teardown {
+                self.config()
+                    .self_teardowns
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+        }
+    }
+}
+
+adapter! {
+    ReplacementAuditAdapter for ReplacementAudit {
+        config: ReplacementAdapterConfig;
+        runtime {
+            prepare {
+                self.config()
+                    .adapter_prepares
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+            teardown {
+                self.config()
+                    .adapter_teardowns
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Ok(())
+            }
+        }
+    }
+}
+
+mod imported_component_target {
+    use fabric::*;
+
+    component! {
+        pub ImportedTarget {
+            id: "fabric.test.component-declaration.imported-target";
+            api { fn source(&self) -> &'static str; }
+        }
+    }
+}
+
+mod component_target_facade {
+    pub use super::imported_component_target::ImportedTarget as ReexportedTarget;
+}
+
+use component_target_facade::ReexportedTarget as ImportedComponentTarget;
+
+adapter! {
+    ImportedComponentTargetAdapter for ImportedComponentTarget {
+        runtime { fn source(&self) -> &'static str { "imported" } }
+    }
+}
+
+adapter! {
+    UnsupportedComponentAdapterSupport for AdapterPreparedAutonomous {
+        supports: provisional;
+        runtime { prepare { Ok(()) } }
     }
 }
 
@@ -579,4 +738,171 @@ fn api_less_component_adapter_can_prepare_one_participation() {
         .expect("prepare autonomous participation");
     assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
     instance.stop().expect("stop");
+}
+
+#[test]
+fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
+    let state_allocations = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let prepares = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let teardowns = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let selected = AdapterParticipationAudit::define(AdapterParticipationAuditConfig {
+        prefix: "component".to_owned(),
+    })
+    .using(AdapterParticipationAuditRuntime::new(
+        AdapterParticipationConfig {
+            state_allocations: std::sync::Arc::clone(&state_allocations),
+            prepares: std::sync::Arc::clone(&prepares),
+            teardowns: std::sync::Arc::clone(&teardowns),
+        },
+    ))
+    .expect("select adapter realization");
+    let built = Fabric::new("fabric.test.component-declaration.adapter-participation-audit")
+        .expect("fabric")
+        .resource(CanonicalRuntimeStore::select("component_store").expect("store"))
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.adapter-participation-audit.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    assert_eq!(
+        state_allocations.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "Adapter provider materialization must not allocate participation state"
+    );
+    let components = instance.components().expect("component host");
+    components
+        .materialize::<AdapterParticipationAudit>()
+        .expect("first participation");
+    assert_eq!(
+        state_allocations.load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
+    assert_eq!(prepares.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert_eq!(
+        futures::executor::block_on(components.invoke_external(
+            &adapter_participation_audit::operations::inspect(),
+            "key".to_owned(),
+        ))
+        .expect("invoke"),
+        "component:store:key:store:key:1"
+    );
+    components
+        .dematerialize::<AdapterParticipationAudit>()
+        .expect("dematerialize");
+    assert_eq!(teardowns.load(std::sync::atomic::Ordering::SeqCst), 1);
+    components
+        .materialize::<AdapterParticipationAudit>()
+        .expect("fresh participation");
+    assert_eq!(
+        state_allocations.load(std::sync::atomic::Ordering::SeqCst),
+        2
+    );
+    assert_eq!(
+        futures::executor::block_on(components.invoke_external(
+            &adapter_participation_audit::operations::inspect(),
+            "key".to_owned(),
+        ))
+        .expect("fresh invoke"),
+        "component:store:key:store:key:1",
+        "state is fresh for a new ComponentParticipation"
+    );
+    instance.stop().expect("host stop");
+    assert_eq!(teardowns.load(std::sync::atomic::Ordering::SeqCst), 2);
+}
+
+#[test]
+fn explicit_component_adapter_replaces_self_prepare_and_teardown() {
+    let self_prepares = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let self_teardowns = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let adapter_prepares = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let adapter_teardowns = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let selected = ReplacementAudit::define(ReplacementComponentConfig {
+        self_prepares: std::sync::Arc::clone(&self_prepares),
+        self_teardowns: std::sync::Arc::clone(&self_teardowns),
+    })
+    .using(ReplacementAuditAdapter::new(ReplacementAdapterConfig {
+        adapter_prepares: std::sync::Arc::clone(&adapter_prepares),
+        adapter_teardowns: std::sync::Arc::clone(&adapter_teardowns),
+    }))
+    .expect("Adapter replaces default self realization");
+    let built = Fabric::new("fabric.test.component-declaration.replacement-audit")
+        .expect("fabric")
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.replacement-audit.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    instance
+        .components()
+        .expect("component host")
+        .materialize::<ReplacementAudit>()
+        .expect("adapter participation");
+    assert_eq!(self_prepares.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert_eq!(
+        adapter_prepares.load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
+    instance.stop().expect("stop");
+    assert_eq!(self_teardowns.load(std::sync::atomic::Ordering::SeqCst), 0);
+    assert_eq!(
+        adapter_teardowns.load(std::sync::atomic::Ordering::SeqCst),
+        1
+    );
+}
+
+#[test]
+fn component_adapter_target_resolution_uses_the_imported_type() {
+    let selected = ImportedComponentTarget::define()
+        .using(ImportedComponentTargetAdapter::new())
+        .expect("imported target adapter");
+    let built = Fabric::new("fabric.test.component-declaration.imported-target")
+        .expect("fabric")
+        .component(selected)
+        .build()
+        .expect("build");
+    let mut instance = built
+        .materialize_named_on(
+            "fabric.test.component-declaration.imported-target.instance",
+            &HostDescriptor::native(),
+        )
+        .expect("instance");
+    instance.start().expect("start");
+    let components = instance.components().expect("component host");
+    components
+        .materialize::<ImportedComponentTarget>()
+        .expect("adapter participation");
+    assert_eq!(
+        futures::executor::block_on(components.invoke_external(
+            &imported_component_target::imported_target::operations::source(),
+            (),
+        ))
+        .expect("invoke"),
+        "imported"
+    );
+    instance.stop().expect("stop");
+}
+
+#[test]
+fn component_adapter_rejects_schema_style_support_overrides() {
+    let error = match AdapterPreparedAutonomous::define()
+        .using(UnsupportedComponentAdapterSupport::new())
+    {
+        Ok(_) => panic!("Component Adapter support must be target-derived"),
+        Err(error) => error,
+    };
+    assert!(matches!(
+        error,
+        fabric::component::ComponentError::UnsupportedComponentAdapterSupportOverride
+    ));
+    assert!(error.to_string().contains("`supports:` is not valid"));
 }

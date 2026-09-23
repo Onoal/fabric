@@ -165,6 +165,12 @@ Likewise `self.relations()` is Adapter-owned realization requirements and
 provider lifecycle remains Core provider lifecycle; `prepare` and `teardown`
 above belong to one ComponentParticipation.
 
+Component Adapter compatibility is derived from the target Component identity.
+Do not write `supports:` for a Component target: schema-version compatibility
+belongs to Resource/System contracts, not Components. An Adapter runtime's
+`state` is likewise created only while its selected ComponentParticipation is
+prepared; it is not provider-module lifetime state.
+
 A Component requires semantic Resources and Systems, not Adapters:
 
 ```text

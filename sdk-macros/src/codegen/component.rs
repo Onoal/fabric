@@ -464,9 +464,15 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 #(#canonical_relation_spec_additions)*
         })
     } else if has_config(&input.config) {
-        quote!(pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> { #sdk::authoring::ComponentSpec::<Self>::new(config) })
+        quote!(pub fn define(config: #config_ty) -> #sdk::authoring::ComponentSpec<Self> {
+            #sdk::authoring::ComponentSpec::<Self>::new(config)
+                #(#canonical_relation_spec_additions)*
+        })
     } else {
-        quote!(pub fn define() -> #sdk::authoring::ComponentSpec<Self> { #sdk::authoring::ComponentSpec::<Self>::new(()) })
+        quote!(pub fn define() -> #sdk::authoring::ComponentSpec<Self> {
+            #sdk::authoring::ComponentSpec::<Self>::new(())
+                #(#canonical_relation_spec_additions)*
+        })
     };
     let self_realizing_impl = legacy_self_realization.then(|| quote! {
         impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
@@ -530,6 +536,8 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
                 Ok((config.clone(), #canonical_relations_name { #(#canonical_relation_initializers)* }))
             }
+
+            fn is_component_participation_target() -> bool { true }
         }
 
         #adaptable_component_impl
@@ -616,7 +624,7 @@ fn component_adapter_bridge_tokens(
         .collect::<Vec<_>>();
     let missing_names = method_names
         .iter()
-        .map(|name| format_ident!("ComponentAdapterMethodMissing{}", upper_camel(name)))
+        .map(|name| format_ident!("ComponentAdapterMissingApiMethod{}", upper_camel(name)))
         .collect::<Vec<_>>();
     let builder_ty = |types: &[TokenStream]| {
         if types.is_empty() {

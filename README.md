@@ -53,7 +53,7 @@ The cross-cutting terms have deliberately different owners:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.5.1" }
+fabric = { package = "onoal-fabric", version = "0.5.2" }
 ```
 
 ```rust

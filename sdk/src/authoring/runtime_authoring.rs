@@ -31,6 +31,57 @@ impl<S> RuntimeState<S> {
     }
 }
 
+/// Internal state carrier used by canonical Adapter lowering.
+///
+/// Resource and System Adapters own provider-lifetime state. A Component
+/// Adapter instead creates its state only while preparing one
+/// `ComponentParticipation`. The absent variant preserves the generated
+/// runtime method surface without allocating Component participation state in
+/// the provider module.
+#[doc(hidden)]
+pub enum AdapterRuntimeState<S> {
+    Present(RuntimeState<S>),
+    Absent,
+}
+
+impl<S> Clone for AdapterRuntimeState<S> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Present(state) => Self::Present(state.clone()),
+            Self::Absent => Self::Absent,
+        }
+    }
+}
+
+impl<S> AdapterRuntimeState<S> {
+    #[doc(hidden)]
+    pub fn new(state: S) -> Self {
+        Self::Present(RuntimeState::new(state))
+    }
+
+    #[doc(hidden)]
+    pub fn absent() -> Self {
+        Self::Absent
+    }
+
+    /// Accesses state owned by the current live runtime. This is unavailable
+    /// only on a Component Adapter's provider-module runtime; canonical
+    /// Component methods run on the separately prepared participation runtime.
+    pub fn get(&self) -> &S {
+        self.as_runtime_state().get()
+    }
+
+    #[doc(hidden)]
+    pub fn as_runtime_state(&self) -> &RuntimeState<S> {
+        match self {
+            Self::Present(state) => state,
+            Self::Absent => panic!(
+                "Adapter provider state is unavailable while preparing a Component participation"
+            ),
+        }
+    }
+}
+
 /// Generation-scoped Instance context made available after Core binds a
 /// materialized runtime. It is intentionally absent during early cleanup.
 #[derive(Clone, Default)]

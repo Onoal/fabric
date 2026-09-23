@@ -212,6 +212,9 @@ pub enum ComponentError {
         expected_output_type: OperationTypeId,
         actual_output_type: OperationTypeId,
     },
+    /// Component Adapter compatibility is derived from the target Component
+    /// identity; schema-style `supports:` overrides are not meaningful.
+    UnsupportedComponentAdapterSupportOverride,
     Unavailable,
 }
 
@@ -464,6 +467,9 @@ impl fmt::Display for ComponentError {
             } => write!(
                 f,
                 "OperationId `{operation_id}` was registered with semantic types `{actual_input_type}` -> `{actual_output_type}` but runtime already owns `{expected_input_type}` -> `{expected_output_type}`"
+            ),
+            Self::UnsupportedComponentAdapterSupportOverride => f.write_str(
+                "`supports:` is not valid for an Adapter targeting a Component; Component Adapter compatibility is derived from its target identity",
             ),
             Self::Unavailable => f.write_str("component runtime contract is unavailable"),
         }

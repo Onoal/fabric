@@ -95,22 +95,35 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
     let runtime_inherent_methods = input.runtime_methods.iter().map(runtime_method_tokens);
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
-        quote!(state: #sdk::authoring::RuntimeState<#ty>,)
+        quote!(state: #sdk::authoring::AdapterRuntimeState<#ty>,)
     });
-    let runtime_state_initializer = input.runtime_state.as_ref().map(|state| {
+    let participation_runtime_state_initializer = input.runtime_state.as_ref().map(|state| {
         let initializer = &state.initializer;
         quote! {
-            let state = #sdk::authoring::RuntimeState::new({
+            let state = #sdk::authoring::AdapterRuntimeState::new({
                 let config = &config;
                 #initializer
             });
         }
     });
-    let runtime_state_value = input.runtime_state.as_ref().map(|_| quote!(state,));
-    let runtime_provider_state = runtime_state_value.clone();
+    let participation_runtime_state_value = input.runtime_state.as_ref().map(|_| quote!(state,));
+    let provider_runtime_state_initializer = input.runtime_state.as_ref().map(|state| {
+        let initializer = &state.initializer;
+        quote! {
+            let state = if <#target as #sdk::authoring::ComponentAdapterTarget>::is_component_participation_target() {
+                #sdk::authoring::AdapterRuntimeState::absent()
+            } else {
+                #sdk::authoring::AdapterRuntimeState::new({
+                    let config = &config;
+                    #initializer
+                })
+            };
+        }
+    });
+    let runtime_provider_state = input.runtime_state.as_ref().map(|_| quote!(state,));
     let runtime_state_accessor = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
-        quote!(pub fn state(&self) -> &#sdk::authoring::RuntimeState<#ty> { &self.state })
+        quote!(pub fn state(&self) -> &#sdk::authoring::RuntimeState<#ty> { self.state.as_runtime_state() })
     });
     let adapter_relation_fields = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
@@ -242,7 +255,7 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
 
             impl Runtime {
                 pub fn new(module_id: #sdk::core::ModuleId, config: #config_ty) -> Self {
-                    #runtime_state_initializer
+                    #provider_runtime_state_initializer
                     Self {
                         module_id,
                         config,
@@ -296,14 +309,14 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                     component_relations: <#target as #sdk::authoring::ComponentAdapterTarget>::ComponentRelations,
                 ) -> ::std::result::Result<Self::ParticipationRuntime, #sdk::component::ComponentError> {
                     let config = &self.config;
-                    #runtime_state_initializer
+                    #participation_runtime_state_initializer
                     Ok(Self {
                         module_id: self.module_id.clone(),
                         config: self.config.clone(),
                         runtime_context: self.runtime_context.clone(),
                         component_config: ::std::option::Option::Some(component_config),
                         component_relations: ::std::option::Option::Some(component_relations),
-                        #runtime_state_value
+                        #participation_runtime_state_value
                         #(#dependency_clones)*
                     })
                 }

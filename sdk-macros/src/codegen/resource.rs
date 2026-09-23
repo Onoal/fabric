@@ -508,6 +508,8 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
                 Ok(((), ()))
             }
+
+            fn is_component_participation_target() -> bool { false }
         }
 
         impl #sdk::authoring::ComponentRelationTarget for #resource_name {

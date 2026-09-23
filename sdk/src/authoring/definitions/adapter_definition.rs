@@ -26,6 +26,13 @@ pub trait ComponentAdapterTarget: Send + Sync + 'static {
         config: &Self::ComponentConfig,
         scope: &ComponentRuntimeScope,
     ) -> Result<(Self::ComponentConfig, Self::ComponentRelations), ComponentError>;
+
+    /// Whether this target is a Component participation rather than a
+    /// Resource or System provider.  Canonical Adapter lowering uses this
+    /// target-owned fact to avoid allocating participation state for the
+    /// provider-module lifetime.
+    #[doc(hidden)]
+    fn is_component_participation_target() -> bool;
 }
 
 /// Factory implemented by generated canonical Adapter provider runtimes.
@@ -262,7 +269,7 @@ where
     fn accepts_component(&self) -> Result<(), ComponentError> {
         match self.requirement {
             CanonicalAdapterSupportRequirement::Inferred => Ok(()),
-            _ => Err(ComponentError::Unavailable),
+            _ => Err(ComponentError::UnsupportedComponentAdapterSupportOverride),
         }
     }
 }

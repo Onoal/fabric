@@ -481,6 +481,8 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
                 Ok(((), ()))
             }
+
+            fn is_component_participation_target() -> bool { false }
         }
 
         impl #sdk::authoring::ComponentRelationTarget for #system_name {

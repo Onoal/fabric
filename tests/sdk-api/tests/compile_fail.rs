@@ -45,3 +45,9 @@ fn canonical_component_runtime_contract_errors_are_diagnostic() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/ui/component_runtime_*.rs");
 }
+
+#[test]
+fn canonical_component_adapter_runtime_contract_errors_are_diagnostic() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/component_adapter_runtime_*.rs");
+}

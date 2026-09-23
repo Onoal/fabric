@@ -473,11 +473,11 @@ fn canonical_component_relations_are_generic_and_roles_remain_distinct() {
 fn canonical_component_api_lowers_to_deterministic_operation_metadata_without_handlers() {
     let declaration = ApiOnlyDeclaration::define().declaration().clone();
     assert_eq!(declaration.operations().len(), 5);
-    let ping = api_only_declaration::operations::ping();
+    let ping = api_only_declaration::api::ping();
     let _: fabric::component::OperationKey<(), ()> = ping;
-    let revision = api_only_declaration::operations::revision();
+    let revision = api_only_declaration::api::revision();
     let _: fabric::component::OperationKey<(), u64> = revision;
-    let greet = api_only_declaration::operations::greet();
+    let greet = api_only_declaration::api::greet();
     assert_eq!(
         greet.id().as_str(),
         "fabric.test.component-declaration.api-only.api.greet"
@@ -490,9 +490,9 @@ fn canonical_component_api_lowers_to_deterministic_operation_metadata_without_ha
         greet.output_type().as_str(),
         "fabric.test.component-declaration.api-only.api.greet.output"
     );
-    let pair = api_only_declaration::operations::pair();
+    let pair = api_only_declaration::api::pair();
     let _: fabric::component::OperationKey<(String, String), String> = pair;
-    let fallible = api_only_declaration::operations::fallible();
+    let fallible = api_only_declaration::api::fallible();
     let _: fabric::component::OperationKey<String, Result<String, DeclarationError>> = fallible;
 }
 
@@ -521,7 +521,7 @@ fn canonical_component_api_declaration_has_no_local_runtime_attachment() {
     let components = instance.components().expect("component host");
     assert!(matches!(
         components.materialize::<ApiOnlyDeclaration>(),
-        Err(fabric::component::ComponentError::MissingComponentRuntimeAttachment(_))
+        Err(fabric::component::ComponentError::MissingComponentParticipationRealization(_))
     ));
     instance.stop().expect("stop");
 }
@@ -547,7 +547,7 @@ fn canonical_component_runtime_registers_semantic_api_without_operation_ceremony
         .expect("canonical self realization");
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &canonical_runtime_declaration::operations::greet(),
+            &canonical_runtime_declaration::api::greet(),
             "Ada".to_owned(),
         ))
         .expect("invoke"),
@@ -555,7 +555,7 @@ fn canonical_component_runtime_registers_semantic_api_without_operation_ceremony
     );
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &canonical_runtime_declaration::operations::join(),
+            &canonical_runtime_declaration::api::join(),
             ("a".to_owned(), "b".to_owned()),
         ))
         .expect("invoke"),
@@ -563,7 +563,7 @@ fn canonical_component_runtime_registers_semantic_api_without_operation_ceremony
     );
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &canonical_runtime_declaration::operations::domain(),
+            &canonical_runtime_declaration::api::domain(),
             "ok".to_owned(),
         ))
         .expect("Fabric invocation"),
@@ -592,10 +592,10 @@ fn canonical_component_runtime_receives_typed_resource_and_system_relations() {
         .materialize::<CanonicalRelatedRuntime>()
         .expect("materialize canonical relation runtime");
     assert_eq!(
-        futures::executor::block_on(components.invoke_external(
-            &canonical_related_runtime::operations::inspect(),
-            "key".to_owned(),
-        ))
+        futures::executor::block_on(
+            components
+                .invoke_external(&canonical_related_runtime::api::inspect(), "key".to_owned(),)
+        )
         .expect("invoke"),
         "store:key:store:key:7"
     );
@@ -622,7 +622,7 @@ fn canonical_component_runtime_state_is_participation_local_and_tears_down_once(
         .expect("first participation");
     assert_eq!(
         futures::executor::block_on(
-            components.invoke_external(&canonical_lifecycle_runtime::operations::next(), (),)
+            components.invoke_external(&canonical_lifecycle_runtime::api::next(), (),)
         )
         .expect("first next"),
         1
@@ -636,7 +636,7 @@ fn canonical_component_runtime_state_is_participation_local_and_tears_down_once(
         .expect("fresh participation");
     assert_eq!(
         futures::executor::block_on(
-            components.invoke_external(&canonical_lifecycle_runtime::operations::next(), (),)
+            components.invoke_external(&canonical_lifecycle_runtime::api::next(), (),)
         )
         .expect("fresh next"),
         1,
@@ -656,7 +656,7 @@ fn canonical_component_adapter_realizes_a_declaration_through_participation() {
             suffix: "adapter".to_owned(),
         },
     ))
-    .expect("canonical Component adapter selection");
+    .expect("canonical ComponentInstanceBinding adapter selection");
     let built = Fabric::new("fabric.test.component-declaration.adapter-realized")
         .expect("fabric")
         .component(selected)
@@ -675,7 +675,7 @@ fn canonical_component_adapter_realizes_a_declaration_through_participation() {
         .expect("adapter realization");
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &adapter_realized_declaration::operations::greet(),
+            &adapter_realized_declaration::api::greet(),
             "Ada".to_owned(),
         ))
         .expect("invoke"),
@@ -707,7 +707,7 @@ fn explicit_component_adapter_replaces_the_default_self_realization() {
         .expect("selected Adapter realization");
     assert_eq!(
         futures::executor::block_on(
-            components.invoke_external(&default_or_adapter::operations::source(), (),)
+            components.invoke_external(&default_or_adapter::api::source(), (),)
         )
         .expect("invoke"),
         "adapter"
@@ -790,7 +790,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
     assert_eq!(prepares.load(std::sync::atomic::Ordering::SeqCst), 1);
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &adapter_participation_audit::operations::inspect(),
+            &adapter_participation_audit::api::inspect(),
             "key".to_owned(),
         ))
         .expect("invoke"),
@@ -809,7 +809,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
     );
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &adapter_participation_audit::operations::inspect(),
+            &adapter_participation_audit::api::inspect(),
             "key".to_owned(),
         ))
         .expect("fresh invoke"),
@@ -888,7 +888,7 @@ fn component_adapter_target_resolution_uses_the_imported_type() {
         .expect("adapter participation");
     assert_eq!(
         futures::executor::block_on(components.invoke_external(
-            &imported_component_target::imported_target::operations::source(),
+            &imported_component_target::imported_target::api::source(),
             (),
         ))
         .expect("invoke"),
@@ -902,7 +902,7 @@ fn component_adapter_rejects_schema_style_support_overrides() {
     let error = match AdapterPreparedAutonomous::define()
         .using(UnsupportedComponentAdapterSupport::new())
     {
-        Ok(_) => panic!("Component Adapter support must be target-derived"),
+        Ok(_) => panic!("ComponentInstanceBinding Adapter support must be target-derived"),
         Err(error) => error,
     };
     assert!(matches!(

@@ -47,7 +47,7 @@ use fabric::*;
 
 let built = Fabric::new("example")
     .expect("valid composition id")
-    .component(Greeter::define(GreeterConfig {}))
+    .component(Greeter::define())
     .build()
     .expect("build");
 
@@ -59,7 +59,7 @@ instance.start().expect("start");
 let components = instance.components().expect("component host");
 components.materialize::<Greeter>().expect("materialize component");
 let output = futures::executor::block_on(
-    components.invoke_external(&greeter::operations::greet(), GreeterInput { name: "Ada".into() }),
+    components.invoke_external(&greeter::api::greet(), GreeterInput { name: "Ada".into() }),
 ).expect("runtime invocation");
 assert_eq!(output.message, "hello, Ada");
 components.dematerialize::<Greeter>().expect("dematerialize component");
@@ -149,7 +149,7 @@ a Resource or System. Composition supplies matching semantic capabilities when
 a realization later needs them.
 
 The existing `operations { ... }` syntax remains a **transitional legacy
-self-realizing path** until canonical Component runtime authoring arrives. It
+self-realizing path** during the 0.5 hard-cut transition. It
 is the only current macro path that accepts handlers, invocation context, and
 the old `requires` / `system` dependency split. It is not canonical
 declaration authoring.

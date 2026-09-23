@@ -2,24 +2,24 @@ use std::fmt;
 
 use fabric_core::InstanceGeneration;
 
-use crate::Component;
+use crate::ComponentInstanceBinding;
 
 /// Runtime-local identity for one active component participation incarnation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComponentParticipationId(u64);
 
-/// Authority granted by one current registration of a Component.
+/// Authority granted by one current registration of a ComponentInstanceBinding.
 ///
 /// This is deliberately distinct from stable component membership. A new
 /// registration receives a new handle, so a departed runtime cannot regain
 /// authority when the same component later rejoins.
 #[derive(Clone, Debug, PartialEq, Eq)]
-/// Generation-scoped authority for one active Component runtime participation.
+/// Generation-scoped authority for one active ComponentInstanceBinding runtime participation.
 ///
-/// A participation is a runtime occurrence, not the Component's semantic
+/// A participation is a runtime occurrence, not the ComponentInstanceBinding's semantic
 /// definition or a Core-wide lifecycle identity.
 pub struct ComponentParticipation {
-    component: Component,
+    component: ComponentInstanceBinding,
     generation: InstanceGeneration,
     participation_id: ComponentParticipationId,
 }
@@ -38,7 +38,7 @@ impl fmt::Display for ComponentParticipationId {
 
 impl ComponentParticipation {
     pub(crate) fn new(
-        component: Component,
+        component: ComponentInstanceBinding,
         generation: InstanceGeneration,
         participation_id: ComponentParticipationId,
     ) -> Self {
@@ -49,7 +49,7 @@ impl ComponentParticipation {
         }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         &self.component
     }
 
@@ -61,7 +61,7 @@ impl ComponentParticipation {
         self.participation_id
     }
 
-    pub fn with_component(&self, component: Component) -> Self {
+    pub fn with_component(&self, component: ComponentInstanceBinding) -> Self {
         Self {
             component,
             generation: self.generation,

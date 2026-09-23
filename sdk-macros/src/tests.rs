@@ -547,7 +547,7 @@ fn component_macro_codegen_supports_typed_operations() {
             && codegen.contains("#sdk::component::InvocationContext")
             && !codegen.contains("InvocationContext::new")
             && !codegen.contains("InvocationRail"),
-        "component! should lower into semantic ComponentDefinition, explicit self realization, and ComponentRuntimeScope registration"
+        "component! should lower into semantic ComponentDefinition, explicit self realization, and ComponentParticipationScope registration"
     );
     assert!(
         codegen.contains("fn declaration() -> #sdk::component::ComponentDeclaration")
@@ -556,7 +556,7 @@ fn component_macro_codegen_supports_typed_operations() {
     );
     assert!(
         codegen.contains("impl #sdk::authoring::SelfRealizingComponentDefinition")
-            && codegen.contains("ComponentRuntimeDefinition::new("),
+            && codegen.contains("ComponentParticipationRealization::new("),
         "component! should attach handlers through the optional native runtime bridge"
     );
     assert!(
@@ -565,7 +565,7 @@ fn component_macro_codegen_supports_typed_operations() {
     );
     assert!(
         !codegen.contains("#visibility mod raw {")
-            && !codegen.contains("ComponentRuntimeDefinition::new(C::component_id()")
+            && !codegen.contains("ComponentParticipationRealization::new(C::component_id()")
             && !codegen.contains("AdapterDefinition")
             && !codegen.contains("HostRequirement")
             && !codegen.contains("ResourceDefinition")

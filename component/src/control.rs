@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey};
 
-use crate::{Component, ComponentControlSnapshot, ComponentError, ComponentId};
+use crate::{ComponentControlSnapshot, ComponentError, ComponentId, ComponentInstanceBinding};
 
 const COMPONENT_CONTROL_CONTRACT_ID: &str = "fabric.component.control";
 
@@ -22,14 +22,14 @@ pub enum ComponentDesiredState {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentControl {
-    component: Component,
+    component: ComponentInstanceBinding,
     desired: ComponentDesiredState,
 }
 
 pub trait ComponentControlService: Send + Sync {
     fn set_desired(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         desired: ComponentDesiredState,
     ) -> Result<ComponentControl, ComponentError>;
 
@@ -46,11 +46,11 @@ pub struct ComponentControlRail {
 }
 
 impl ComponentControl {
-    pub fn new(component: Component, desired: ComponentDesiredState) -> Self {
+    pub fn new(component: ComponentInstanceBinding, desired: ComponentDesiredState) -> Self {
         Self { component, desired }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         &self.component
     }
 
@@ -73,17 +73,23 @@ impl ComponentControlRail {
 
     pub fn set_desired(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         desired: ComponentDesiredState,
     ) -> Result<ComponentControl, ComponentError> {
         self.inner.set_desired(component, desired)
     }
 
-    pub fn enable(&self, component: Component) -> Result<ComponentControl, ComponentError> {
+    pub fn enable(
+        &self,
+        component: ComponentInstanceBinding,
+    ) -> Result<ComponentControl, ComponentError> {
         self.set_desired(component, ComponentDesiredState::Enabled)
     }
 
-    pub fn disable(&self, component: Component) -> Result<ComponentControl, ComponentError> {
+    pub fn disable(
+        &self,
+        component: ComponentInstanceBinding,
+    ) -> Result<ComponentControl, ComponentError> {
         self.set_desired(component, ComponentDesiredState::Disabled)
     }
 

@@ -14,6 +14,11 @@ other concrete machinery for an adapted target. Handles for the same
 materialized occurrence share that state; a fresh Instance generation receives
 fresh state.
 
+Component state follows the same ownership law with a Component-specific
+lifetime: canonical Component `runtime { state { ... } }` creates fresh state
+for one `ComponentParticipation`. It is neither Component Config nor
+Instance-global host state.
+
 Do not put mutable runtime objects in Config, derive semantic identity from
 state, or use state as a live reconfiguration channel. See [Config](config.md),
 [Realization](realization.md), and [Lifecycle](lifecycle.md).

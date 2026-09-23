@@ -39,26 +39,21 @@ put its mutable state and lifecycle hooks here, not in `Store` Config.
 ## 3. Consume the semantic API
 
 Components require semantic capabilities, never a concrete Adapter. Canonical
-Component declaration names those needs through `relations` and declares its
-callable behavior through `api`. The current tutorial then uses the
-transitional legacy self-realizing frontend solely because canonical Component
-runtime authoring is the next slice.
+Component declaration names those needs through `relations`, declares callable
+behavior through `api`, and supplies its default participation realization
+through `runtime`.
 
 ```rust
 fabric::component! {
     pub Greeter {
         id: "example.greeter";
-        requires { store: Store(provisional); }
-        operations {
-            greet {
-                id: "example.greeter.greet";
-                input: GreetInput = "example.greeter.greet.input";
-                output: GreetOutput = "example.greeter.greet.output";
-                handler |dependencies, input: GreetInput| async move {
-                    Ok(GreetOutput {
-                        message: format!("hello, {} ({})", input.name, dependencies.store.count()),
-                    })
-                };
+        relations { requires { store: Store; } }
+        api { fn greet(&self, input: GreetInput) -> GreetOutput; }
+        runtime {
+            fn greet(&self, input: GreetInput) -> GreetOutput {
+                GreetOutput {
+                    message: format!("hello, {} ({})", input.name, self.relations().store.count()),
+                }
             }
         }
     }
@@ -80,7 +75,7 @@ let built = Fabric::new("example.greeter")?
         Store::select("primary")?
             .using(MemoryStore::new())?,
     )
-    .component(Greeter::define(GreeterConfig {}))
+    .component(Greeter::define())
     .build()?;
 
 let mut instance = built.materialize_named_on(
@@ -92,7 +87,7 @@ instance.start()?;
 let components = instance.components().expect("Component host");
 components.materialize::<Greeter>()?;
 let output = futures::executor::block_on(components.invoke_external(
-    &greeter::operations::greet(),
+    &greeter::api::greet(),
     GreetInput { name: "Ada".to_owned() },
 ))?;
 assert_eq!(output.message, "hello, Ada (7)");

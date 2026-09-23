@@ -1,7 +1,11 @@
 use super::*;
 
 impl SurfaceRegistryService for SharedComponentState {
-    fn register(&self, owner: Component, surface_id: SurfaceId) -> Result<Surface, ComponentError> {
+    fn register(
+        &self,
+        owner: ComponentInstanceBinding,
+        surface_id: SurfaceId,
+    ) -> Result<Surface, ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");
         if owner.instance_id() != state.current_status().instance_id() {
             return Err(ComponentError::SurfaceOwnerInstanceMismatch {

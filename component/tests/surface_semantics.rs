@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use fabric_component::{
-    Component, ComponentId, ComponentRuntime, ComponentRuntimeService, ComponentRuntimeStatus,
-    Surface, SurfaceId,
+    ComponentHost, ComponentHostService, ComponentHostStatus, ComponentId,
+    ComponentInstanceBinding, Surface, SurfaceId,
 };
 use fabric_core::{
     BlockBuilder, BlockId, CompositionBuilder, CompositionError, CompositionId,
@@ -15,7 +15,7 @@ struct StaticComponentRuntimeService {
     instance_id: InstanceId,
 }
 
-impl ComponentRuntimeService for StaticComponentRuntimeService {
+impl ComponentHostService for StaticComponentRuntimeService {
     fn instance_id(&self) -> InstanceId {
         self.instance_id.clone()
     }
@@ -24,17 +24,17 @@ impl ComponentRuntimeService for StaticComponentRuntimeService {
         Ok(self.instance_id())
     }
 
-    fn current_status(&self) -> ComponentRuntimeStatus {
-        ComponentRuntimeStatus::new(
+    fn current_status(&self) -> ComponentHostStatus {
+        ComponentHostStatus::new(
             self.instance_id(),
             None,
-            fabric_component::ComponentRuntimeLifecycle::Stopped,
+            fabric_component::ComponentHostLifecycle::Stopped,
             Health::Unavailable,
         )
     }
 
-    fn current_lifecycle(&self) -> fabric_component::ComponentRuntimeLifecycle {
-        fabric_component::ComponentRuntimeLifecycle::Ready
+    fn current_lifecycle(&self) -> fabric_component::ComponentHostLifecycle {
+        fabric_component::ComponentHostLifecycle::Ready
     }
 
     fn current_health(&self) -> Health {
@@ -46,7 +46,7 @@ impl ComponentRuntimeService for StaticComponentRuntimeService {
 struct SurfaceParticipantModule {
     module_id: ModuleId,
     component_id: ComponentId,
-    runtime_requirement: ContractRequirement<ComponentRuntime>,
+    runtime_requirement: ContractRequirement<ComponentHost>,
     surface_id: SurfaceId,
 }
 
@@ -56,7 +56,7 @@ impl SurfaceParticipantModule {
             module_id: ModuleId::new(module_id).expect("module id"),
             component_id: ComponentId::new(component_id).expect("component id"),
             runtime_requirement: ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             ),
             surface_id: SurfaceId::new(surface_id).expect("surface id"),
         }
@@ -90,7 +90,7 @@ impl ModuleRuntime for SurfaceParticipantModule {
         let runtime = bindings
             .resolve(&self.runtime_requirement)
             .map_err(|error| ModuleError::new(error.to_string()))?;
-        let component = Component::bind(self.component_id.clone(), runtime.as_ref());
+        let component = ComponentInstanceBinding::bind(self.component_id.clone(), runtime.as_ref());
         let _surface = Surface::new(component, self.surface_id.clone());
         Ok(())
     }
@@ -112,9 +112,9 @@ impl ModuleRuntime for SurfaceParticipantModule {
     }
 }
 
-fn static_component_runtime(instance_id: &str) -> ComponentRuntime {
+fn static_component_runtime(instance_id: &str) -> ComponentHost {
     let instance_id = InstanceId::new(instance_id).expect("instance id");
-    ComponentRuntime::new(Arc::new(StaticComponentRuntimeService { instance_id }))
+    ComponentHost::new(Arc::new(StaticComponentRuntimeService { instance_id }))
 }
 
 #[test]
@@ -138,14 +138,15 @@ fn surface_requires_component_runtime_membership() {
         CompositionError::MissingProvider {
             contract_id,
             ..
-        } if contract_id == fabric_component::component_runtime_contract_id()
+        } if contract_id == fabric_component::component_host_contract_id()
     ));
 }
 
 #[test]
 fn stable_surface_identity_is_preserved() {
     let runtime = static_component_runtime("component.main");
-    let owner = Component::bind(ComponentId::new("photos").expect("component id"), &runtime);
+    let owner =
+        ComponentInstanceBinding::bind(ComponentId::new("photos").expect("component id"), &runtime);
 
     let left = Surface::new(
         owner.clone(),

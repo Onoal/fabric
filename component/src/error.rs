@@ -4,21 +4,21 @@ use std::fmt;
 use fabric_core::{InstanceGeneration, InstanceId};
 
 use crate::{
-    ComponentId, ComponentParticipation, ComponentRuntimeContribution, ComponentRuntimeLifecycle,
-    OperationId, OperationTypeId, SurfaceId,
+    ComponentHostLifecycle, ComponentId, ComponentParticipation,
+    ComponentParticipationContribution, OperationId, OperationTypeId, SurfaceId,
 };
 
-/// One best-effort cleanup failure from one Component participation
+/// One best-effort cleanup failure from one ComponentInstanceBinding participation
 /// contribution.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ComponentRuntimeTeardownFailure {
+pub struct ComponentParticipationCleanupFailure {
     component_id: ComponentId,
     participation: ComponentParticipation,
-    contribution: ComponentRuntimeContribution,
+    contribution: ComponentParticipationContribution,
     source: Box<ComponentError>,
 }
 
-impl ComponentRuntimeTeardownFailure {
+impl ComponentParticipationCleanupFailure {
     pub fn component_id(&self) -> &ComponentId {
         &self.component_id
     }
@@ -27,7 +27,7 @@ impl ComponentRuntimeTeardownFailure {
         &self.participation
     }
 
-    pub fn contribution(&self) -> ComponentRuntimeContribution {
+    pub fn contribution(&self) -> ComponentParticipationContribution {
         self.contribution
     }
 
@@ -37,7 +37,7 @@ impl ComponentRuntimeTeardownFailure {
 
     pub(crate) fn new(
         participation: ComponentParticipation,
-        contribution: ComponentRuntimeContribution,
+        contribution: ComponentParticipationContribution,
         source: ComponentError,
     ) -> Self {
         Self {
@@ -49,29 +49,31 @@ impl ComponentRuntimeTeardownFailure {
     }
 }
 
-/// Aggregated best-effort cleanup evidence for one Component participation
-/// operation. This remains Component-specific because preparation
+/// Aggregated best-effort cleanup evidence for one ComponentInstanceBinding participation
+/// operation. This remains ComponentInstanceBinding-specific because preparation
 /// contributions are not Core ModuleRuntime participants.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ComponentRuntimeTeardownError {
-    failures: Vec<ComponentRuntimeTeardownFailure>,
+pub struct ComponentParticipationCleanupError {
+    failures: Vec<ComponentParticipationCleanupFailure>,
 }
 
-impl ComponentRuntimeTeardownError {
-    pub fn failures(&self) -> &[ComponentRuntimeTeardownFailure] {
+impl ComponentParticipationCleanupError {
+    pub fn failures(&self) -> &[ComponentParticipationCleanupFailure] {
         &self.failures
     }
 
-    pub(crate) fn from_failures(failures: Vec<ComponentRuntimeTeardownFailure>) -> Option<Self> {
+    pub(crate) fn from_failures(
+        failures: Vec<ComponentParticipationCleanupFailure>,
+    ) -> Option<Self> {
         (!failures.is_empty()).then_some(Self { failures })
     }
 }
 
-impl fmt::Display for ComponentRuntimeTeardownError {
+impl fmt::Display for ComponentParticipationCleanupError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Component participation teardown failed for {} contribution(s): ",
+            "ComponentInstanceBinding participation teardown failed for {} contribution(s): ",
             self.failures.len()
         )?;
         for (index, failure) in self.failures.iter().enumerate() {
@@ -91,10 +93,10 @@ impl fmt::Display for ComponentRuntimeTeardownError {
     }
 }
 
-impl Error for ComponentRuntimeTeardownError {}
+impl Error for ComponentParticipationCleanupError {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ComponentRuntimeFailurePhase {
+pub enum ComponentParticipationPreparationPhase {
     Prepare,
     UpdateHealth,
     Activate,
@@ -173,13 +175,13 @@ pub enum ComponentError {
     },
     InvocationOriginNotParticipating(ComponentId),
     InstanceGenerationUnbound,
-    InvalidComponentRuntimeLifecycleTransition {
-        from: ComponentRuntimeLifecycle,
-        to: ComponentRuntimeLifecycle,
+    InvalidComponentHostLifecycleTransition {
+        from: ComponentHostLifecycle,
+        to: ComponentHostLifecycle,
     },
     UnknownComponent(ComponentId),
     ComponentUnavailable(ComponentId),
-    MissingComponentRuntimeAttachment(ComponentId),
+    MissingComponentParticipationRealization(ComponentId),
     UndeclaredComponentOperation {
         component_id: ComponentId,
         operation_id: OperationId,
@@ -188,20 +190,20 @@ pub enum ComponentError {
     ComponentParticipationNotActive(ComponentParticipation),
     ComponentParticipationNotPreparing(ComponentParticipation),
     ComponentParticipationAlreadyActive(ComponentParticipation),
-    DuplicateComponentRuntimeDefinition(ComponentId),
-    ComponentRuntimeAlreadyMaterialized(ComponentId),
-    ComponentRuntimeNotMaterialized(ComponentId),
-    ComponentRuntimeMaterializationFailed {
+    DuplicateComponentParticipationRealization(ComponentId),
+    ComponentParticipationAlreadyMaterialized(ComponentId),
+    ComponentParticipationNotMaterialized(ComponentId),
+    ComponentParticipationMaterializationFailed {
         component_id: ComponentId,
-        phase: ComponentRuntimeFailurePhase,
+        phase: ComponentParticipationPreparationPhase,
     },
-    ComponentRuntimeMaterializationCleanupFailed {
+    ComponentParticipationMaterializationCleanupFailed {
         primary: Box<ComponentError>,
-        cleanup: ComponentRuntimeTeardownError,
+        cleanup: ComponentParticipationCleanupError,
     },
-    ComponentRuntimeTeardownFailed(ComponentRuntimeTeardownError),
+    ComponentParticipationCleanupFailed(ComponentParticipationCleanupError),
     UnknownComponentControl(ComponentId),
-    ComponentReconstructionUnavailableLifecycle(ComponentRuntimeLifecycle),
+    ComponentReconstructionUnavailableLifecycle(ComponentHostLifecycle),
     UnknownOperation(OperationId),
     UnknownSurface(SurfaceId),
     OperationTypeMismatch(OperationId),
@@ -212,7 +214,7 @@ pub enum ComponentError {
         expected_output_type: OperationTypeId,
         actual_output_type: OperationTypeId,
     },
-    /// Component Adapter compatibility is derived from the target Component
+    /// ComponentInstanceBinding Adapter compatibility is derived from the target ComponentInstanceBinding
     /// identity; schema-style `supports:` overrides are not meaningful.
     UnsupportedComponentAdapterSupportOverride,
     Unavailable,
@@ -245,7 +247,7 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "OperationId `{operation_id}` belongs to Instance `{owner_instance_id}` but this Component runtime owns `{instance_id}`"
+                "OperationId `{operation_id}` belongs to Instance `{owner_instance_id}` but this ComponentInstanceBinding runtime owns `{instance_id}`"
             ),
             Self::SurfaceOwnerInstanceMismatch {
                 surface_id,
@@ -253,7 +255,7 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "SurfaceId `{surface_id}` belongs to Instance `{owner_instance_id}` but this Component runtime owns `{instance_id}`"
+                "SurfaceId `{surface_id}` belongs to Instance `{owner_instance_id}` but this ComponentInstanceBinding runtime owns `{instance_id}`"
             ),
             Self::DuplicateComponentId(component_id) => {
                 write!(f, "ComponentId `{component_id}` is already registered")
@@ -267,7 +269,7 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "ComponentControlSnapshot belongs to Instance `{snapshot_instance_id}` but this Component runtime owns `{instance_id}`"
+                "ComponentControlSnapshot belongs to Instance `{snapshot_instance_id}` but this ComponentInstanceBinding runtime owns `{instance_id}`"
             ),
             Self::ComponentRegistryInstanceMismatch {
                 component_id,
@@ -275,7 +277,7 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this Component runtime owns `{instance_id}`"
+                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this ComponentInstanceBinding runtime owns `{instance_id}`"
             ),
             Self::ComponentControlInstanceMismatch {
                 component_id,
@@ -283,7 +285,7 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this Component control rail owns `{instance_id}`"
+                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this ComponentInstanceBinding control rail owns `{instance_id}`"
             ),
             Self::OperationOwnerNotParticipating {
                 operation_id,
@@ -310,15 +312,15 @@ impl fmt::Display for ComponentError {
                 instance_id,
             } => write!(
                 f,
-                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this Component communication rail owns `{instance_id}`"
+                "ComponentId `{component_id}` belongs to Instance `{component_instance_id}` but this ComponentInstanceBinding communication rail owns `{instance_id}`"
             ),
             Self::ComponentContractProviderNotParticipating(component_id) => write!(
                 f,
-                "Component contract provider `{component_id}` is not participating"
+                "ComponentInstanceBinding contract provider `{component_id}` is not participating"
             ),
             Self::ComponentContractCallerNotParticipating(component_id) => write!(
                 f,
-                "Component contract caller `{component_id}` is not participating"
+                "ComponentInstanceBinding contract caller `{component_id}` is not participating"
             ),
             Self::ComponentContractProviderProvenanceMismatch {
                 contract_id,
@@ -326,52 +328,52 @@ impl fmt::Display for ComponentError {
                 actual_provider_module,
             } => write!(
                 f,
-                "Component contract `{contract_id}` resolved from Module `{expected_provider_module}` but wrapper claimed Module `{actual_provider_module}`"
+                "ComponentInstanceBinding contract `{contract_id}` resolved from Module `{expected_provider_module}` but wrapper claimed Module `{actual_provider_module}`"
             ),
             Self::ComponentContractConsumerMismatch {
                 expected_component_id,
                 actual_component_id,
             } => write!(
                 f,
-                "Component contract handle is scoped to `{expected_component_id}` but caller `{actual_component_id}` attempted to use it"
+                "ComponentInstanceBinding contract handle is scoped to `{expected_component_id}` but caller `{actual_component_id}` attempted to use it"
             ),
             Self::InvocationContextInstanceMismatch {
                 context_instance_id,
                 instance_id,
             } => write!(
                 f,
-                "InvocationContext belongs to Instance `{context_instance_id}` but this Component runtime owns `{instance_id}`"
+                "InvocationContext belongs to Instance `{context_instance_id}` but this ComponentInstanceBinding runtime owns `{instance_id}`"
             ),
             Self::InvocationContextGenerationMismatch {
                 context_generation,
                 generation,
             } => write!(
                 f,
-                "InvocationContext belongs to InstanceGeneration `{context_generation}` but this Component runtime owns `{generation}`"
+                "InvocationContext belongs to InstanceGeneration `{context_generation}` but this ComponentInstanceBinding runtime owns `{generation}`"
             ),
             Self::InvocationOriginNotParticipating(component_id) => write!(
                 f,
-                "Component invocation origin `{component_id}` is not participating"
+                "ComponentInstanceBinding invocation origin `{component_id}` is not participating"
             ),
             Self::InstanceGenerationUnbound => {
                 write!(
                     f,
-                    "Instance generation is not bound to a running Component runtime"
+                    "Instance generation is not bound to a running ComponentInstanceBinding runtime"
                 )
             }
-            Self::InvalidComponentRuntimeLifecycleTransition { from, to } => {
+            Self::InvalidComponentHostLifecycleTransition { from, to } => {
                 write!(
                     f,
-                    "Component runtime lifecycle transition from `{from:?}` to `{to:?}` is invalid"
+                    "Component host lifecycle transition from `{from:?}` to `{to:?}` is invalid"
                 )
             }
             Self::UnknownComponent(component_id) => {
                 write!(f, "ComponentId `{component_id}` is not registered")
             }
-            Self::MissingComponentRuntimeAttachment(component_id) => {
+            Self::MissingComponentParticipationRealization(component_id) => {
                 write!(
                     f,
-                    "ComponentId `{component_id}` is declared but has no runtime attachment"
+                    "ComponentId `{component_id}` is declared but has no participation realization"
                 )
             }
             Self::UndeclaredComponentOperation {
@@ -410,30 +412,30 @@ impl fmt::Display for ComponentError {
                 participation.participation_id(),
                 participation.component().component_id(),
             ),
-            Self::DuplicateComponentRuntimeDefinition(component_id) => write!(
+            Self::DuplicateComponentParticipationRealization(component_id) => write!(
                 f,
-                "ComponentId `{component_id}` has multiple runtime definitions"
+                "ComponentId `{component_id}` has multiple participation realizations"
             ),
-            Self::ComponentRuntimeAlreadyMaterialized(component_id) => write!(
+            Self::ComponentParticipationAlreadyMaterialized(component_id) => write!(
                 f,
-                "ComponentId `{component_id}` already has a current runtime participation"
+                "ComponentId `{component_id}` already has a current participation"
             ),
-            Self::ComponentRuntimeNotMaterialized(component_id) => write!(
+            Self::ComponentParticipationNotMaterialized(component_id) => write!(
                 f,
-                "ComponentId `{component_id}` has no current runtime participation"
+                "ComponentId `{component_id}` has no current participation"
             ),
-            Self::ComponentRuntimeMaterializationFailed {
+            Self::ComponentParticipationMaterializationFailed {
                 component_id,
                 phase,
             } => write!(
                 f,
-                "ComponentId `{component_id}` runtime materialization failed during `{phase:?}`"
+                "ComponentId `{component_id}` participation preparation failed during `{phase:?}`"
             ),
-            Self::ComponentRuntimeMaterializationCleanupFailed { primary, cleanup } => write!(
+            Self::ComponentParticipationMaterializationCleanupFailed { primary, cleanup } => write!(
                 f,
-                "Component runtime materialization failed: {primary}; teardown also failed: {cleanup}"
+                "Component participation preparation failed: {primary}; cleanup also failed: {cleanup}"
             ),
-            Self::ComponentRuntimeTeardownFailed(cleanup) => write!(f, "{cleanup}"),
+            Self::ComponentParticipationCleanupFailed(cleanup) => write!(f, "{cleanup}"),
             Self::UnknownComponentControl(component_id) => {
                 write!(
                     f,
@@ -443,7 +445,7 @@ impl fmt::Display for ComponentError {
             Self::ComponentReconstructionUnavailableLifecycle(lifecycle) => {
                 write!(
                     f,
-                    "Component reconstruction cannot run while lifecycle is `{lifecycle:?}`"
+                    "ComponentInstanceBinding reconstruction cannot run while lifecycle is `{lifecycle:?}`"
                 )
             }
             Self::UnknownOperation(operation_id) => {
@@ -469,7 +471,7 @@ impl fmt::Display for ComponentError {
                 "OperationId `{operation_id}` was registered with semantic types `{actual_input_type}` -> `{actual_output_type}` but runtime already owns `{expected_input_type}` -> `{expected_output_type}`"
             ),
             Self::UnsupportedComponentAdapterSupportOverride => f.write_str(
-                "`supports:` is not valid for an Adapter targeting a Component; Component Adapter compatibility is derived from its target identity",
+                "`supports:` is not valid for an Adapter targeting a ComponentInstanceBinding; ComponentInstanceBinding Adapter compatibility is derived from its target identity",
             ),
             Self::Unavailable => f.write_str("component runtime contract is unavailable"),
         }

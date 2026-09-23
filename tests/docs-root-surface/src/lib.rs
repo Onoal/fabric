@@ -31,14 +31,7 @@ mod root_wildcard {
     fabric::component! {
         pub RootComponent {
             id: "docs.root.component";
-            operations {
-                ping {
-                    id: "docs.root.component.ping";
-                    input: () = "docs.root.component.ping.input";
-                    output: () = "docs.root.component.ping.output";
-                    handler |_input: ()| async move { Ok(()) };
-                }
-            }
+            api { fn ping(&self); }
         }
     }
 
@@ -46,7 +39,7 @@ mod root_wildcard {
     fn wildcard_root_supports_normal_authoring() {
         let store = RootStore::select("primary").expect("selection");
         let system = RootSystem::select().expect("selection");
-        let component = RootComponent::define(RootComponentConfig {});
+        let component = RootComponent::define();
 
         let built = Fabric::new("docs.root")
             .expect("composition")
@@ -64,8 +57,9 @@ mod root_wildcard {
             .using(MemoryClock::new(1))
             .expect("adapter realization");
         let _host = HostRequirement::new();
-        let _: ComponentId = RootComponent::component_id();
-        let _: OperationKey<(), ()> = root_component::operations::ping();
+        let _: ComponentId =
+            <RootComponent as fabric::authoring::component::ComponentDefinition>::component_id();
+        let _ = root_component::api::ping();
         let _ = realized;
     }
 }

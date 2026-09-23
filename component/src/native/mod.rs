@@ -1,3 +1,3 @@
 mod module;
 
-pub use module::ComponentRuntimeModule;
+pub use module::ComponentHostModule;

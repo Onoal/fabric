@@ -33,10 +33,10 @@ impl<S> RuntimeState<S> {
 
 /// Internal state carrier used by canonical Adapter lowering.
 ///
-/// Resource and System Adapters own provider-lifetime state. A Component
+/// Resource and System Adapters own provider-lifetime state. A ComponentInstanceBinding
 /// Adapter instead creates its state only while preparing one
 /// `ComponentParticipation`. The absent variant preserves the generated
-/// runtime method surface without allocating Component participation state in
+/// runtime method surface without allocating ComponentInstanceBinding participation state in
 /// the provider module.
 #[doc(hidden)]
 pub enum AdapterRuntimeState<S> {
@@ -65,8 +65,8 @@ impl<S> AdapterRuntimeState<S> {
     }
 
     /// Accesses state owned by the current live runtime. This is unavailable
-    /// only on a Component Adapter's provider-module runtime; canonical
-    /// Component methods run on the separately prepared participation runtime.
+    /// only on a ComponentInstanceBinding Adapter's provider-module runtime; canonical
+    /// ComponentInstanceBinding methods run on the separately prepared participation runtime.
     pub fn get(&self) -> &S {
         self.as_runtime_state().get()
     }
@@ -76,7 +76,7 @@ impl<S> AdapterRuntimeState<S> {
         match self {
             Self::Present(state) => state,
             Self::Absent => panic!(
-                "Adapter provider state is unavailable while preparing a Component participation"
+                "Adapter provider state is unavailable while preparing a ComponentInstanceBinding participation"
             ),
         }
     }

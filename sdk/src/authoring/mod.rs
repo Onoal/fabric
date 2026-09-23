@@ -47,3 +47,21 @@ pub use system::{
     SystemAugmentationRequirement, SystemAugmentationSupportDefinition, SystemDefinition,
     SystemRealization, SystemRequires, SystemSelection,
 };
+
+/// Advanced handwritten Component definition and realization APIs.
+///
+/// Macro users normally need only `component!` from the umbrella crate. This
+/// module intentionally groups the manual seams so they do not define normal
+/// Component authoring vocabulary.
+pub mod component {
+    pub use super::{
+        AdaptableComponentDefinition, ComponentDefinition, ComponentRealization,
+        ComponentRealizationContract, ComponentRelationCompatibility, ComponentRelationTarget,
+        ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
+        SelfRealizingComponentDefinition,
+    };
+    pub use crate::component::advanced::{
+        ComponentParticipationPreparation, ComponentParticipationRealization,
+        ComponentParticipationScope,
+    };
+}

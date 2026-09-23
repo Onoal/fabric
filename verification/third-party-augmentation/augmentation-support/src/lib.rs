@@ -6,7 +6,7 @@ use std::sync::{
 use fabric::prelude::*;
 use fabric::{
     ResourceAugmentation as ResourceAttachment, SystemAugmentation as SystemAttachment,
-    component::ComponentRuntimeScope,
+    component::ComponentParticipationScope,
     core::{
         ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
     },
@@ -99,7 +99,7 @@ impl ComponentAugmentationSupportDefinition<ThirdPartyComponent, ComponentX> for
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(ComponentXRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
@@ -114,7 +114,7 @@ impl ComponentAugmentationSupportDefinition<ThirdPartyComponent, ComponentY> for
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(ComponentYRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }

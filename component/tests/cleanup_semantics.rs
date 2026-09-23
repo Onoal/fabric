@@ -1,22 +1,22 @@
 use std::sync::{Arc, Mutex};
 
 use fabric_component::{
-    ComponentDeclaration, ComponentError, ComponentId, ComponentMaterializer,
-    ComponentReadinessPolicy, ComponentRuntime, ComponentRuntimeDefinition,
-    ComponentRuntimeLifecycle, ComponentRuntimeModule, ComponentRuntimePreparation,
+    ComponentDeclaration, ComponentError, ComponentHost, ComponentHostLifecycle,
+    ComponentHostModule, ComponentId, ComponentMaterializer, ComponentParticipationPreparation,
+    ComponentParticipationRealization, ComponentReadinessPolicy,
 };
 use fabric_core::{
     BlockBuilder, BlockId, CompositionBuilder, CompositionId, ContractRequirement, Health,
     InstanceId, ModuleBindings, ModuleContract, ModuleError, ModuleId, ModuleRuntime,
 };
 
-type Captured = Arc<Mutex<Option<(Arc<ComponentMaterializer>, Arc<ComponentRuntime>)>>>;
+type Captured = Arc<Mutex<Option<(Arc<ComponentMaterializer>, Arc<ComponentHost>)>>>;
 
 #[derive(Clone)]
 struct CaptureModule {
     id: ModuleId,
     materializer: ContractRequirement<ComponentMaterializer>,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     captured: Captured,
 }
 
@@ -28,7 +28,7 @@ impl CaptureModule {
                 fabric_component::component_materializer_contract_id(),
             ),
             runtime: ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             ),
             captured,
         }
@@ -78,7 +78,7 @@ impl ModuleRuntime for CaptureModule {
     }
 }
 
-fn compose(host: ComponentRuntimeModule, captured: Captured) -> fabric_core::Instance {
+fn compose(host: ComponentHostModule, captured: Captured) -> fabric_core::Instance {
     let composition = CompositionBuilder::new(CompositionId::new("component.cleanup").expect("id"))
         .register_block(
             BlockBuilder::new(BlockId::new("component.cleanup.block").expect("block"))
@@ -93,7 +93,7 @@ fn compose(host: ComponentRuntimeModule, captured: Captured) -> fabric_core::Ins
         .expect("materialize")
 }
 
-fn captured_contracts(captured: &Captured) -> (Arc<ComponentMaterializer>, Arc<ComponentRuntime>) {
+fn captured_contracts(captured: &Captured) -> (Arc<ComponentMaterializer>, Arc<ComponentHost>) {
     captured.lock().expect("capture").clone().expect("bound")
 }
 
@@ -106,24 +106,25 @@ fn teardown_reverses_base_and_augmentation_preparation_and_is_consumed_once() {
     let component_id = ComponentId::new("component.cleanup.reverse").expect("component");
     let calls = Arc::new(Mutex::new(Vec::new()));
     let base_calls = Arc::clone(&calls);
-    let base = ComponentRuntimeDefinition::new_with_teardown(component_id.clone(), move |_| {
-        let calls = Arc::clone(&base_calls);
-        Ok(ComponentRuntimePreparation::with_teardown(
-            Health::Healthy,
-            move || {
-                calls.lock().expect("calls").push("base");
-                Ok(())
-            },
-        ))
-    });
+    let base =
+        ComponentParticipationRealization::new_with_teardown(component_id.clone(), move |_| {
+            let calls = Arc::clone(&base_calls);
+            Ok(ComponentParticipationPreparation::with_teardown(
+                Health::Healthy,
+                move || {
+                    calls.lock().expect("calls").push("base");
+                    Ok(())
+                },
+            ))
+        });
     let augmentation = |name: &'static str| {
         let calls = Arc::clone(&calls);
-        fabric_component::ComponentAugmentationRuntimeDefinition::new_with_teardown(
+        fabric_component::ComponentAugmentationParticipationRealization::new_with_teardown(
             component_id.clone(),
             move |_| {
                 let calls = Arc::clone(&calls);
                 Ok(
-                    fabric_component::ComponentAugmentationRuntimePreparation::with_teardown(
+                    fabric_component::ComponentAugmentationParticipationPreparation::with_teardown(
                         move || {
                             calls.lock().expect("calls").push(name);
                             Ok(())
@@ -135,7 +136,7 @@ fn teardown_reverses_base_and_augmentation_preparation_and_is_consumed_once() {
     };
     let captured = Arc::new(Mutex::new(None));
     let mut instance = compose(
-        ComponentRuntimeModule::with_components_and_augmentations(
+        ComponentHostModule::with_components_and_augmentations(
             vec![declaration(&component_id)],
             vec![base],
             vec![
@@ -167,24 +168,25 @@ fn failed_augmentation_rolls_back_successful_contributions_and_host_stop_cleans_
     let component_id = ComponentId::new("component.cleanup.rollback").expect("component");
     let calls = Arc::new(Mutex::new(Vec::new()));
     let base_calls = Arc::clone(&calls);
-    let base = ComponentRuntimeDefinition::new_with_teardown(component_id.clone(), move |_| {
-        let calls = Arc::clone(&base_calls);
-        Ok(ComponentRuntimePreparation::with_teardown(
-            Health::Healthy,
-            move || {
-                calls.lock().expect("calls").push("base");
-                Ok(())
-            },
-        ))
-    });
+    let base =
+        ComponentParticipationRealization::new_with_teardown(component_id.clone(), move |_| {
+            let calls = Arc::clone(&base_calls);
+            Ok(ComponentParticipationPreparation::with_teardown(
+                Health::Healthy,
+                move || {
+                    calls.lock().expect("calls").push("base");
+                    Ok(())
+                },
+            ))
+        });
     let a_calls = Arc::clone(&calls);
     let augmentation_a =
-        fabric_component::ComponentAugmentationRuntimeDefinition::new_with_teardown(
+        fabric_component::ComponentAugmentationParticipationRealization::new_with_teardown(
             component_id.clone(),
             move |_| {
                 let calls = Arc::clone(&a_calls);
                 Ok(
-                    fabric_component::ComponentAugmentationRuntimePreparation::with_teardown(
+                    fabric_component::ComponentAugmentationParticipationPreparation::with_teardown(
                         move || {
                             calls.lock().expect("calls").push("augmentation-a");
                             Ok(())
@@ -193,13 +195,13 @@ fn failed_augmentation_rolls_back_successful_contributions_and_host_stop_cleans_
                 )
             },
         );
-    let failing =
-        fabric_component::ComponentAugmentationRuntimeDefinition::new(component_id.clone(), |_| {
-            Err(ComponentError::Unavailable)
-        });
+    let failing = fabric_component::ComponentAugmentationParticipationRealization::new(
+        component_id.clone(),
+        |_| Err(ComponentError::Unavailable),
+    );
     let captured = Arc::new(Mutex::new(None));
     let mut instance = compose(
-        ComponentRuntimeModule::with_components_and_augmentations(
+        ComponentHostModule::with_components_and_augmentations(
             vec![declaration(&component_id)],
             vec![base],
             vec![augmentation_a, failing],
@@ -218,19 +220,20 @@ fn failed_augmentation_rolls_back_successful_contributions_and_host_stop_cleans_
     let component_id = ComponentId::new("component.cleanup.stop").expect("component");
     let calls = Arc::new(Mutex::new(Vec::new()));
     let calls_for_base = Arc::clone(&calls);
-    let base = ComponentRuntimeDefinition::new_with_teardown(component_id.clone(), move |_| {
-        let calls = Arc::clone(&calls_for_base);
-        Ok(ComponentRuntimePreparation::with_teardown(
-            Health::Healthy,
-            move || {
-                calls.lock().expect("calls").push("stopped");
-                Ok(())
-            },
-        ))
-    });
+    let base =
+        ComponentParticipationRealization::new_with_teardown(component_id.clone(), move |_| {
+            let calls = Arc::clone(&calls_for_base);
+            Ok(ComponentParticipationPreparation::with_teardown(
+                Health::Healthy,
+                move || {
+                    calls.lock().expect("calls").push("stopped");
+                    Ok(())
+                },
+            ))
+        });
     let captured = Arc::new(Mutex::new(None));
     let mut instance = compose(
-        ComponentRuntimeModule::with_components(vec![declaration(&component_id)], vec![base])
+        ComponentHostModule::with_components(vec![declaration(&component_id)], vec![base])
             .expect("host"),
         Arc::clone(&captured),
     );
@@ -248,7 +251,7 @@ fn host_lifecycle_stays_ready_when_readiness_health_is_unavailable() {
     let required = ComponentId::new("component.cleanup.required").expect("component");
     let captured = Arc::new(Mutex::new(None));
     let mut instance = compose(
-        ComponentRuntimeModule::with_readiness_policy(
+        ComponentHostModule::with_readiness_policy(
             ComponentReadinessPolicy::new(vec![required]).expect("readiness policy"),
         ),
         Arc::clone(&captured),
@@ -256,7 +259,7 @@ fn host_lifecycle_stays_ready_when_readiness_health_is_unavailable() {
     instance.start().expect("start");
     let (_, runtime) = captured_contracts(&captured);
     let status = runtime.current_status();
-    assert_eq!(status.lifecycle(), ComponentRuntimeLifecycle::Ready);
+    assert_eq!(status.lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(status.health(), Health::Unavailable);
 }
 
@@ -265,34 +268,36 @@ fn teardown_failures_are_aggregated_and_host_stop_surfaces_them_to_core() {
     let component_id = ComponentId::new("component.cleanup.failures").expect("component");
     let calls = Arc::new(Mutex::new(Vec::new()));
     let base_calls = Arc::clone(&calls);
-    let base = ComponentRuntimeDefinition::new_with_teardown(component_id.clone(), move |_| {
-        let calls = Arc::clone(&base_calls);
-        Ok(ComponentRuntimePreparation::with_teardown(
-            Health::Healthy,
-            move || {
-                calls.lock().expect("calls").push("base");
-                Err(ComponentError::Unavailable)
-            },
-        ))
-    });
+    let base =
+        ComponentParticipationRealization::new_with_teardown(component_id.clone(), move |_| {
+            let calls = Arc::clone(&base_calls);
+            Ok(ComponentParticipationPreparation::with_teardown(
+                Health::Healthy,
+                move || {
+                    calls.lock().expect("calls").push("base");
+                    Err(ComponentError::Unavailable)
+                },
+            ))
+        });
     let augmentation_calls = Arc::clone(&calls);
-    let augmentation = fabric_component::ComponentAugmentationRuntimeDefinition::new_with_teardown(
-        component_id.clone(),
-        move |_| {
-            let calls = Arc::clone(&augmentation_calls);
-            Ok(
-                fabric_component::ComponentAugmentationRuntimePreparation::with_teardown(
-                    move || {
-                        calls.lock().expect("calls").push("augmentation");
-                        Err(ComponentError::Unavailable)
-                    },
-                ),
-            )
-        },
-    );
+    let augmentation =
+        fabric_component::ComponentAugmentationParticipationRealization::new_with_teardown(
+            component_id.clone(),
+            move |_| {
+                let calls = Arc::clone(&augmentation_calls);
+                Ok(
+                    fabric_component::ComponentAugmentationParticipationPreparation::with_teardown(
+                        move || {
+                            calls.lock().expect("calls").push("augmentation");
+                            Err(ComponentError::Unavailable)
+                        },
+                    ),
+                )
+            },
+        );
     let captured = Arc::new(Mutex::new(None));
     let mut instance = compose(
-        ComponentRuntimeModule::with_components_and_augmentations(
+        ComponentHostModule::with_components_and_augmentations(
             vec![declaration(&component_id)],
             vec![base],
             vec![augmentation],
@@ -309,7 +314,7 @@ fn teardown_failures_are_aggregated_and_host_stop_surfaces_them_to_core() {
         .dematerialize(&component_id)
         .expect_err("teardown failures are observable");
     match error {
-        ComponentError::ComponentRuntimeTeardownFailed(cleanup) => {
+        ComponentError::ComponentParticipationCleanupFailed(cleanup) => {
             assert_eq!(cleanup.failures().len(), 2);
         }
         other => panic!("unexpected teardown error: {other}"),

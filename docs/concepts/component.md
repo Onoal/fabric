@@ -10,7 +10,7 @@ Component = semantic behavior participant
 ```
 
 A Component is not a Resource, System, Adapter, Instance, process, or service
-locator. A Component may validly have zero Operations.
+locator. A Component may validly have zero API methods.
 
 ## Why Components exist
 
@@ -34,9 +34,30 @@ providers and a realization path creates participation.
 declaration-only Component. The older `operations { ... handler ... }`
 frontend remains transitional legacy self-realizing authoring.
 
+## Normal and advanced Rust surfaces
+
+Normal applications use `fabric::*`, `component!`, `ComponentId`,
+`ComponentError`, and `FabricInstance::components()`. They do not need
+registrars, operation IDs, host controls, or realization factories.
+
+Deliberate lower-level integration is grouped by ownership:
+
+```text
+fabric::component::declaration    semantic declaration metadata
+fabric::component::participation  generation-scoped live occurrence identity
+fabric::component::invocation     typed endpoint handles and provenance
+fabric::component::operator       Instance-local ComponentHost/control/readiness
+fabric::component::advanced       handwritten realization, communication, surfaces
+fabric::authoring::component       manual definition/spec/realization authoring
+```
+
+The invocation layer may expose `OperationKey` and related rail types because
+the current host lowers callable APIs through them. They are advanced lowering
+machinery; canonical declarations and generated endpoint handles use `api`.
+
 A Component may be declaration-only or explicitly own native runtime
 participation. Component realization internals are distinct from the canonical
-Resource/System Adapter path: a Component's identity, Operations, and semantic
+Resource/System Adapter path: a Component's identity, API, and semantic
 Resource/System requirements never become Adapter choice.
 
 Component Config remains configuration of the semantic Component occurrence.
@@ -55,13 +76,14 @@ ComponentParticipation --registers--> typed invocation
 ```
 
 `ComponentDeclaration` does not contain a live Instance, health, runtime
-scope, active handler, or participation. A declaration with Operations says
+scope, active handler, or participation. A declaration with API methods says
 endpoints exist; it does not say handlers are running.
 
 ## Identity and configuration
 
 `ComponentId` is stable semantic behavior identity, for example
-`notes.editor`. A low-level `Component` binds that identity to an `InstanceId`.
+`notes.editor`. The low-level `ComponentInstanceBinding` binds that identity to
+an `InstanceId`.
 `ComponentParticipation` additionally carries `InstanceGeneration` and a
 runtime-local `ComponentParticipationId`.
 
@@ -269,11 +291,11 @@ application error.
 
 ## Native realization and participation
 
-`ComponentDeclaration != ComponentRuntimeDefinition`. A `ComponentSpec` may
+`ComponentDeclaration != ComponentParticipationRealization`. A `ComponentSpec` may
 carry no local self-realization, so declaration-only Components—including
 zero-operation Components—are valid semantic truth. They are known to the
 Component environment, but native local materialization without a realization
-fails with the existing `MissingComponentRuntimeAttachment` error.
+fails with the existing `MissingComponentParticipationRealization` error.
 
 Canonical `component!` generates that attachment only when it contains
 `runtime`. The generated self realization obtains Core-resolved dependencies,
@@ -287,7 +309,7 @@ After an Instance is running, activate Component participation explicitly:
 ```rust
 let components = instance.components().expect("Component host");
 components.materialize::<Greeter>()?;
-let output = components.invoke_external(&greeter::operations::greet(), input).await?;
+let output = components.invoke_external(&greeter::api::greet(), input).await?;
 components.dematerialize::<Greeter>()?;
 ```
 
@@ -307,7 +329,7 @@ phase for both cases.
 
 Preparation may establish runtime machinery owned by one participation. The
 transitional legacy `operations` frontend may add an optional `teardown { ... }`
-section; direct authors use `ComponentRuntimePreparation::with_teardown`.
+section; direct authors use `ComponentParticipationPreparation::with_teardown`.
 Canonical declaration authoring has no teardown section because it has no
 runtime attachment. Fabric runs a real preparation action exactly once after
 disabling participation-owned authority, on failed preparation rollback,
@@ -330,7 +352,7 @@ contributions clean up before the base.
 
 An external semantic may attach to a configured `ComponentSpec` without
 changing the `ComponentDefinition`. The Component continues to own its base
-Config, identity, and `ComponentDeclaration.operations`: an augmentation may
+Config, identity, and `ComponentDeclaration` API metadata: an augmentation may
 not append an undeclared base operation.
 
 ```rust
@@ -380,7 +402,7 @@ A Component is not an OS process, microservice, container, thread, VM, or
 network service. It does not choose provider implementations, create Resource
 occurrences, or own Instance start/stop. Lower-level Component control and
 registry rails exist for advanced integrations, but ordinary authoring uses
-definition, declaration, requirements, operations, materialization, and the
+declaration, relations, API, realization selection, materialization, and the
 bounded Instance Component surface.
 
 Next: [Resource](resource.md), the semantic technical capability boundary.

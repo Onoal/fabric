@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use fabric::ComponentDefinition;
+use fabric::authoring::component::ComponentDefinition;
 use fabric_component::{
-    ComponentId, ComponentMaterializer, ComponentRuntimeDefinition, ComponentRuntimeModule,
+    ComponentHostModule, ComponentId, ComponentMaterializer, ComponentParticipationRealization,
     InvocationRail, OperationKey, OperationRail,
 };
 use fabric_core::{
@@ -109,7 +109,7 @@ fn runtime_fixture(
     components: impl IntoIterator<
         Item = (
             fabric_component::ComponentDeclaration,
-            Option<ComponentRuntimeDefinition>,
+            Option<ComponentParticipationRealization>,
         ),
     >,
 ) -> (Instance, CapturedRails) {
@@ -122,7 +122,7 @@ fn runtime_fixture(
     .register_block(
         BlockBuilder::new(BlockId::new("fabric.test.component.block").expect("block id"))
             .register_module(
-                ComponentRuntimeModule::with_components(declarations, attachments)
+                ComponentHostModule::with_components(declarations, attachments)
                     .expect("component runtime module"),
             )
             .register_module(CaptureModule::new(Arc::clone(&capture)))
@@ -281,7 +281,7 @@ fn greeter_component_uses_declared_component_identity() {
         "fabric.test.greeter.greet"
     );
     assert_eq!(Greeter::component_id().as_str(), "fabric.test.greeter");
-    let definition: ComponentRuntimeDefinition = Greeter::define(GreeterConfig {})
+    let definition: ComponentParticipationRealization = Greeter::define(GreeterConfig {})
         .into_self_realization()
         .expect("greeter runtime attachment");
     assert_eq!(
@@ -494,8 +494,8 @@ fn package_only_component_source_contains_no_runtime_obligation() {
     }
     for forbidden in [
         "fn prepare",
-        "ComponentRuntimeScope",
-        "ComponentRuntimeDefinition",
+        "ComponentParticipationScope",
+        "ComponentParticipationRealization",
         "Health",
         "ModuleRuntime",
         "Instance",

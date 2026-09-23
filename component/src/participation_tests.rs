@@ -9,8 +9,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::task::{Context, Poll, Wake, Waker};
 
 use crate::{
-    Component, ComponentControlRail, ComponentDeclaration, ComponentError, ComponentId,
-    ComponentParticipation, ComponentRegistry, ComponentRuntime, ComponentRuntimeModule,
+    ComponentControlRail, ComponentDeclaration, ComponentError, ComponentHost, ComponentHostModule,
+    ComponentId, ComponentInstanceBinding, ComponentParticipation, ComponentRegistry,
     OperationDefinition, OperationKey, OperationRail, OperationRegistrar, OperationTypeId,
     SurfaceRegistry,
 };
@@ -33,14 +33,14 @@ type CapturedRails = Arc<Mutex<Option<Rails>>>;
 #[derive(Clone)]
 struct RailsCapture {
     module_id: ModuleId,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     registry: ContractRequirement<ComponentRegistry>,
     control: ContractRequirement<ComponentControlRail>,
     operations: ContractRequirement<OperationRail>,
     registrar: ContractRequirement<OperationRegistrar>,
     surfaces: ContractRequirement<SurfaceRegistry>,
     capture: CapturedRails,
-    runtime_contract: Option<Arc<ComponentRuntime>>,
+    runtime_contract: Option<Arc<ComponentHost>>,
     registry_rail: Option<Arc<ComponentRegistry>>,
     control_rail: Option<Arc<ComponentControlRail>>,
     operation_rail: Option<Arc<OperationRail>>,
@@ -52,7 +52,7 @@ impl RailsCapture {
     fn new(capture: CapturedRails) -> Self {
         Self {
             module_id: ModuleId::new("runtime.participation.capture").expect("module id"),
-            runtime: ContractRequirement::provisional(crate::component_runtime_contract_id()),
+            runtime: ContractRequirement::provisional(crate::component_host_contract_id()),
             registry: ContractRequirement::provisional(crate::component_registry_contract_id()),
             control: ContractRequirement::provisional(crate::component_control_contract_id()),
             operations: ContractRequirement::provisional(crate::operation_rail_contract_id()),
@@ -206,7 +206,7 @@ fn fixture() -> (Instance, Rails) {
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.participation.block").expect("block id"))
             .register_module(
-                ComponentRuntimeModule::with_components(declarations, Vec::new())
+                ComponentHostModule::with_components(declarations, Vec::new())
                     .expect("component host"),
             )
             .register_module(RailsCapture::new(Arc::clone(&capture)))
@@ -226,17 +226,21 @@ fn fixture() -> (Instance, Rails) {
     (instance, rails)
 }
 
-fn component(rails: &Rails, component_id: &str) -> Component {
-    let contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService(
+fn component(rails: &Rails, component_id: &str) -> ComponentInstanceBinding {
+    let contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService(
         rails.instance_id.clone(),
     )));
-    Component::bind(
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         &contract,
     )
 }
 
-fn prepare(rails: &Rails, component: Component, health: Health) -> ComponentParticipation {
+fn prepare(
+    rails: &Rails,
+    component: ComponentInstanceBinding,
+    health: Health,
+) -> ComponentParticipation {
     rails
         .registry
         .register(component, health)
@@ -296,23 +300,23 @@ fn invoke_echo(rails: &Rails, operation_id: &str, input: Echo) -> crate::Operati
 #[derive(Clone)]
 struct StaticComponentRuntimeService(InstanceId);
 
-impl crate::ComponentRuntimeService for StaticComponentRuntimeService {
+impl crate::ComponentHostService for StaticComponentRuntimeService {
     fn instance_id(&self) -> InstanceId {
         self.0.clone()
     }
     fn current_instance_id(&self) -> Result<InstanceId, ComponentError> {
         Ok(self.instance_id())
     }
-    fn current_status(&self) -> crate::ComponentRuntimeStatus {
-        crate::ComponentRuntimeStatus::new(
+    fn current_status(&self) -> crate::ComponentHostStatus {
+        crate::ComponentHostStatus::new(
             self.instance_id(),
             None,
-            crate::ComponentRuntimeLifecycle::Stopped,
+            crate::ComponentHostLifecycle::Stopped,
             Health::Unavailable,
         )
     }
-    fn current_lifecycle(&self) -> crate::ComponentRuntimeLifecycle {
-        crate::ComponentRuntimeLifecycle::Stopped
+    fn current_lifecycle(&self) -> crate::ComponentHostLifecycle {
+        crate::ComponentHostLifecycle::Stopped
     }
     fn current_health(&self) -> Health {
         Health::Unavailable
@@ -552,10 +556,10 @@ fn health_controls_operation_admission_without_rejoining_or_reregistering() {
 #[test]
 fn cross_instance_component_cannot_participate_or_register_operations() {
     let (mut instance, rails) = fixture();
-    let foreign_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService(
+    let foreign_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService(
         InstanceId::new("runtime.foreign").expect("instance id"),
     )));
-    let foreign = Component::bind(
+    let foreign = ComponentInstanceBinding::bind(
         ComponentId::new("component.foreign").expect("component id"),
         &foreign_contract,
     );

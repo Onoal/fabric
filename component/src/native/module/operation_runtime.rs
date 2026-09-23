@@ -44,10 +44,10 @@ impl OperationRailService for SharedComponentState {
         let (operation, context) = {
             let state = self.inner.lock().expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready => {}
-                ComponentRuntimeLifecycle::Starting
-                | ComponentRuntimeLifecycle::Stopping
-                | ComponentRuntimeLifecycle::Stopped => {
+                ComponentHostLifecycle::Ready => {}
+                ComponentHostLifecycle::Starting
+                | ComponentHostLifecycle::Stopping
+                | ComponentHostLifecycle::Stopped => {
                     return Box::pin(async { Err(ComponentError::Unavailable) });
                 }
             }

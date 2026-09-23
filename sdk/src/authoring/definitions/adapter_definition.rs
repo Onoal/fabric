@@ -12,10 +12,10 @@ use fabric_system::{
 };
 
 use crate::authoring::ComponentDefinition;
-use fabric_component::{ComponentError, ComponentRuntimeScope};
+use fabric_component::{ComponentError, ComponentParticipationScope};
 
 /// Target-owned context needed only when a canonical Adapter realizes a
-/// Component participation. Resource and System targets provide an empty
+/// ComponentInstanceBinding participation. Resource and System targets provide an empty
 /// implementation so `adapter!` remains one type-driven language.
 #[doc(hidden)]
 pub trait ComponentAdapterTarget: Send + Sync + 'static {
@@ -24,10 +24,10 @@ pub trait ComponentAdapterTarget: Send + Sync + 'static {
 
     fn component_adapter_context(
         config: &Self::ComponentConfig,
-        scope: &ComponentRuntimeScope,
+        scope: &ComponentParticipationScope,
     ) -> Result<(Self::ComponentConfig, Self::ComponentRelations), ComponentError>;
 
-    /// Whether this target is a Component participation rather than a
+    /// Whether this target is a ComponentInstanceBinding participation rather than a
     /// Resource or System provider.  Canonical Adapter lowering uses this
     /// target-owned fact to avoid allocating participation state for the
     /// provider-module lifetime.
@@ -36,7 +36,7 @@ pub trait ComponentAdapterTarget: Send + Sync + 'static {
 }
 
 /// Factory implemented by generated canonical Adapter provider runtimes.
-/// Its Component path creates a fresh participation runtime rather than
+/// Its ComponentInstanceBinding path creates a fresh participation runtime rather than
 /// reusing the provider module's lifetime state.
 #[doc(hidden)]
 pub trait CanonicalComponentAdapterRuntime<T>: Send + Sync + 'static
@@ -63,7 +63,7 @@ where
 }
 
 /// Compatibility accepted by `ComponentSpec::using`. Canonical adapters are
-/// inferred from the Component target; handwritten advanced adapters retain
+/// inferred from the ComponentInstanceBinding target; handwritten advanced adapters retain
 /// their exact `ComponentId` compatibility.
 #[doc(hidden)]
 pub trait ComponentAdapterCompatibility<C>: Clone + Send + Sync + 'static

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fabric_component::{Component, ComponentId, ProvidedComponentContract};
+use fabric_component::{ComponentInstanceBinding, ComponentId, ProvidedComponentContract};
 use fabric_core::{
     ContractId, ContractKey, Health, InstanceId, InstanceRuntimeContext, ModuleBindings,
     ModuleContract, ModuleError, ModuleId, ModuleRuntime,
@@ -47,8 +47,8 @@ where
         }
     }
 
-    fn provider_component(&self) -> Component {
-        Component::for_instance(self.provider_component_id.clone(), self.instance_id.clone())
+    fn provider_component(&self) -> ComponentInstanceBinding {
+        ComponentInstanceBinding::for_instance(self.provider_component_id.clone(), self.instance_id.clone())
     }
 }
 

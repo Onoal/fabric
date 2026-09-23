@@ -3,8 +3,9 @@ use std::sync::Arc;
 use fabric_core::{ContractId, ContractKey, ModuleId, ResolvedContract};
 
 use crate::{
-    Component, ComponentError, ComponentParticipation, ComponentRequirementKind, InvocationContext,
-    ResolvedComponentRequirement, requirement::resolved_requirement_from_contract,
+    ComponentError, ComponentInstanceBinding, ComponentParticipation, ComponentRequirementKind,
+    InvocationContext, ResolvedComponentRequirement,
+    requirement::resolved_requirement_from_contract,
 };
 
 const COMPONENT_COMMUNICATION_CONTRACT_ID: &str = "fabric.component.communication";
@@ -46,7 +47,7 @@ pub struct ComponentContract<T> {
 
 #[derive(Clone)]
 pub struct ProvidedComponentContract<T> {
-    provider: Component,
+    provider: ComponentInstanceBinding,
     provider_module: ModuleId,
     contract: Arc<T>,
 }
@@ -73,7 +74,7 @@ impl ComponentCommunication {
 
     pub fn bind_resolved<T>(
         &self,
-        consumer: Component,
+        consumer: ComponentInstanceBinding,
         contract_id: ContractId,
         kind: ComponentRequirementKind,
         resolved: ResolvedContract<ProvidedComponentContract<T>>,
@@ -85,11 +86,11 @@ impl ComponentCommunication {
 }
 
 impl<T> ComponentContract<T> {
-    pub fn provider(&self) -> &Component {
+    pub fn provider(&self) -> &ComponentInstanceBinding {
         self.requirement.provider()
     }
 
-    pub fn consumer(&self) -> &Component {
+    pub fn consumer(&self) -> &ComponentInstanceBinding {
         self.requirement.consumer()
     }
 
@@ -125,7 +126,11 @@ impl<T> ComponentContract<T> {
 }
 
 impl<T> ProvidedComponentContract<T> {
-    pub fn new(provider: Component, provider_module: ModuleId, contract: Arc<T>) -> Self {
+    pub fn new(
+        provider: ComponentInstanceBinding,
+        provider_module: ModuleId,
+        contract: Arc<T>,
+    ) -> Self {
         Self {
             provider,
             provider_module,
@@ -133,7 +138,7 @@ impl<T> ProvidedComponentContract<T> {
         }
     }
 
-    pub fn provider(&self) -> &Component {
+    pub fn provider(&self) -> &ComponentInstanceBinding {
         &self.provider
     }
 

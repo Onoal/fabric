@@ -7,7 +7,7 @@ use syn::{
 
 use crate::ast::{
     AdapterInput, ApiDefinition, ComponentInput, ComponentOperationContext,
-    ComponentOperationDefinition, ComponentRuntimeDefinition, ConfigDefinition, ConfigField,
+    ComponentOperationDefinition, ComponentParticipationRealization, ConfigDefinition, ConfigField,
     ContractMethod, DifferentialRealizationDefinition, RelationDefinition, RequirementDefinition,
     RequirementLiteral, ResourceInput, RuntimeLifecycleDefinition, RuntimeMethod,
     RuntimeStateDefinition, SystemDependencyDefinition, SystemInput, VersionLiteral,
@@ -640,7 +640,7 @@ impl Parse for ComponentInput {
     }
 }
 
-fn parse_component_runtime(input: ParseStream<'_>) -> Result<ComponentRuntimeDefinition> {
+fn parse_component_runtime(input: ParseStream<'_>) -> Result<ComponentParticipationRealization> {
     let content;
     braced!(content in input);
     let mut methods = Vec::new();
@@ -680,7 +680,7 @@ fn parse_component_runtime(input: ParseStream<'_>) -> Result<ComponentRuntimeDef
             });
         }
     }
-    Ok(ComponentRuntimeDefinition {
+    Ok(ComponentParticipationRealization {
         methods,
         state,
         prepare,

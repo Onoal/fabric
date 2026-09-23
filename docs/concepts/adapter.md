@@ -16,8 +16,9 @@ Every `AdapterDefinition` has one explicit `Target`: the Component, Resource,
 or System definition it realizes. Its public responsibilities are `Target`,
 `Compatibility`, `compatibility()`, `host_requirement()`, declaration
 construction, and optional provider-runtime materialization. `adapter!` is the
-normal ergonomic authoring form for Resource and System targets; handwritten
-`AdapterDefinition` remains the public advanced path for Component targets.
+normal ergonomic authoring form for Component, Resource, and System targets;
+handwritten `AdapterDefinition` remains the public advanced path when direct
+macro lowering is insufficient.
 
 ```rust
 fabric::adapter! {

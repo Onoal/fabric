@@ -5,7 +5,7 @@ use super::*;
 impl ComponentRegistryService for SharedComponentState {
     fn register(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         health: Health,
     ) -> Result<ComponentStatus, ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey};
 
-use crate::{Component, ComponentError};
+use crate::{ComponentError, ComponentInstanceBinding};
 
 const COMPONENT_SURFACE_CONTRACT_ID: &str = "fabric.component.surface";
 
@@ -16,7 +16,11 @@ pub fn surface_contract_key() -> ContractKey<SurfaceRegistry> {
 }
 
 pub trait SurfaceRegistryService: Send + Sync {
-    fn register(&self, owner: Component, surface_id: SurfaceId) -> Result<Surface, ComponentError>;
+    fn register(
+        &self,
+        owner: ComponentInstanceBinding,
+        surface_id: SurfaceId,
+    ) -> Result<Surface, ComponentError>;
 
     fn surface(&self, surface_id: &SurfaceId) -> Result<Surface, ComponentError>;
 }
@@ -26,7 +30,7 @@ pub struct SurfaceId(String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Surface {
-    owner: Component,
+    owner: ComponentInstanceBinding,
     surface_id: SurfaceId,
 }
 
@@ -48,11 +52,11 @@ impl SurfaceId {
 }
 
 impl Surface {
-    pub fn new(owner: Component, surface_id: SurfaceId) -> Self {
+    pub fn new(owner: ComponentInstanceBinding, surface_id: SurfaceId) -> Self {
         Self { owner, surface_id }
     }
 
-    pub fn owner(&self) -> &Component {
+    pub fn owner(&self) -> &ComponentInstanceBinding {
         &self.owner
     }
 
@@ -68,7 +72,7 @@ impl SurfaceRegistry {
 
     pub fn register(
         &self,
-        owner: Component,
+        owner: ComponentInstanceBinding,
         surface_id: SurfaceId,
     ) -> Result<Surface, ComponentError> {
         self.inner.register(owner, surface_id)

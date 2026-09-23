@@ -3,7 +3,10 @@ use std::sync::Arc;
 use fabric_core::{ContractId, ContractKey, Health, ModuleId};
 
 use crate::communication::ProvidedComponentContract;
-use crate::{Component, ComponentError, ComponentId, ComponentParticipation, ParticipationState};
+use crate::{
+    ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation,
+    ParticipationState,
+};
 
 const COMPONENT_REQUIREMENTS_CONTRACT_ID: &str = "fabric.component.requirements";
 
@@ -24,9 +27,9 @@ pub enum ComponentRequirementKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedComponentRequirement {
-    consumer: Component,
+    consumer: ComponentInstanceBinding,
     contract_id: ContractId,
-    provider: Component,
+    provider: ComponentInstanceBinding,
     provider_module: ModuleId,
     kind: ComponentRequirementKind,
 }
@@ -54,24 +57,24 @@ pub enum ComponentEffectiveAvailability {
     Available,
     NotParticipating,
     NotActive {
-        component: Component,
+        component: ComponentInstanceBinding,
         participation: ComponentParticipation,
         state: ParticipationState,
     },
     IntrinsicUnavailable {
-        component: Component,
+        component: ComponentInstanceBinding,
         health: Health,
     },
     RequiredDependencyUnavailable(ComponentDependencyAvailabilityBlocker),
     MalformedCycle {
-        component: Component,
+        component: ComponentInstanceBinding,
     },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentDependencyAvailabilityBlocker {
     contract_id: ContractId,
-    provider: Component,
+    provider: ComponentInstanceBinding,
     provider_availability: Box<ComponentEffectiveAvailability>,
 }
 
@@ -85,7 +88,7 @@ pub enum ComponentEffectiveHealth {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DegradedComponentHealth {
     Intrinsic {
-        component: Component,
+        component: ComponentInstanceBinding,
         health: Health,
     },
     RequiredDependencyDegraded(ComponentDependencyHealthBlocker),
@@ -94,16 +97,16 @@ pub enum DegradedComponentHealth {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentDependencyHealthBlocker {
     contract_id: ContractId,
-    provider: Component,
+    provider: ComponentInstanceBinding,
     provider_health: Box<ComponentEffectiveHealth>,
 }
 
 impl ResolvedComponentRequirement {
     #[cfg(test)]
     pub(crate) fn synthetic(
-        consumer: Component,
+        consumer: ComponentInstanceBinding,
         contract_id: ContractId,
-        provider: Component,
+        provider: ComponentInstanceBinding,
         kind: ComponentRequirementKind,
     ) -> Self {
         Self::new_with_provider(
@@ -116,9 +119,9 @@ impl ResolvedComponentRequirement {
     }
 
     pub(crate) fn new_with_provider(
-        consumer: Component,
+        consumer: ComponentInstanceBinding,
         contract_id: ContractId,
-        provider: Component,
+        provider: ComponentInstanceBinding,
         provider_module: ModuleId,
         kind: ComponentRequirementKind,
     ) -> Self {
@@ -130,13 +133,13 @@ impl ResolvedComponentRequirement {
             kind,
         }
     }
-    pub fn consumer(&self) -> &Component {
+    pub fn consumer(&self) -> &ComponentInstanceBinding {
         &self.consumer
     }
     pub fn contract_id(&self) -> &ContractId {
         &self.contract_id
     }
-    pub fn provider(&self) -> &Component {
+    pub fn provider(&self) -> &ComponentInstanceBinding {
         &self.provider
     }
     pub fn provider_module(&self) -> &ModuleId {
@@ -148,7 +151,7 @@ impl ResolvedComponentRequirement {
 }
 
 #[cfg(test)]
-fn synthetic_provider_module(provider: &Component) -> ModuleId {
+fn synthetic_provider_module(provider: &ComponentInstanceBinding) -> ModuleId {
     ModuleId::new(format!(
         "fabric.component.synthetic-provider.{}",
         provider.component_id().as_str()
@@ -157,7 +160,7 @@ fn synthetic_provider_module(provider: &Component) -> ModuleId {
 }
 
 pub(crate) fn resolved_requirement_from_contract<T>(
-    consumer: Component,
+    consumer: ComponentInstanceBinding,
     contract_id: ContractId,
     kind: ComponentRequirementKind,
     resolved: fabric_core::ResolvedContract<ProvidedComponentContract<T>>,
@@ -207,7 +210,7 @@ impl ComponentEffectiveHealth {
 impl ComponentDependencyAvailabilityBlocker {
     pub fn new(
         contract_id: ContractId,
-        provider: Component,
+        provider: ComponentInstanceBinding,
         provider_availability: ComponentEffectiveAvailability,
     ) -> Self {
         Self {
@@ -221,7 +224,7 @@ impl ComponentDependencyAvailabilityBlocker {
         &self.contract_id
     }
 
-    pub fn provider(&self) -> &Component {
+    pub fn provider(&self) -> &ComponentInstanceBinding {
         &self.provider
     }
 
@@ -233,7 +236,7 @@ impl ComponentDependencyAvailabilityBlocker {
 impl ComponentDependencyHealthBlocker {
     pub fn new(
         contract_id: ContractId,
-        provider: Component,
+        provider: ComponentInstanceBinding,
         provider_health: ComponentEffectiveHealth,
     ) -> Self {
         Self {
@@ -247,7 +250,7 @@ impl ComponentDependencyHealthBlocker {
         &self.contract_id
     }
 
-    pub fn provider(&self) -> &Component {
+    pub fn provider(&self) -> &ComponentInstanceBinding {
         &self.provider
     }
 
@@ -269,7 +272,7 @@ impl ComponentRequirementRail {
 
     pub fn register_resolved<T>(
         &self,
-        consumer: Component,
+        consumer: ComponentInstanceBinding,
         contract_id: ContractId,
         kind: ComponentRequirementKind,
         resolved: fabric_core::ResolvedContract<ProvidedComponentContract<T>>,

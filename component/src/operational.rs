@@ -9,32 +9,32 @@ use crate::{
 
 const COMPONENT_RUNTIME_HANDLE_CONTRACT_ID: &str = "fabric.component.runtime-handle";
 
-pub fn component_runtime_handle_contract_id() -> ContractId {
+pub fn component_host_handle_contract_id() -> ContractId {
     ContractId::new(COMPONENT_RUNTIME_HANDLE_CONTRACT_ID)
         .expect("static component runtime handle contract id")
 }
 
-pub fn component_runtime_handle_contract_key() -> ContractKey<ComponentRuntimeHandle> {
-    ContractKey::provisional(component_runtime_handle_contract_id())
+pub fn component_host_handle_contract_key() -> ContractKey<ComponentHostHandle> {
+    ContractKey::provisional(component_host_handle_contract_id())
 }
 
-/// Operator-oriented, Instance-local Component runtime façade. It composes the
+/// Operator-oriented, Instance-local ComponentInstanceBinding runtime façade. It composes the
 /// existing rails without exposing their binding or provider mechanics.
 #[derive(Clone)]
-pub struct ComponentRuntimeHandle {
+pub struct ComponentHostHandle {
     materializer: Arc<ComponentMaterializer>,
     invocation: Arc<InvocationRail>,
     operations: Arc<OperationRail>,
 }
 
-impl std::fmt::Debug for ComponentRuntimeHandle {
+impl std::fmt::Debug for ComponentHostHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ComponentRuntimeHandle")
+        f.debug_struct("ComponentHostHandle")
             .finish_non_exhaustive()
     }
 }
 
-impl ComponentRuntimeHandle {
+impl ComponentHostHandle {
     pub fn new(
         materializer: Arc<ComponentMaterializer>,
         invocation: Arc<InvocationRail>,

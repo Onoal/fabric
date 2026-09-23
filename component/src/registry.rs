@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey, Health};
 
-use crate::{Component, ComponentError, ComponentId, ComponentParticipation};
+use crate::{ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation};
 
 const COMPONENT_REGISTRY_CONTRACT_ID: &str = "fabric.component.registry";
 
@@ -17,7 +17,7 @@ pub fn component_registry_contract_key() -> ContractKey<ComponentRegistry> {
 pub trait ComponentRegistryService: Send + Sync {
     fn register(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         health: Health,
     ) -> Result<ComponentStatus, ComponentError>;
 
@@ -73,7 +73,7 @@ impl ComponentStatus {
         }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         self.participation.component()
     }
 
@@ -121,7 +121,7 @@ impl ComponentRegistry {
 
     pub fn register(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         health: Health,
     ) -> Result<ComponentStatus, ComponentError> {
         self.inner.register(component, health)

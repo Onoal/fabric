@@ -7,9 +7,9 @@ use fabric_core::{
 };
 
 use fabric_component::{
-    Component, ComponentControl, ComponentControlRail, ComponentDeclaration, ComponentDesiredState,
-    ComponentError, ComponentId, ComponentParticipation, ComponentRegistry, ComponentRuntime,
-    ComponentRuntimeModule, ComponentRuntimeService,
+    ComponentControl, ComponentControlRail, ComponentDeclaration, ComponentDesiredState,
+    ComponentError, ComponentHost, ComponentHostModule, ComponentHostService, ComponentId,
+    ComponentInstanceBinding, ComponentParticipation, ComponentRegistry,
 };
 
 type CapturedControlRail = Arc<Mutex<Option<Arc<ComponentControlRail>>>>;
@@ -19,9 +19,9 @@ type CapturedRegistry = Arc<Mutex<Option<Arc<ComponentRegistry>>>>;
 struct RuntimeParticipantModule {
     module_id: ModuleId,
     component_id: ComponentId,
-    runtime_requirement: ContractRequirement<ComponentRuntime>,
+    runtime_requirement: ContractRequirement<ComponentHost>,
     registry_requirement: ContractRequirement<ComponentRegistry>,
-    component: Option<Component>,
+    component: Option<ComponentInstanceBinding>,
     participation: Option<ComponentParticipation>,
     registry: Option<Arc<ComponentRegistry>>,
 }
@@ -32,7 +32,7 @@ impl RuntimeParticipantModule {
             module_id: ModuleId::new(module_id).expect("module id"),
             component_id: ComponentId::new(component_id).expect("component id"),
             runtime_requirement: ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             ),
             registry_requirement: ContractRequirement::provisional(
                 fabric_component::component_registry_contract_id(),
@@ -77,7 +77,7 @@ impl ModuleRuntime for RuntimeParticipantModule {
         let registry = bindings
             .resolve(&self.registry_requirement)
             .map_err(|error| ModuleError::new(error.to_string()))?;
-        self.component = Some(Component::bind(
+        self.component = Some(ComponentInstanceBinding::bind(
             self.component_id.clone(),
             runtime_contract.as_ref(),
         ));
@@ -199,7 +199,7 @@ struct StaticComponentRuntimeService {
     instance_id: InstanceId,
 }
 
-impl ComponentRuntimeService for StaticComponentRuntimeService {
+impl ComponentHostService for StaticComponentRuntimeService {
     fn instance_id(&self) -> InstanceId {
         self.instance_id.clone()
     }
@@ -208,17 +208,17 @@ impl ComponentRuntimeService for StaticComponentRuntimeService {
         Ok(self.instance_id())
     }
 
-    fn current_status(&self) -> fabric_component::ComponentRuntimeStatus {
-        fabric_component::ComponentRuntimeStatus::new(
+    fn current_status(&self) -> fabric_component::ComponentHostStatus {
+        fabric_component::ComponentHostStatus::new(
             self.instance_id(),
             None,
-            fabric_component::ComponentRuntimeLifecycle::Stopped,
+            fabric_component::ComponentHostLifecycle::Stopped,
             Health::Unavailable,
         )
     }
 
-    fn current_lifecycle(&self) -> fabric_component::ComponentRuntimeLifecycle {
-        fabric_component::ComponentRuntimeLifecycle::Ready
+    fn current_lifecycle(&self) -> fabric_component::ComponentHostLifecycle {
+        fabric_component::ComponentHostLifecycle::Ready
     }
 
     fn current_health(&self) -> Health {
@@ -243,7 +243,7 @@ fn runtime_fixture(
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.control.runtime.block").expect("block"))
             .register_module(
-                ComponentRuntimeModule::with_components(
+                ComponentHostModule::with_components(
                     vec![ComponentDeclaration::new(
                         ComponentId::new(component_id).expect("component id"),
                         Vec::new(),
@@ -291,7 +291,7 @@ fn desired_state_can_exist_without_runtime_participation() {
     )
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.control.desired-only.block").expect("block"))
-            .register_module(ComponentRuntimeModule::new())
+            .register_module(ComponentHostModule::new())
             .register_module(ControlCaptureModule::new(
                 Arc::clone(&control_capture),
                 Arc::clone(&registry_capture),
@@ -315,10 +315,10 @@ fn desired_state_can_exist_without_runtime_participation() {
         .expect("registry capture")
         .clone()
         .expect("registry captured");
-    let runtime_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let runtime_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.control").expect("instance id"),
     }));
-    let component = Component::bind(
+    let component = ComponentInstanceBinding::bind(
         ComponentId::new("component.desired").expect("component id"),
         &runtime_contract,
     );
@@ -365,10 +365,10 @@ fn desired_state_mutation_is_idempotent_and_preserves_identity() {
         "runtime.control.idempotent.component",
         "component.idempotent",
     );
-    let runtime_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let runtime_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.control").expect("instance id"),
     }));
-    let component = Component::bind(
+    let component = ComponentInstanceBinding::bind(
         ComponentId::new("component.idempotent").expect("component id"),
         &runtime_contract,
     );
@@ -397,10 +397,10 @@ fn desired_state_mutation_is_idempotent_and_preserves_identity() {
 fn foreign_instance_component_cannot_be_controlled() {
     let (mut instance, control, _) =
         runtime_fixture("runtime.control.local.component", "component.local");
-    let foreign_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let foreign_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.foreign").expect("instance id"),
     }));
-    let foreign_component = Component::bind(
+    let foreign_component = ComponentInstanceBinding::bind(
         ComponentId::new("component.foreign").expect("component id"),
         &foreign_contract,
     );
@@ -421,14 +421,14 @@ fn foreign_instance_component_cannot_be_controlled() {
 fn control_lookup_and_listing_are_deterministic() {
     let (mut instance, control, _) =
         runtime_fixture("runtime.control.listing.component", "component.listing");
-    let runtime_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let runtime_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.control").expect("instance id"),
     }));
-    let component_a = Component::bind(
+    let component_a = ComponentInstanceBinding::bind(
         ComponentId::new("component.alpha").expect("component id"),
         &runtime_contract,
     );
-    let component_b = Component::bind(
+    let component_b = ComponentInstanceBinding::bind(
         ComponentId::new("component.beta").expect("component id"),
         &runtime_contract,
     );
@@ -491,10 +491,10 @@ fn control_does_not_require_runtime_membership_path() {
 
 #[test]
 fn control_records_round_trip_desired_state() {
-    let contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.control").expect("instance id"),
     }));
-    let component = Component::bind(
+    let component = ComponentInstanceBinding::bind(
         ComponentId::new("component.record").expect("component id"),
         &contract,
     );

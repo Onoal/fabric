@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey};
 
-use crate::{ComponentEffectiveHealth, ComponentError, ComponentId, ComponentRuntimeStatus};
+use crate::{ComponentEffectiveHealth, ComponentError, ComponentHostStatus, ComponentId};
 
 const COMPONENT_READINESS_CONTRACT_ID: &str = "fabric.component.readiness";
 
@@ -32,7 +32,7 @@ pub struct ComponentReadinessRail {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentAggregateReadiness {
-    status: ComponentRuntimeStatus,
+    status: ComponentHostStatus,
     policy: ComponentReadinessPolicy,
     blockers: Vec<ComponentAggregateBlocker>,
 }
@@ -92,7 +92,7 @@ impl ComponentReadinessRail {
 
 impl ComponentAggregateReadiness {
     pub fn new(
-        status: ComponentRuntimeStatus,
+        status: ComponentHostStatus,
         policy: ComponentReadinessPolicy,
         blockers: Vec<ComponentAggregateBlocker>,
     ) -> Self {
@@ -103,7 +103,7 @@ impl ComponentAggregateReadiness {
         }
     }
 
-    pub fn status(&self) -> &ComponentRuntimeStatus {
+    pub fn status(&self) -> &ComponentHostStatus {
         &self.status
     }
 

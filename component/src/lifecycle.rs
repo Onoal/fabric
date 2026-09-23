@@ -3,8 +3,8 @@ use fabric_core::{Health, InstanceGeneration, InstanceId};
 use crate::ComponentError;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// Component-runtime lifecycle, deliberately distinct from Core Instance lifecycle.
-pub enum ComponentRuntimeLifecycle {
+/// ComponentInstanceBinding-runtime lifecycle, deliberately distinct from Core Instance lifecycle.
+pub enum ComponentHostLifecycle {
     Starting,
     Ready,
     Stopping,
@@ -12,14 +12,14 @@ pub enum ComponentRuntimeLifecycle {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ComponentRuntimeStatus {
+pub struct ComponentHostStatus {
     instance_id: InstanceId,
     generation: Option<InstanceGeneration>,
-    lifecycle: ComponentRuntimeLifecycle,
+    lifecycle: ComponentHostLifecycle,
     health: Health,
 }
 
-impl ComponentRuntimeLifecycle {
+impl ComponentHostLifecycle {
     pub fn transition_to(self, next: Self) -> Result<Self, ComponentError> {
         let valid = matches!(
             (self, next),
@@ -32,7 +32,7 @@ impl ComponentRuntimeLifecycle {
         if valid {
             Ok(next)
         } else {
-            Err(ComponentError::InvalidComponentRuntimeLifecycleTransition {
+            Err(ComponentError::InvalidComponentHostLifecycleTransition {
                 from: self,
                 to: next,
             })
@@ -40,11 +40,11 @@ impl ComponentRuntimeLifecycle {
     }
 }
 
-impl ComponentRuntimeStatus {
+impl ComponentHostStatus {
     pub fn new(
         instance_id: InstanceId,
         generation: Option<InstanceGeneration>,
-        lifecycle: ComponentRuntimeLifecycle,
+        lifecycle: ComponentHostLifecycle,
         health: Health,
     ) -> Self {
         Self {
@@ -59,7 +59,7 @@ impl ComponentRuntimeStatus {
         &self.instance_id
     }
 
-    pub fn lifecycle(&self) -> ComponentRuntimeLifecycle {
+    pub fn lifecycle(&self) -> ComponentHostLifecycle {
         self.lifecycle
     }
 
@@ -71,7 +71,7 @@ impl ComponentRuntimeStatus {
         self.health
     }
 
-    pub fn transition_to(&self, next: ComponentRuntimeLifecycle) -> Result<Self, ComponentError> {
+    pub fn transition_to(&self, next: ComponentHostLifecycle) -> Result<Self, ComponentError> {
         Ok(Self {
             instance_id: self.instance_id.clone(),
             generation: self.generation,

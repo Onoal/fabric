@@ -3,8 +3,9 @@ use std::sync::Arc;
 use fabric_core::Health;
 
 use crate::{
-    Component, ComponentContract, ComponentError, ComponentParticipation, ComponentStatus,
-    InvocationContext, OperationFuture, OperationKey, OperationRail, OperationRailService,
+    ComponentContract, ComponentError, ComponentInstanceBinding, ComponentParticipation,
+    ComponentStatus, InvocationContext, OperationFuture, OperationKey, OperationRail,
+    OperationRailService,
 };
 
 pub(crate) trait ComponentScopeService: Send + Sync {
@@ -53,7 +54,7 @@ impl ComponentScope {
         }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         self.participation.component()
     }
 
@@ -101,7 +102,7 @@ impl ComponentInvocation {
         }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         self.participation.component()
     }
 

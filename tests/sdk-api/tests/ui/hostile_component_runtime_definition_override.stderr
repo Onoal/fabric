@@ -3,7 +3,7 @@ error[E0407]: method `prepare` is not a member of trait `ComponentDefinition`
    |
 14 | /     fn prepare(
 15 | |         _config: &Self::Config,
-16 | |         _scope: &ComponentRuntimeScope,
+16 | |         _scope: &ComponentParticipationScope,
 17 | |     ) -> Result<Health, ComponentError> {
 18 | |         Ok(Health::Healthy)
 19 | |     }
@@ -12,8 +12,8 @@ error[E0407]: method `prepare` is not a member of trait `ComponentDefinition`
 error[E0407]: method `runtime_definition` is not a member of trait `ComponentDefinition`
   --> tests/ui/hostile_component_runtime_definition_override.rs:21:5
    |
-21 | /     fn runtime_definition(_config: Self::Config) -> ComponentRuntimeDefinition {
-22 | |         ComponentRuntimeDefinition::new(
+21 | /     fn runtime_definition(_config: Self::Config) -> ComponentParticipationRealization {
+22 | |         ComponentParticipationRealization::new(
 23 | |             ComponentId::new("fabric.test.hijacked").expect("component id"),
 24 | |             |_scope| Ok(Health::Healthy),
 25 | |         )

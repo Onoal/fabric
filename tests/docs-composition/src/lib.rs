@@ -110,7 +110,7 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
     let components = instance.components().expect("component host");
     components
         .materialize::<StoreProbe>()
-        .expect("materialize Component");
+        .expect("materialize ComponentInstanceBinding");
     let observation = futures::executor::block_on(
         components.invoke_external(&store_probe::operations::inspect(), ()),
     )
@@ -124,7 +124,7 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
     );
     components
         .dematerialize::<StoreProbe>()
-        .expect("dematerialize Component");
+        .expect("dematerialize ComponentInstanceBinding");
     instance.stop().expect("stop instance");
 }
 

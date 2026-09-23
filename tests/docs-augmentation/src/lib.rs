@@ -125,7 +125,7 @@ mod tests {
         fn prepare(
             &self,
             _: &(),
-            _: &fabric::component::ComponentRuntimeScope,
+            _: &fabric::component::ComponentParticipationScope,
         ) -> Result<(), fabric::component::ComponentError> {
             Ok(())
         }
@@ -143,7 +143,7 @@ mod tests {
         fn prepare(
             &self,
             _: &(),
-            _: &fabric::component::ComponentRuntimeScope,
+            _: &fabric::component::ComponentParticipationScope,
         ) -> Result<(), fabric::component::ComponentError> {
             Ok(())
         }

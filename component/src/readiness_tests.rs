@@ -10,10 +10,10 @@ use fabric_core::{
 };
 
 use crate::{
-    Component, ComponentAggregateBlocker, ComponentControlRail, ComponentDeclaration,
-    ComponentDesiredState, ComponentEffectiveHealth, ComponentId, ComponentParticipation,
-    ComponentReadinessPolicy, ComponentReadinessRail, ComponentRegistry, ComponentRequirementKind,
-    ComponentRequirementRail, ComponentRuntime, ComponentRuntimeLifecycle, ComponentRuntimeModule,
+    ComponentAggregateBlocker, ComponentControlRail, ComponentDeclaration, ComponentDesiredState,
+    ComponentEffectiveHealth, ComponentHost, ComponentHostLifecycle, ComponentHostModule,
+    ComponentId, ComponentInstanceBinding, ComponentParticipation, ComponentReadinessPolicy,
+    ComponentReadinessRail, ComponentRegistry, ComponentRequirementKind, ComponentRequirementRail,
     DegradedComponentHealth, InvocationRail, OperationId, OperationKey, OperationRail,
     OperationRegistrar, ResolvedComponentRequirement,
 };
@@ -28,7 +28,7 @@ const REQUIREMENT_CONTRACT_ID: &str = "fabric.component.readiness.requirement";
 const OPERATION_ID: &str = "fabric.component.readiness.echo";
 
 struct Rails {
-    runtime: Arc<ComponentRuntime>,
+    runtime: Arc<ComponentHost>,
     registry: Arc<ComponentRegistry>,
     control: Arc<ComponentControlRail>,
     readiness: Arc<ComponentReadinessRail>,
@@ -43,7 +43,7 @@ type Capture = Arc<Mutex<Option<Rails>>>;
 #[derive(Clone)]
 struct CaptureModule {
     module_id: ModuleId,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     registry: ContractRequirement<ComponentRegistry>,
     control: ContractRequirement<ComponentControlRail>,
     readiness: ContractRequirement<ComponentReadinessRail>,
@@ -58,7 +58,7 @@ impl CaptureModule {
     fn new(capture: Capture) -> Self {
         Self {
             module_id: ModuleId::new("runtime.readiness.capture").expect("module id"),
-            runtime: ContractRequirement::provisional(crate::component_runtime_contract_id()),
+            runtime: ContractRequirement::provisional(crate::component_host_contract_id()),
             registry: ContractRequirement::provisional(crate::component_registry_contract_id()),
             control: ContractRequirement::provisional(crate::component_control_contract_id()),
             readiness: ContractRequirement::provisional(crate::component_readiness_contract_id()),
@@ -189,7 +189,7 @@ fn fixture(required_components: &[&str]) -> (Instance, Rails) {
             .register_block(
                 BlockBuilder::new(BlockId::new("runtime.readiness.block").expect("block id"))
                     .register_module(
-                        ComponentRuntimeModule::with_configuration(
+                        ComponentHostModule::with_configuration(
                             policy,
                             vec![
                                 ComponentDeclaration::new(
@@ -239,14 +239,18 @@ fn fixture(required_components: &[&str]) -> (Instance, Rails) {
     (instance, rails)
 }
 
-fn component(rails: &Rails, component_id: &str) -> Component {
-    Component::bind(
+fn component(rails: &Rails, component_id: &str) -> ComponentInstanceBinding {
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         rails.runtime.as_ref(),
     )
 }
 
-fn participate(rails: &Rails, component: Component, health: Health) -> ComponentParticipation {
+fn participate(
+    rails: &Rails,
+    component: ComponentInstanceBinding,
+    health: Health,
+) -> ComponentParticipation {
     let participation = rails
         .registry
         .register(component, health)
@@ -260,7 +264,11 @@ fn participate(rails: &Rails, component: Component, health: Health) -> Component
     participation
 }
 
-fn prepare(rails: &Rails, component: Component, health: Health) -> ComponentParticipation {
+fn prepare(
+    rails: &Rails,
+    component: ComponentInstanceBinding,
+    health: Health,
+) -> ComponentParticipation {
     rails
         .registry
         .register(component, health)
@@ -270,8 +278,8 @@ fn prepare(rails: &Rails, component: Component, health: Health) -> ComponentPart
 }
 
 fn requirement(
-    consumer: Component,
-    provider: Component,
+    consumer: ComponentInstanceBinding,
+    provider: ComponentInstanceBinding,
     kind: ComponentRequirementKind,
 ) -> ResolvedComponentRequirement {
     ResolvedComponentRequirement::synthetic(
@@ -307,13 +315,13 @@ fn empty_policy_starts_ready_healthy_and_status_surfaces_agree() {
     assert!(readiness.blockers().is_empty());
     assert_eq!(
         readiness.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(readiness.status().health(), Health::Healthy);
     assert_eq!(rails.runtime.current_status(), readiness.status().clone());
     assert_eq!(
         rails.runtime.current_lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_health(), Health::Healthy);
     instance.stop().expect("stop instance");
@@ -324,10 +332,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     let (mut instance, rails) = fixture(&["component.a"]);
     let a = component(&rails, "component.a");
     let absent = rails.readiness.aggregate_readiness();
-    assert_eq!(
-        absent.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
-    );
+    assert_eq!(absent.status().lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(absent.status().health(), Health::Unavailable);
     assert_eq!(
         absent.blockers(),
@@ -345,7 +350,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     );
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
 
@@ -354,10 +359,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
         .update_health(&participation, Health::Degraded)
         .expect("degraded");
     let degraded = rails.readiness.aggregate_readiness();
-    assert_eq!(
-        degraded.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
-    );
+    assert_eq!(degraded.status().lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(degraded.status().health(), Health::Degraded);
     assert_eq!(
         degraded.blockers(),
@@ -379,7 +381,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     let unavailable = rails.readiness.aggregate_readiness();
     assert_eq!(
         unavailable.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(unavailable.status().health(), Health::Unavailable);
 
@@ -389,7 +391,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
         .expect("recovered");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
 
@@ -398,7 +400,7 @@ fn required_component_runtime_state_projects_aggregate_status_and_participation_
     participate(&rails, a, Health::Healthy);
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
     instance.stop().expect("stop instance");
@@ -435,10 +437,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
         .update_health(&c_participation, Health::Degraded)
         .expect("c degraded");
     let degraded = rails.readiness.aggregate_readiness();
-    assert_eq!(
-        degraded.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
-    );
+    assert_eq!(degraded.status().lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(degraded.status().health(), Health::Degraded);
 
     rails
@@ -448,7 +447,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
     let unavailable = rails.readiness.aggregate_readiness();
     assert_eq!(
         unavailable.status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(unavailable.status().health(), Health::Unavailable);
 
@@ -458,7 +457,7 @@ fn dependency_health_propagates_transitively_and_recovers_without_restart() {
         .expect("c recovered");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
     instance.stop().expect("stop instance");
@@ -478,7 +477,7 @@ fn unlisted_and_optional_components_do_not_degrade_aggregate_without_required_pa
         .expect("x unavailable");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
 
@@ -492,7 +491,7 @@ fn unlisted_and_optional_components_do_not_degrade_aggregate_without_required_pa
         .expect("a optional x");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
 
@@ -512,7 +511,7 @@ fn unlisted_and_optional_components_do_not_degrade_aggregate_without_required_pa
         .expect("y unavailable");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Unavailable);
     instance.stop().expect("stop instance");
@@ -536,7 +535,7 @@ fn desired_state_is_separate_from_readiness_and_aggregate_failure_does_not_globa
         .expect("set desired");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Unavailable);
 
@@ -550,7 +549,7 @@ fn desired_state_is_separate_from_readiness_and_aggregate_failure_does_not_globa
     let required_participation = participate(&rails, required.clone(), Health::Healthy);
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
     rails
@@ -559,7 +558,7 @@ fn desired_state_is_separate_from_readiness_and_aggregate_failure_does_not_globa
         .expect("desired remains separate");
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(rails.runtime.current_status().health(), Health::Healthy);
 
@@ -582,18 +581,18 @@ fn stopped_runtime_remains_stopped_even_with_policy_and_components() {
     participate(&rails, component(&rails, "component.a"), Health::Healthy);
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     instance.stop().expect("stop instance");
     let readiness = rails.readiness.aggregate_readiness();
     assert_eq!(
         readiness.status().lifecycle(),
-        ComponentRuntimeLifecycle::Stopped
+        ComponentHostLifecycle::Stopped
     );
     assert_eq!(readiness.status().health(), Health::Unavailable);
     assert_eq!(
         rails.runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Stopped
+        ComponentHostLifecycle::Stopped
     );
     assert_eq!(rails.runtime.current_health(), Health::Unavailable);
 }

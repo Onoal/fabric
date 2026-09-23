@@ -7,8 +7,8 @@ use fabric_core::{
 };
 
 use fabric_component::{
-    Component, ComponentDeclaration, ComponentError, ComponentId, ComponentParticipation,
-    ComponentRegistry, ComponentRuntime, ComponentRuntimeModule, ComponentStatus,
+    ComponentDeclaration, ComponentError, ComponentHost, ComponentHostModule, ComponentId,
+    ComponentInstanceBinding, ComponentParticipation, ComponentRegistry, ComponentStatus,
     ParticipationState,
 };
 
@@ -18,9 +18,9 @@ type CapturedRegistry = Arc<Mutex<Option<Arc<ComponentRegistry>>>>;
 struct RuntimeParticipantModule {
     module_id: ModuleId,
     component_id: ComponentId,
-    runtime_requirement: ContractRequirement<ComponentRuntime>,
+    runtime_requirement: ContractRequirement<ComponentHost>,
     registry_requirement: ContractRequirement<ComponentRegistry>,
-    component: Option<Component>,
+    component: Option<ComponentInstanceBinding>,
     participation: Option<ComponentParticipation>,
     registry: Option<Arc<ComponentRegistry>>,
     start_health: Health,
@@ -33,7 +33,7 @@ impl RuntimeParticipantModule {
             module_id: ModuleId::new(module_id).expect("module id"),
             component_id: ComponentId::new(component_id).expect("component id"),
             runtime_requirement: ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             ),
             registry_requirement: ContractRequirement::provisional(
                 fabric_component::component_registry_contract_id(),
@@ -80,7 +80,7 @@ impl ModuleRuntime for RuntimeParticipantModule {
         let registry = bindings
             .resolve(&self.registry_requirement)
             .map_err(|error| ModuleError::new(error.to_string()))?;
-        self.component = Some(Component::bind(
+        self.component = Some(ComponentInstanceBinding::bind(
             self.component_id.clone(),
             runtime_contract.as_ref(),
         ));
@@ -189,7 +189,7 @@ struct StaticComponentRuntimeService {
     instance_id: InstanceId,
 }
 
-impl fabric_component::ComponentRuntimeService for StaticComponentRuntimeService {
+impl fabric_component::ComponentHostService for StaticComponentRuntimeService {
     fn instance_id(&self) -> InstanceId {
         self.instance_id.clone()
     }
@@ -198,17 +198,17 @@ impl fabric_component::ComponentRuntimeService for StaticComponentRuntimeService
         Ok(self.instance_id())
     }
 
-    fn current_status(&self) -> fabric_component::ComponentRuntimeStatus {
-        fabric_component::ComponentRuntimeStatus::new(
+    fn current_status(&self) -> fabric_component::ComponentHostStatus {
+        fabric_component::ComponentHostStatus::new(
             self.instance_id(),
             None,
-            fabric_component::ComponentRuntimeLifecycle::Stopped,
+            fabric_component::ComponentHostLifecycle::Stopped,
             Health::Unavailable,
         )
     }
 
-    fn current_lifecycle(&self) -> fabric_component::ComponentRuntimeLifecycle {
-        fabric_component::ComponentRuntimeLifecycle::Stopped
+    fn current_lifecycle(&self) -> fabric_component::ComponentHostLifecycle {
+        fabric_component::ComponentHostLifecycle::Stopped
     }
 
     fn current_health(&self) -> Health {
@@ -227,7 +227,7 @@ fn build_running_registry_fixture(
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.registry.block").expect("block"))
             .register_module(
-                ComponentRuntimeModule::with_components(
+                ComponentHostModule::with_components(
                     vec![ComponentDeclaration::new(
                         ComponentId::new(component_id).expect("component id"),
                         Vec::new(),
@@ -299,10 +299,10 @@ fn runtime_component_requires_runtime_membership() {
 fn runtime_component_registration_rejects_foreign_instance_membership() {
     let (mut instance, registry) =
         build_running_registry_fixture("runtime.registry.local", "component.local");
-    let foreign_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let foreign_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.foreign").expect("instance id"),
     }));
-    let foreign_component = Component::bind(
+    let foreign_component = ComponentInstanceBinding::bind(
         ComponentId::new("component.foreign").expect("component id"),
         &foreign_contract,
     );
@@ -343,7 +343,7 @@ fn duplicate_component_registration_fails_deterministically() {
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.registry.duplicate.block").expect("block"))
             .register_module(
-                ComponentRuntimeModule::with_components(
+                ComponentHostModule::with_components(
                     vec![ComponentDeclaration::new(
                         ComponentId::new("component.duplicate").expect("component id"),
                         Vec::new(),
@@ -380,10 +380,10 @@ fn duplicate_component_registration_fails_deterministically() {
 fn unknown_component_health_update_fails_without_auto_registration() {
     let (mut instance, registry) =
         build_running_registry_fixture("runtime.registry.health", "component.health");
-    let foreign_contract = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+    let foreign_contract = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new("runtime.runtime").expect("instance id"),
     }));
-    let unknown_component = Component::bind(
+    let unknown_component = ComponentInstanceBinding::bind(
         ComponentId::new("component.unknown").expect("component id"),
         &foreign_contract,
     );

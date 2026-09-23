@@ -2,12 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use fabric::authoring::*;
 use fabric::component::ComponentResourceRequirementName;
+use fabric::component::invocation::InvocationOrigin;
 use fabric::prelude::*;
 use fabric::{
     core::{ContractProviderSelection, ContractRequirement},
     ids::module,
 };
-use fabric_component::{ComponentError, ComponentMaterializer, ComponentRuntimeScope};
+use fabric_component::{ComponentError, ComponentMaterializer, ComponentParticipationScope};
 use fabric_core::{
     BlockBuilder, BlockId, CompositionError, ContractId, ContractKey, ContractVersionRequirement,
     Health, InstanceGeneration, InstanceId, LifecycleState, ModuleBindings, ModuleContract,
@@ -365,7 +366,7 @@ impl ComponentAugmentationSupportDefinition<Gateway, GatewayAudit> for GatewayAu
         Some(Box::new(GatewayAuditRuntime { module_id }))
     }
 
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         Ok(())
     }
 }
@@ -382,7 +383,7 @@ impl ComponentAugmentationSupportDefinition<Gateway, GatewayTrace> for GatewayTr
         Some(Box::new(GatewayTraceRuntime { module_id }))
     }
 
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         Ok(())
     }
 }
@@ -1211,7 +1212,7 @@ fn fabric_declaration_only_component_is_host_known_without_runtime() {
             .materializer
             .materialize(&component_id)
             .expect_err("known component without attachment must fail explicitly"),
-        ComponentError::MissingComponentRuntimeAttachment(component_id)
+        ComponentError::MissingComponentParticipationRealization(component_id)
     );
 
     instance.stop().expect("stop instance");
@@ -2299,8 +2300,10 @@ impl ComponentDefinition for MismatchedSelfRealizingComponent {
 }
 
 impl SelfRealizingComponentDefinition for MismatchedSelfRealizingComponent {
-    fn self_realization(_config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
-        fabric_component::ComponentRuntimeDefinition::new(
+    fn self_realization(
+        _config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
+        fabric_component::ComponentParticipationRealization::new(
             ComponentId::new("fabric.test.component.other-self-realization").expect("component id"),
             |_scope| Ok(Health::Healthy),
         )
@@ -2337,24 +2340,29 @@ impl ComponentDefinition for AlphaComponent {
     }
 }
 impl SelfRealizingComponentDefinition for AlphaComponent {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let clock = scope.resource(&Requires::<Clock>::versioned(
-                ContractVersionRequirement::parse("^1").expect("clock requirement"),
-            ))?;
-            let system = scope.system(&SystemRequires::<AdaptedOperations>::versioned(
-                ContractVersionRequirement::parse("^2").expect("system requirement"),
-            ))?;
-            capture.lock().expect("capture").push(AlphaObservation {
-                tick: clock
-                    .current_tick()
-                    .map_err(|_| fabric_component::ComponentError::Unavailable)?
-                    .value(),
-                marker: system.current_marker().value(),
-            });
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let clock = scope.resource(&Requires::<Clock>::versioned(
+                    ContractVersionRequirement::parse("^1").expect("clock requirement"),
+                ))?;
+                let system = scope.system(&SystemRequires::<AdaptedOperations>::versioned(
+                    ContractVersionRequirement::parse("^2").expect("system requirement"),
+                ))?;
+                capture.lock().expect("capture").push(AlphaObservation {
+                    tick: clock
+                        .current_tick()
+                        .map_err(|_| fabric_component::ComponentError::Unavailable)?
+                        .value(),
+                    marker: system.current_marker().value(),
+                });
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -2375,16 +2383,21 @@ impl ComponentDefinition for ResourceOwnedComponent {
     }
 }
 impl SelfRealizingComponentDefinition for ResourceOwnedComponent {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
-            capture
-                .lock()
-                .expect("capture lock")
-                .push(counter.current_value().value());
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
+                capture
+                    .lock()
+                    .expect("capture lock")
+                    .push(counter.current_value().value());
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -2398,16 +2411,21 @@ impl ComponentDefinition for ResourceOwnedComponentB {
     }
 }
 impl SelfRealizingComponentDefinition for ResourceOwnedComponentB {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
-            capture
-                .lock()
-                .expect("capture lock")
-                .push(counter.current_value().value());
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let counter = scope.resource(&Requires::<DirectCounter>::provisional())?;
+                capture
+                    .lock()
+                    .expect("capture lock")
+                    .push(counter.current_value().value());
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -2421,18 +2439,23 @@ impl ComponentDefinition for SystemOwnedComponent {
     }
 }
 impl SelfRealizingComponentDefinition for SystemOwnedComponent {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                ContractVersionRequirement::parse("^1.2").expect("requirement"),
-            ))?;
-            capture
-                .lock()
-                .expect("capture lock")
-                .push(system.current_marker().value());
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
+                ))?;
+                capture
+                    .lock()
+                    .expect("capture lock")
+                    .push(system.current_marker().value());
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -2446,18 +2469,23 @@ impl ComponentDefinition for SystemOwnedComponentB {
     }
 }
 impl SelfRealizingComponentDefinition for SystemOwnedComponentB {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                ContractVersionRequirement::parse("^1.2").expect("requirement"),
-            ))?;
-            capture
-                .lock()
-                .expect("capture lock")
-                .push(system.current_marker().value());
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
+                ))?;
+                capture
+                    .lock()
+                    .expect("capture lock")
+                    .push(system.current_marker().value());
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -2471,19 +2499,24 @@ impl ComponentDefinition for CombinedOwnedComponent {
     }
 }
 impl SelfRealizingComponentDefinition for CombinedOwnedComponent {
-    fn self_realization(config: &Self::Config) -> fabric_component::ComponentRuntimeDefinition {
+    fn self_realization(
+        config: &Self::Config,
+    ) -> fabric_component::ComponentParticipationRealization {
         let capture = Arc::clone(&config.capture);
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), move |scope| {
-            let resource = scope.resource(&Requires::<DirectCounter>::provisional())?;
-            let system = scope.system(&SystemRequires::<TestOperations>::versioned(
-                ContractVersionRequirement::parse("^1.2").expect("requirement"),
-            ))?;
-            capture
-                .lock()
-                .expect("capture lock")
-                .push(resource.current_value().value() + system.current_marker().value());
-            Ok(Health::Healthy)
-        })
+        fabric_component::ComponentParticipationRealization::new(
+            Self::component_id(),
+            move |scope| {
+                let resource = scope.resource(&Requires::<DirectCounter>::provisional())?;
+                let system = scope.system(&SystemRequires::<TestOperations>::versioned(
+                    ContractVersionRequirement::parse("^1.2").expect("requirement"),
+                ))?;
+                capture
+                    .lock()
+                    .expect("capture lock")
+                    .push(resource.current_value().value() + system.current_marker().value());
+                Ok(Health::Healthy)
+            },
+        )
     }
 }
 
@@ -3025,7 +3058,7 @@ fn component_owned_resource_requirement_uses_explicit_resource_selection() {
         })
         .expect("capture")
         .build()
-        .expect("explicit Component selection resolves ambiguity");
+        .expect("explicit ComponentInstanceBinding selection resolves ambiguity");
     assert_eq!(
         built.manifest().diagnostics().provider_selections().len(),
         1

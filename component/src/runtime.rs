@@ -10,15 +10,15 @@ use fabric_core::{
 use crate::ComponentResourceRequirementName;
 use crate::component_scope::ComponentScopeService;
 use crate::{
-    Component, ComponentError, ComponentId, ComponentParticipation, ComponentScope,
+    ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation, ComponentScope,
     ComponentStatus, InvocationContext, OperationKey, OperationRailService, OperationRegistrar,
     OperationRegistrarService,
 };
 
-/// Identifies one preparation contribution that belongs to a Component
-/// participation. This is runtime machinery, not a second Component identity.
+/// Identifies one preparation contribution that belongs to a ComponentInstanceBinding
+/// participation. This is runtime machinery, not a second ComponentInstanceBinding identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ComponentRuntimeContribution {
+pub enum ComponentParticipationContribution {
     Base,
     Augmentation { index: usize },
 }
@@ -27,16 +27,16 @@ pub enum ComponentRuntimeContribution {
 ///
 /// The action is consumed exactly once when the participation is rolled back,
 /// dematerialized, or its host stops.
-pub type ComponentRuntimeTeardown = Box<dyn FnOnce() -> Result<(), ComponentError> + Send>;
+pub type ComponentParticipationCleanup = Box<dyn FnOnce() -> Result<(), ComponentError> + Send>;
 
-/// The result of preparing the base contribution for one Component
+/// The result of preparing the base contribution for one ComponentInstanceBinding
 /// participation.
-pub struct ComponentRuntimePreparation {
+pub struct ComponentParticipationPreparation {
     health: Health,
-    teardown: Option<ComponentRuntimeTeardown>,
+    teardown: Option<ComponentParticipationCleanup>,
 }
 
-impl ComponentRuntimePreparation {
+impl ComponentParticipationPreparation {
     pub fn new(health: Health) -> Self {
         Self {
             health,
@@ -58,18 +58,18 @@ impl ComponentRuntimePreparation {
         self.health
     }
 
-    pub(crate) fn into_parts(self) -> (Health, Option<ComponentRuntimeTeardown>) {
+    pub(crate) fn into_parts(self) -> (Health, Option<ComponentParticipationCleanup>) {
         (self.health, self.teardown)
     }
 }
 
 /// The result of preparing one additive augmentation contribution for a
-/// Component participation.
-pub struct ComponentAugmentationRuntimePreparation {
-    teardown: Option<ComponentRuntimeTeardown>,
+/// ComponentInstanceBinding participation.
+pub struct ComponentAugmentationParticipationPreparation {
+    teardown: Option<ComponentParticipationCleanup>,
 }
 
-impl ComponentAugmentationRuntimePreparation {
+impl ComponentAugmentationParticipationPreparation {
     pub fn new() -> Self {
         Self { teardown: None }
     }
@@ -82,12 +82,12 @@ impl ComponentAugmentationRuntimePreparation {
         }
     }
 
-    pub(crate) fn into_teardown(self) -> Option<ComponentRuntimeTeardown> {
+    pub(crate) fn into_teardown(self) -> Option<ComponentParticipationCleanup> {
         self.teardown
     }
 }
 
-impl Default for ComponentAugmentationRuntimePreparation {
+impl Default for ComponentAugmentationParticipationPreparation {
     fn default() -> Self {
         Self::new()
     }
@@ -95,7 +95,7 @@ impl Default for ComponentAugmentationRuntimePreparation {
 
 const COMPONENT_MATERIALIZER_CONTRACT_ID: &str = "fabric.component.materializer";
 
-/// Instance-local transport for a Core-resolved Component capability dependency.
+/// Instance-local transport for a Core-resolved ComponentInstanceBinding capability dependency.
 /// Its erased storage is private; semantic SDK scope extensions retrieve typed
 /// Resource or System contracts through their respective APIs.
 pub struct ComponentResourceDependency {
@@ -237,28 +237,30 @@ pub fn component_materializer_contract_key() -> ContractKey<ComponentMaterialize
 }
 
 #[derive(Clone)]
-pub struct ComponentRuntimeDefinition {
+pub struct ComponentParticipationRealization {
     component_id: ComponentId,
-    prepare: Arc<ComponentRuntimePrepareFn>,
+    prepare: Arc<ComponentParticipationPrepareFn>,
 }
 
-/// One additive preparation contribution for a declared Component.
+/// One additive preparation contribution for a declared ComponentInstanceBinding.
 ///
-/// This is deliberately distinct from [`ComponentRuntimeDefinition`]: a
-/// Component has one base runtime attachment, while zero or more externally
+/// This is deliberately distinct from [`ComponentParticipationRealization`]: a
+/// ComponentInstanceBinding has one base runtime attachment, while zero or more externally
 /// owned contributions may prepare the same participation without changing its
 /// declared operations or intrinsic health.
 #[derive(Clone)]
-pub struct ComponentAugmentationRuntimeDefinition {
+pub struct ComponentAugmentationParticipationRealization {
     component_id: ComponentId,
     prepare: Arc<ComponentAugmentationPrepareFn>,
 }
 
-type ComponentAugmentationPrepareFn = dyn Fn(&ComponentRuntimeScope) -> Result<ComponentAugmentationRuntimePreparation, ComponentError>
+type ComponentAugmentationPrepareFn = dyn Fn(
+        &ComponentParticipationScope,
+    ) -> Result<ComponentAugmentationParticipationPreparation, ComponentError>
     + Send
     + Sync;
 
-type ComponentRuntimePrepareFn = dyn Fn(&ComponentRuntimeScope) -> Result<ComponentRuntimePreparation, ComponentError>
+type ComponentParticipationPrepareFn = dyn Fn(&ComponentParticipationScope) -> Result<ComponentParticipationPreparation, ComponentError>
     + Send
     + Sync;
 
@@ -276,24 +278,26 @@ pub struct ComponentMaterializer {
 }
 
 #[derive(Clone)]
-pub struct ComponentRuntimeScope {
+pub struct ComponentParticipationScope {
     participation: ComponentParticipation,
     operations: OperationRegistrar,
     component_scope: ComponentScope,
     resource_dependencies: Arc<BTreeMap<ContractId, Arc<ComponentResourceDependency>>>,
 }
 
-impl ComponentRuntimeDefinition {
+impl ComponentParticipationRealization {
     pub fn new(
         component_id: ComponentId,
-        prepare: impl Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError>
+        prepare: impl Fn(&ComponentParticipationScope) -> Result<Health, ComponentError>
         + Send
         + Sync
         + 'static,
     ) -> Self {
         Self {
             component_id,
-            prepare: Arc::new(move |scope| prepare(scope).map(ComponentRuntimePreparation::new)),
+            prepare: Arc::new(move |scope| {
+                prepare(scope).map(ComponentParticipationPreparation::new)
+            }),
         }
     }
 
@@ -302,7 +306,9 @@ impl ComponentRuntimeDefinition {
     /// materialization.
     pub fn new_with_teardown(
         component_id: ComponentId,
-        prepare: impl Fn(&ComponentRuntimeScope) -> Result<ComponentRuntimePreparation, ComponentError>
+        prepare: impl Fn(
+            &ComponentParticipationScope,
+        ) -> Result<ComponentParticipationPreparation, ComponentError>
         + Send
         + Sync
         + 'static,
@@ -317,30 +323,33 @@ impl ComponentRuntimeDefinition {
         &self.component_id
     }
 
-    /// Prepares one generation-scoped Component participation.
-    pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<Health, ComponentError> {
+    /// Prepares one generation-scoped ComponentInstanceBinding participation.
+    pub fn prepare(&self, scope: &ComponentParticipationScope) -> Result<Health, ComponentError> {
         Ok((self.prepare)(scope)?.health())
     }
 
     /// Prepares this occurrence and returns its cleanup ownership to the
-    /// native Component host.
+    /// native ComponentInstanceBinding host.
     pub fn prepare_with_teardown(
         &self,
-        scope: &ComponentRuntimeScope,
-    ) -> Result<ComponentRuntimePreparation, ComponentError> {
+        scope: &ComponentParticipationScope,
+    ) -> Result<ComponentParticipationPreparation, ComponentError> {
         (self.prepare)(scope)
     }
 }
 
-impl ComponentAugmentationRuntimeDefinition {
+impl ComponentAugmentationParticipationRealization {
     pub fn new(
         component_id: ComponentId,
-        prepare: impl Fn(&ComponentRuntimeScope) -> Result<(), ComponentError> + Send + Sync + 'static,
+        prepare: impl Fn(&ComponentParticipationScope) -> Result<(), ComponentError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         Self {
             component_id,
             prepare: Arc::new(move |scope| {
-                prepare(scope).map(|()| ComponentAugmentationRuntimePreparation::new())
+                prepare(scope).map(|()| ComponentAugmentationParticipationPreparation::new())
             }),
         }
     }
@@ -350,8 +359,9 @@ impl ComponentAugmentationRuntimeDefinition {
     pub fn new_with_teardown(
         component_id: ComponentId,
         prepare: impl Fn(
-            &ComponentRuntimeScope,
-        ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError>
+            &ComponentParticipationScope,
+        )
+            -> Result<ComponentAugmentationParticipationPreparation, ComponentError>
         + Send
         + Sync
         + 'static,
@@ -367,15 +377,15 @@ impl ComponentAugmentationRuntimeDefinition {
     }
 
     /// Prepares the same participation already created for the base runtime.
-    pub fn prepare(&self, scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    pub fn prepare(&self, scope: &ComponentParticipationScope) -> Result<(), ComponentError> {
         (self.prepare)(scope).map(|_| ())
     }
 
     /// Prepares the same participation and returns its additive teardown.
     pub fn prepare_with_teardown(
         &self,
-        scope: &ComponentRuntimeScope,
-    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
+        scope: &ComponentParticipationScope,
+    ) -> Result<ComponentAugmentationParticipationPreparation, ComponentError> {
         (self.prepare)(scope)
     }
 }
@@ -404,7 +414,7 @@ impl ComponentMaterializer {
     }
 }
 
-impl ComponentRuntimeScope {
+impl ComponentParticipationScope {
     pub(crate) fn new(
         participation: ComponentParticipation,
         operation_invocation: Arc<dyn OperationRailService>,
@@ -424,7 +434,7 @@ impl ComponentRuntimeScope {
         }
     }
 
-    pub fn component(&self) -> &Component {
+    pub fn component(&self) -> &ComponentInstanceBinding {
         self.participation.component()
     }
 
@@ -436,7 +446,7 @@ impl ComponentRuntimeScope {
         self.component_scope.clone()
     }
 
-    /// Retrieves this preparing Component's already Core-resolved Resource handoff.
+    /// Retrieves this preparing ComponentInstanceBinding's already Core-resolved Resource handoff.
     pub fn resource_dependency<T>(
         &self,
         requirement: &ContractRequirement<T>,

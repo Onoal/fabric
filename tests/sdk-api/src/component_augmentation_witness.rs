@@ -4,10 +4,10 @@ use std::sync::{
 };
 
 use fabric::authoring::*;
-use fabric::component::ComponentAugmentationRuntimePreparation;
+use fabric::component::ComponentAugmentationParticipationPreparation;
 use fabric::prelude::*;
 use fabric_component::{
-    ComponentError, ComponentRuntimeScope, OperationId, OperationKey, OperationTypeId,
+    ComponentError, ComponentParticipationScope, OperationId, OperationKey, OperationTypeId,
 };
 use fabric_core::{
     ContractId, ContractKey, ContractRequirement, Health, ModuleBindings, ModuleContract,
@@ -54,8 +54,8 @@ impl ComponentDefinition for QuietComponent {
 }
 
 impl SelfRealizingComponentDefinition for QuietComponent {
-    fn self_realization(_: &()) -> fabric_component::ComponentRuntimeDefinition {
-        fabric_component::ComponentRuntimeDefinition::new(Self::component_id(), |_| {
+    fn self_realization(_: &()) -> fabric_component::ComponentParticipationRealization {
+        fabric_component::ComponentParticipationRealization::new(Self::component_id(), |_| {
             Ok(Health::Healthy)
         })
     }
@@ -306,7 +306,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for AuditSupport {
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(AuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
@@ -321,7 +321,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, Trace> for TraceSupport {
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(TraceRuntime { id }))
     }
-    fn prepare(&self, _: &(), scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), scope: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0
             .lock()
             .expect("trace participations")
@@ -339,7 +339,7 @@ impl ComponentAugmentationSupportDefinition<QuietComponent, QuietAudit> for Quie
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(QuietAuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(())
     }
@@ -354,7 +354,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for AuditingSupport 
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(AuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), scope: &ComponentParticipationScope) -> Result<(), ComponentError> {
         self.0
             .lock()
             .expect("audit participations")
@@ -372,7 +372,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for FailingAudit {
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(AuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         Err(ComponentError::Unavailable)
     }
 }
@@ -386,21 +386,21 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for TeardownAuditSup
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(AuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), _: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), _: &ComponentParticipationScope) -> Result<(), ComponentError> {
         Ok(())
     }
     fn prepare_with_teardown(
         &self,
         _: &(),
-        _: &ComponentRuntimeScope,
-    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
+        _: &ComponentParticipationScope,
+    ) -> Result<ComponentAugmentationParticipationPreparation, ComponentError> {
         let teardown_count = Arc::clone(&self.0);
-        Ok(ComponentAugmentationRuntimePreparation::with_teardown(
-            move || {
+        Ok(
+            ComponentAugmentationParticipationPreparation::with_teardown(move || {
                 teardown_count.fetch_add(1, Ordering::SeqCst);
                 Ok(())
-            },
-        ))
+            }),
+        )
     }
 }
 
@@ -413,7 +413,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, Audit> for UndeclaredOperat
     fn materialize(&self, _: &(), id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(AuditRuntime { id }))
     }
-    fn prepare(&self, _: &(), scope: &ComponentRuntimeScope) -> Result<(), ComponentError> {
+    fn prepare(&self, _: &(), scope: &ComponentParticipationScope) -> Result<(), ComponentError> {
         scope.operation(
             OperationKey::<(), ()>::new(
                 OperationId::new("fabric.test.component.audit.undeclared").expect("id"),

@@ -131,7 +131,7 @@ mod tests {
         let components = instance.components().expect("component host");
         components
             .materialize::<AuditConsumer>()
-            .expect("materialize Component");
+            .expect("materialize ComponentInstanceBinding");
         let output = futures::executor::block_on(
             components.invoke_external(&audit_consumer::operations::observe(), ()),
         )

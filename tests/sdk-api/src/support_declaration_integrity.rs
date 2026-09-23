@@ -234,7 +234,7 @@ impl ComponentAugmentationSupportDefinition<Greeter, ComponentIntegrity> for Int
     fn prepare(
         &self,
         _: &(),
-        _: &fabric_component::ComponentRuntimeScope,
+        _: &fabric_component::ComponentParticipationScope,
     ) -> Result<(), ComponentError> {
         Ok(())
     }

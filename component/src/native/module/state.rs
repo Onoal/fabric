@@ -15,7 +15,7 @@ pub(super) struct RegisteredOperation {
 
 type ComponentCatalog = (
     BTreeMap<ComponentId, ComponentDeclaration>,
-    BTreeMap<ComponentId, ComponentRuntimeDefinition>,
+    BTreeMap<ComponentId, ComponentParticipationRealization>,
 );
 
 pub(super) fn current_participation(
@@ -97,7 +97,7 @@ pub(super) fn effective_availability_from_health(
 pub(super) fn bound_component(
     state: &ComponentModuleState,
     component_id: &crate::ComponentId,
-) -> Component {
+) -> ComponentInstanceBinding {
     state
         .components
         .get(component_id)
@@ -116,12 +116,14 @@ pub(super) fn bound_component(
                 .find(|requirement| requirement.provider().component_id() == component_id)
                 .map(|requirement| requirement.provider().clone())
         })
-        .unwrap_or_else(|| Component::for_instance(component_id.clone(), state.instance_id()))
+        .unwrap_or_else(|| {
+            ComponentInstanceBinding::for_instance(component_id.clone(), state.instance_id())
+        })
 }
 
 pub(super) fn effective_health(
     state: &ComponentModuleState,
-    component: &Component,
+    component: &ComponentInstanceBinding,
     visited: &mut BTreeSet<crate::ComponentId>,
 ) -> ComponentEffectiveHealth {
     if !visited.insert(component.component_id().clone()) {
@@ -236,7 +238,7 @@ pub(super) fn project_aggregate_readiness(
     }
 
     ComponentAggregateReadiness::new(
-        ComponentRuntimeStatus::new(
+        ComponentHostStatus::new(
             state.instance_id(),
             state.status.generation(),
             state.status.lifecycle(),
@@ -248,7 +250,7 @@ pub(super) fn project_aggregate_readiness(
 }
 
 pub(super) fn refresh_operational_status(state: &mut ComponentModuleState) {
-    if !matches!(state.status.lifecycle(), ComponentRuntimeLifecycle::Ready) {
+    if !matches!(state.status.lifecycle(), ComponentHostLifecycle::Ready) {
         return;
     }
     state.status = project_aggregate_readiness(state).status().clone();
@@ -256,7 +258,7 @@ pub(super) fn refresh_operational_status(state: &mut ComponentModuleState) {
 
 pub(super) fn validated_catalog(
     declarations: impl IntoIterator<Item = ComponentDeclaration>,
-    attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+    attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
 ) -> Result<ComponentCatalog, ComponentError> {
     let mut catalog = BTreeMap::new();
     for declaration in declarations {
@@ -272,7 +274,7 @@ pub(super) fn validated_catalog(
             return Err(ComponentError::UnknownComponent(component_id));
         }
         if realized.insert(component_id.clone(), attachment).is_some() {
-            return Err(ComponentError::DuplicateComponentRuntimeDefinition(
+            return Err(ComponentError::DuplicateComponentParticipationRealization(
                 component_id,
             ));
         }
@@ -293,7 +295,10 @@ fn controls_from_snapshot(
 
     let mut controls = BTreeMap::new();
     for entry in control_snapshot.entries() {
-        let component = Component::for_instance(entry.component_id().clone(), instance_id.clone());
+        let component = ComponentInstanceBinding::for_instance(
+            entry.component_id().clone(),
+            instance_id.clone(),
+        );
         controls.insert(
             entry.component_id().clone(),
             ComponentControl::new(component, entry.desired()),
@@ -329,12 +334,12 @@ impl ComponentModuleState {
         self.status.instance_id().clone()
     }
 
-    pub(super) fn current_status(&self) -> ComponentRuntimeStatus {
+    pub(super) fn current_status(&self) -> ComponentHostStatus {
         match self.status.lifecycle() {
-            ComponentRuntimeLifecycle::Ready => project_aggregate_readiness(self).status().clone(),
-            ComponentRuntimeLifecycle::Starting
-            | ComponentRuntimeLifecycle::Stopping
-            | ComponentRuntimeLifecycle::Stopped => self.status.clone(),
+            ComponentHostLifecycle::Ready => project_aggregate_readiness(self).status().clone(),
+            ComponentHostLifecycle::Starting
+            | ComponentHostLifecycle::Stopping
+            | ComponentHostLifecycle::Stopped => self.status.clone(),
         }
     }
 
@@ -346,7 +351,7 @@ impl ComponentModuleState {
 
     pub(super) fn transition_to(
         &mut self,
-        next: ComponentRuntimeLifecycle,
+        next: ComponentHostLifecycle,
     ) -> Result<(), ComponentError> {
         self.status = self.status.transition_to(next)?;
         Ok(())
@@ -371,7 +376,7 @@ impl ComponentModuleState {
                     (
                         control.component().component_id().clone(),
                         ComponentControl::new(
-                            Component::for_instance(
+                            ComponentInstanceBinding::for_instance(
                                 control.component().component_id().clone(),
                                 instance_id.clone(),
                             ),

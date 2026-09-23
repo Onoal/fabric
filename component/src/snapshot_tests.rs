@@ -9,10 +9,11 @@ use fabric_core::{
 };
 
 use crate::{
-    Component, ComponentControlRail, ComponentControlSnapshot, ComponentControlSnapshotEntry,
-    ComponentDesiredState, ComponentError, ComponentId, ComponentReconstructionRail,
-    ComponentRegistry, ComponentRuntime, ComponentRuntimeDefinition, ComponentRuntimeModule,
-    ComponentRuntimeScope, InvocationRail, OperationId, OperationKey, OperationRail,
+    ComponentControlRail, ComponentControlSnapshot, ComponentControlSnapshotEntry,
+    ComponentDesiredState, ComponentError, ComponentHost, ComponentHostModule, ComponentId,
+    ComponentInstanceBinding, ComponentParticipationRealization, ComponentParticipationScope,
+    ComponentReconstructionRail, ComponentRegistry, InvocationRail, OperationId, OperationKey,
+    OperationRail,
 };
 
 const OPERATION_ID: &str = "fabric.component.snapshot.echo";
@@ -25,7 +26,7 @@ struct EchoOutput(&'static str);
 
 #[derive(Clone)]
 struct Rails {
-    runtime: Arc<ComponentRuntime>,
+    runtime: Arc<ComponentHost>,
     control: Arc<ComponentControlRail>,
     registry: Arc<ComponentRegistry>,
     reconstruction: Arc<ComponentReconstructionRail>,
@@ -38,7 +39,7 @@ type Capture = Arc<Mutex<Option<Rails>>>;
 #[derive(Clone)]
 struct CaptureModule {
     module_id: ModuleId,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     control: ContractRequirement<ComponentControlRail>,
     registry: ContractRequirement<ComponentRegistry>,
     reconstruction: ContractRequirement<ComponentReconstructionRail>,
@@ -51,7 +52,7 @@ impl CaptureModule {
     fn new(capture: Capture) -> Self {
         Self {
             module_id: ModuleId::new("runtime.snapshot.capture").expect("module id"),
-            runtime: ContractRequirement::provisional(crate::component_runtime_contract_id()),
+            runtime: ContractRequirement::provisional(crate::component_host_contract_id()),
             control: ContractRequirement::provisional(crate::component_control_contract_id()),
             registry: ContractRequirement::provisional(crate::component_registry_contract_id()),
             reconstruction: ContractRequirement::provisional(
@@ -165,8 +166,8 @@ where
     }
 }
 
-fn component(runtime: &ComponentRuntime, component_id: &str) -> Component {
-    Component::bind(
+fn component(runtime: &ComponentHost, component_id: &str) -> ComponentInstanceBinding {
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         runtime,
     )
@@ -198,13 +199,13 @@ fn definition_with_operation(
     component_id: &str,
 ) -> (
     crate::ComponentDeclaration,
-    Option<ComponentRuntimeDefinition>,
+    Option<ComponentParticipationRealization>,
 ) {
     (
         declaration_with_operation(component_id),
-        Some(ComponentRuntimeDefinition::new(
+        Some(ComponentParticipationRealization::new(
             ComponentId::new(component_id).expect("component id"),
-            |scope: &ComponentRuntimeScope| {
+            |scope: &ComponentParticipationScope| {
                 scope.operation_with_context(
                     operation_key(),
                     |_context, input: EchoInput| async move { Ok(EchoOutput(input.0)) },
@@ -219,7 +220,7 @@ fn passive_definition(
     component_id: &str,
 ) -> (
     crate::ComponentDeclaration,
-    Option<ComponentRuntimeDefinition>,
+    Option<ComponentParticipationRealization>,
 ) {
     (empty_declaration(component_id), None)
 }
@@ -229,7 +230,7 @@ fn fixture(
     components: impl IntoIterator<
         Item = (
             crate::ComponentDeclaration,
-            Option<ComponentRuntimeDefinition>,
+            Option<ComponentParticipationRealization>,
         ),
     >,
     control_snapshot: Option<ComponentControlSnapshot>,
@@ -238,14 +239,14 @@ fn fixture(
     let (declarations, attachments): (Vec<_>, Vec<_>) = components.into_iter().unzip();
     let attachments = attachments.into_iter().flatten().collect::<Vec<_>>();
     let module = match control_snapshot {
-        Some(control_snapshot) => ComponentRuntimeModule::with_configuration_and_control_snapshot(
+        Some(control_snapshot) => ComponentHostModule::with_configuration_and_control_snapshot(
             crate::ComponentReadinessPolicy::empty(),
             declarations,
             attachments,
             control_snapshot,
         )
         .expect("component runtime with snapshot"),
-        None => ComponentRuntimeModule::with_configuration(
+        None => ComponentHostModule::with_configuration(
             crate::ComponentReadinessPolicy::empty(),
             declarations,
             attachments,
@@ -336,7 +337,7 @@ fn snapshot_constructor_rejects_duplicate_component_entries() {
 
 #[test]
 fn default_runtime_module_remains_instance_neutral_without_snapshot() {
-    ComponentRuntimeModule::new();
+    ComponentHostModule::new();
 }
 
 #[test]
@@ -350,7 +351,7 @@ fn snapshot_carries_stable_instance_identity_but_defers_validation_to_materializ
     )
     .expect("snapshot");
 
-    ComponentRuntimeModule::with_control_snapshot(snapshot.clone())
+    ComponentHostModule::with_control_snapshot(snapshot.clone())
         .expect("snapshot should load without declaration-time instance binding");
 
     let (_instance, rails) = fixture("runtime.snapshot", Vec::new(), Some(snapshot.clone()));
@@ -377,7 +378,7 @@ fn snapshot_rejects_materialization_for_different_instance_id() {
             .register_block(
                 BlockBuilder::new(BlockId::new("runtime.snapshot.reject.block").expect("id"))
                     .register_module(
-                        ComponentRuntimeModule::with_control_snapshot(snapshot)
+                        ComponentHostModule::with_control_snapshot(snapshot)
                             .expect("module with snapshot"),
                     )
                     .register_module(CaptureModule::new(Arc::clone(&capture)))

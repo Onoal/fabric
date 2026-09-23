@@ -3,20 +3,19 @@
 //!
 //! `PackageComponent` carries stable identity plus one declarative behavior
 //! endpoint. `EmptyComponent` carries stable identity with zero endpoints,
-//! proving that a Component without invocation-based behavior is valid.
+//! proving that a ComponentInstanceBinding without invocation-based behavior is valid.
 //!
-//! Both intentionally define none of: `prepare`, `ComponentRuntimeScope`,
-//! `ComponentRuntimeDefinition`, `Health`, handlers, `ModuleRuntime`,
+//! Both intentionally define none of: `prepare`, `ComponentParticipationScope`,
+//! `ComponentParticipationRealization`, `Health`, handlers, `ModuleRuntime`,
 //! `Instance`, or any optional rail (registry, control, readiness,
 //! surface, reconstruction).
 //!
 //! A `src/tests.rs` source guard pins this negative space so the package
 //! cannot silently regain a runtime obligation.
 
-use fabric::prelude::ComponentDefinition;
-use fabric_component::{
-    ComponentDeclaration, ComponentId, OperationDefinition, OperationId, OperationTypeId,
-};
+use fabric::authoring::component::ComponentDefinition;
+use fabric_component::declaration::{ComponentDeclaration, ComponentId};
+use fabric_component::invocation::{OperationDefinition, OperationId, OperationTypeId};
 
 #[derive(Clone)]
 pub struct PackageComponentConfig {

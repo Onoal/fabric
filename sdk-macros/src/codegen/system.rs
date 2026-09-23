@@ -477,7 +477,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
             fn component_adapter_context(
                 _config: &Self::ComponentConfig,
-                _scope: &#sdk::component::ComponentRuntimeScope,
+                _scope: &#sdk::component::ComponentParticipationScope,
             ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
                 Ok(((), ()))
             }
@@ -500,7 +500,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             }
 
             fn resolve_component_relation(
-                scope: &#sdk::component::ComponentRuntimeScope,
+                scope: &#sdk::component::ComponentParticipationScope,
                 _name: &#sdk::component::ComponentResourceRequirementName,
                 compatibility: &#sdk::authoring::ComponentRelationCompatibility,
             ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {

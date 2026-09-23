@@ -30,6 +30,31 @@ fn component_manifest_depends_only_on_fabric_core() {
 }
 
 #[test]
+fn component_public_families_distinguish_declaration_participation_and_operator_ownership() {
+    let root = fs::read_to_string(format!("{}/src/lib.rs", env!("CARGO_MANIFEST_DIR")))
+        .expect("component root");
+    for family in [
+        "pub mod declaration",
+        "pub mod participation",
+        "pub mod invocation",
+        "pub mod operator",
+        "pub mod advanced",
+    ] {
+        assert!(
+            root.contains(family),
+            "component crate must expose {family}"
+        );
+    }
+    let binding = fs::read_to_string(format!("{}/src/component.rs", env!("CARGO_MANIFEST_DIR")))
+        .expect("component binding");
+    assert!(
+        binding.contains("pub struct ComponentInstanceBinding")
+            && !binding.contains("pub struct Component\n"),
+        "the Instance-bound identity must not be named as the semantic Component"
+    );
+}
+
+#[test]
 fn component_source_stays_headless_and_foundational() {
     for file in [
         "/src/component.rs",
@@ -98,7 +123,7 @@ fn component_host_lifecycle_keeps_health_out_of_its_state_vocabulary() {
     );
     assert!(
         !lifecycle.contains("Degraded,"),
-        "Component host lifecycle must not encode health"
+        "ComponentInstanceBinding host lifecycle must not encode health"
     );
 }
 
@@ -173,10 +198,10 @@ fn native_host_catalog_stays_declaration_driven() {
     assert!(
         !module.contains("runtime_definitions: BTreeMap")
             && !module.contains("with_runtime_definitions"),
-        "native host must not derive Component existence from runtime attachments"
+        "native host must not derive ComponentInstanceBinding existence from runtime attachments"
     );
     assert!(
-        module.contains("MissingComponentRuntimeAttachment"),
+        module.contains("MissingComponentParticipationRealization"),
         "materialization without attachment must report the missing attachment, not unknown identity"
     );
     assert!(

@@ -19,6 +19,14 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let config_name = format_ident!("{}Config", component_name);
     let dependencies_name = format_ident!("{}Dependencies", component_name);
     let component_mod = format_ident!("{}", to_snake_case(component_name));
+    // Canonical declarations expose semantic endpoints through `api`; the
+    // transitional frontend deliberately retains its historical `operations`
+    // module until the final hard cut.
+    let endpoint_module = if input.api.is_some() {
+        format_ident!("api")
+    } else {
+        format_ident!("operations")
+    };
     let component_id = &input.component_id;
     let legacy_self_realization = input.legacy_operations.is_some();
     let canonical_runtime = input.runtime.as_ref();
@@ -158,7 +166,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         let field = &requirement.field;
         let field_accessor = &requirement.field;
         quote!(
-            #field: <#sdk::component::ComponentRuntimeScope as #sdk::authoring::ComponentResourceScope>::named_resource(
+            #field: <#sdk::component::ComponentParticipationScope as #sdk::authoring::ComponentResourceScope>::named_resource(
                 scope,
                 &#component_mod::requirements::#field_accessor(),
             )?,
@@ -167,7 +175,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         let field = &dependency.field;
         let requirement_tokens = component_system_requirement_tokens(&sdk, dependency);
         quote!(
-            #field: <#sdk::component::ComponentRuntimeScope as #sdk::authoring::ComponentSystemScope>::system(
+            #field: <#sdk::component::ComponentParticipationScope as #sdk::authoring::ComponentSystemScope>::system(
                 scope,
                 &#requirement_tokens,
             )?,
@@ -213,7 +221,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                         let #config_binding = config.clone();
                         #dependency_capture
                         scope.operation_with_context(
-                            #component_mod::operations::#operation_name(),
+                            #component_mod::#endpoint_module::#operation_name(),
                             move |context, input: #input_ty| {
                                 let config = #config_binding.clone();
                                 let _ = &config;
@@ -228,7 +236,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                         let #config_binding = config.clone();
                         #dependency_capture
                         scope.operation(
-                            #component_mod::operations::#operation_name(),
+                            #component_mod::#endpoint_module::#operation_name(),
                             move |input: #input_ty| {
                                 let config = #config_binding.clone();
                                 let _ = &config;
@@ -241,10 +249,10 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         });
     let self_realization = if let Some(teardown) = &input.teardown {
         quote! {
-            #sdk::component::ComponentRuntimeDefinition::new_with_teardown(
+            #sdk::component::ComponentParticipationRealization::new_with_teardown(
                 <Self as #sdk::authoring::ComponentDefinition>::component_id(),
-                move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
-                    #sdk::component::ComponentRuntimePreparation,
+                move |scope: &#sdk::component::ComponentParticipationScope| -> ::std::result::Result<
+                    #sdk::component::ComponentParticipationPreparation,
                     #sdk::component::ComponentError,
                 > {
                     let dependencies = #dependencies_name {
@@ -255,7 +263,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                     let teardown_config = config.clone();
                     let teardown_dependencies = dependencies.clone();
                     ::std::result::Result::Ok(
-                        #sdk::component::ComponentRuntimePreparation::with_teardown(
+                        #sdk::component::ComponentParticipationPreparation::with_teardown(
                             #sdk::core::Health::Healthy,
                             move || {
                                 let scope = teardown_scope;
@@ -271,9 +279,9 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         }
     } else {
         quote! {
-            #sdk::component::ComponentRuntimeDefinition::new(
+            #sdk::component::ComponentParticipationRealization::new(
                 <Self as #sdk::authoring::ComponentDefinition>::component_id(),
-                move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
+                move |scope: &#sdk::component::ComponentParticipationScope| -> ::std::result::Result<
                     #sdk::core::Health,
                     #sdk::component::ComponentError,
                 > {
@@ -324,7 +332,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             api.methods.iter().map(|method| {
                 let signature = &method.signature;
                 let name = &signature.ident;
-                let operation = quote!(#component_mod::operations::#name());
+                let operation = quote!(#component_mod::#endpoint_module::#name());
                 let arguments = method_call_args(signature);
                 let argument_types = signature.inputs.iter().filter_map(|input| match input {
                     FnArg::Receiver(_) => None,
@@ -386,12 +394,12 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             }
 
             impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
-                fn self_realization(config: &Self::Config) -> #sdk::component::ComponentRuntimeDefinition {
+                fn self_realization(config: &Self::Config) -> #sdk::component::ComponentParticipationRealization {
                     let config = config.clone();
-                    #sdk::component::ComponentRuntimeDefinition::new_with_teardown(
+                    #sdk::component::ComponentParticipationRealization::new_with_teardown(
                         <Self as #sdk::authoring::ComponentDefinition>::component_id(),
-                        move |scope: &#sdk::component::ComponentRuntimeScope| -> ::std::result::Result<
-                            #sdk::component::ComponentRuntimePreparation,
+                        move |scope: &#sdk::component::ComponentParticipationScope| -> ::std::result::Result<
+                            #sdk::component::ComponentParticipationPreparation,
                             #sdk::component::ComponentError,
                         > {
                             let relations = #canonical_relations_name {
@@ -406,7 +414,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                             #(#operation_registrations)*
                             runtime.__fabric_prepare()?;
                             let teardown_runtime = ::std::sync::Arc::clone(&runtime);
-                            Ok(#sdk::component::ComponentRuntimePreparation::with_teardown(
+                            Ok(#sdk::component::ComponentParticipationPreparation::with_teardown(
                                 #sdk::core::Health::Healthy,
                                 move || teardown_runtime.__fabric_teardown(),
                             ))
@@ -425,6 +433,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         &sdk,
         component_name,
         &component_mod,
+        &endpoint_module,
         component_adapter_methods,
     );
     let component_adapter_builder_method = quote!(
@@ -476,7 +485,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     };
     let self_realizing_impl = legacy_self_realization.then(|| quote! {
         impl #sdk::authoring::SelfRealizingComponentDefinition for #component_name {
-            fn self_realization(config: &Self::Config) -> #sdk::component::ComponentRuntimeDefinition {
+            fn self_realization(config: &Self::Config) -> #sdk::component::ComponentParticipationRealization {
                 let config = config.clone();
                 #self_realization
             }
@@ -519,7 +528,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                 #sdk::component::ComponentDeclaration::new(
                     #component_mod::component_id(),
                     ::std::vec![
-                        #(#component_mod::operations::#operation_names().definition().clone()),*
+                        #(#component_mod::#endpoint_module::#operation_names().definition().clone()),*
                     ],
                 ) #declaration_relations
             }
@@ -532,7 +541,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
 
             fn component_adapter_context(
                 config: &Self::ComponentConfig,
-                scope: &#sdk::component::ComponentRuntimeScope,
+                scope: &#sdk::component::ComponentParticipationScope,
             ) -> ::std::result::Result<(Self::ComponentConfig, Self::ComponentRelations), #sdk::component::ComponentError> {
                 Ok((config.clone(), #canonical_relations_name { #(#canonical_relation_initializers)* }))
             }
@@ -567,7 +576,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                     .expect("component! generated a static component id")
             }
 
-            pub mod operations {
+            pub mod #endpoint_module {
                 use super::*;
 
                 #(#operation_tokens)*
@@ -612,6 +621,7 @@ fn component_adapter_bridge_tokens(
     sdk: &TokenStream,
     component: &syn::Ident,
     component_mod: &syn::Ident,
+    endpoint_module: &syn::Ident,
     methods: &[ContractMethod],
 ) -> TokenStream {
     let method_names = methods
@@ -676,9 +686,9 @@ fn component_adapter_bridge_tokens(
         let args = method_call_args(signature);
         let arg_types = signature.inputs.iter().filter_map(|arg| match arg { FnArg::Receiver(_) => None, FnArg::Typed(arg) => Some(&arg.ty) }).collect::<Vec<_>>();
         match arg_types.as_slice() {
-            [] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |(): ()| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime)) } })?; }),
-            [only] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |input: #only| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime, input)) } })?; }),
-            many => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::operations::#name(), move |input: (#(#many),*)| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { let (#(#args),*) = input; Ok(call(&runtime, #(#args),*)) } })?; }),
+            [] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::#endpoint_module::#name(), move |(): ()| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime)) } })?; }),
+            [only] => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::#endpoint_module::#name(), move |input: #only| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { Ok(call(&runtime, input)) } })?; }),
+            many => quote!({ let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&#name); scope.operation(#component_mod::#endpoint_module::#name(), move |input: (#(#many),*)| { let runtime = ::std::sync::Arc::clone(&runtime); let call = ::std::sync::Arc::clone(&call); async move { let (#(#args),*) = input; Ok(call(&runtime, #(#args),*)) } })?; }),
         }
     }).collect::<Vec<_>>();
     quote! {
@@ -696,7 +706,7 @@ fn component_adapter_bridge_tokens(
                     #(#registrations)*
                     provider.component_prepare(&runtime)?;
                     let provider = ::std::sync::Arc::clone(&provider); let teardown_runtime = ::std::sync::Arc::clone(&runtime);
-                    Ok(#sdk::component::ComponentRuntimePreparation::with_teardown(#sdk::core::Health::Healthy, move || provider.component_teardown(&teardown_runtime)))
+                    Ok(#sdk::component::ComponentParticipationPreparation::with_teardown(#sdk::core::Health::Healthy, move || provider.component_teardown(&teardown_runtime)))
                 })
             }
         }
@@ -816,7 +826,7 @@ fn operation_tokens(sdk: &TokenStream, operation: &ComponentOperationDefinition)
 }
 
 /// Lowers the shared declaration-only `api` grammar into the existing
-/// Component invocation representation. Operation and slot identities are
+/// ComponentInstanceBinding invocation representation. Operation and slot identities are
 /// deterministic lowering details; authors declare neither.
 fn canonical_operation_tokens(
     sdk: &TokenStream,

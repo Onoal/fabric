@@ -5,15 +5,12 @@
 //! [`crate::authoring`], and raw orchestration only through [`crate::core`].
 
 pub use crate::{
-    BuiltFabric, ComponentDefinition, ComponentError, ComponentId, ComponentRequirementKind,
-    ComponentRuntimeContribution, ComponentRuntimePreparation, ComponentRuntimeTeardownError,
-    ComponentRuntimeTeardownFailure, ComponentStatus, CompositionError, CompositionId, Fabric,
+    BuiltFabric, ComponentError, ComponentId, CompositionError, CompositionId, Fabric,
     FabricBuildError, FabricComponents, FabricInstance, Health, HostArchitecture,
     HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem, HostRequirement,
     InstanceError, InstanceGeneration, InstanceId, IntoFabricResource,
-    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
-    InvocationContext, InvocationOrigin, LifecycleState, OperationId, OperationKey,
-    OperationTypeId, ParticipationState, ResourceCompatibilityError, ResourceId, ResourceName,
-    ResourceSelection, RuntimeCleanupError, SdkAuthoringError, SystemCompatibilityError, SystemId,
-    SystemSelection, adapter, component, resource, system,
+    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation, LifecycleState,
+    ResourceCompatibilityError, ResourceId, ResourceName, ResourceSelection, RuntimeCleanupError,
+    SdkAuthoringError, SystemCompatibilityError, SystemId, SystemSelection, adapter, component,
+    resource, system,
 };

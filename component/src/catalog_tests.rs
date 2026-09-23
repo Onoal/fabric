@@ -9,9 +9,10 @@ use fabric_core::{
 };
 
 use crate::{
-    Component, ComponentDeclaration, ComponentError, ComponentId, ComponentMaterializer,
-    ComponentParticipationId, ComponentRegistry, ComponentRuntime, ComponentRuntimeDefinition,
-    ComponentRuntimeModule, ComponentRuntimeScope, OperationId, OperationKey, OperationTypeId,
+    ComponentDeclaration, ComponentError, ComponentHost, ComponentHostModule, ComponentId,
+    ComponentInstanceBinding, ComponentMaterializer, ComponentParticipationId,
+    ComponentParticipationRealization, ComponentParticipationScope, ComponentRegistry, OperationId,
+    OperationKey, OperationTypeId,
 };
 
 const ECHO_A_ID: &str = "fabric.test.catalog.echo-a";
@@ -22,7 +23,7 @@ struct Echo(String);
 
 #[derive(Clone)]
 struct Rails {
-    runtime: Arc<ComponentRuntime>,
+    runtime: Arc<ComponentHost>,
     materializer: Arc<ComponentMaterializer>,
     registry: Arc<ComponentRegistry>,
 }
@@ -51,15 +52,18 @@ fn empty_declaration(component_id: &str) -> ComponentDeclaration {
 
 fn attachment(
     component_id: &str,
-    prepare: impl Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError> + Send + Sync + 'static,
-) -> ComponentRuntimeDefinition {
-    ComponentRuntimeDefinition::new(
+    prepare: impl Fn(&ComponentParticipationScope) -> Result<Health, ComponentError>
+    + Send
+    + Sync
+    + 'static,
+) -> ComponentParticipationRealization {
+    ComponentParticipationRealization::new(
         ComponentId::new(component_id).expect("component id"),
         prepare,
     )
 }
 
-fn echo_attachment(component_id: &str, operation_id: &str) -> ComponentRuntimeDefinition {
+fn echo_attachment(component_id: &str, operation_id: &str) -> ComponentParticipationRealization {
     let operation_id = operation_id.to_owned();
     attachment(component_id, move |scope| {
         scope.operation(
@@ -92,11 +96,9 @@ impl ModuleRuntime for CaptureModule {
 
     fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
         vec![
-            ContractRequirement::<ComponentRuntime>::provisional(
-                crate::component_runtime_contract_id(),
-            )
-            .declaration()
-            .clone(),
+            ContractRequirement::<ComponentHost>::provisional(crate::component_host_contract_id())
+                .declaration()
+                .clone(),
             ContractRequirement::<ComponentMaterializer>::provisional(
                 crate::component_materializer_contract_id(),
             )
@@ -118,9 +120,8 @@ impl ModuleRuntime for CaptureModule {
         let materializer_requirement = ContractRequirement::<ComponentMaterializer>::provisional(
             crate::component_materializer_contract_id(),
         );
-        let runtime_requirement = ContractRequirement::<ComponentRuntime>::provisional(
-            crate::component_runtime_contract_id(),
-        );
+        let runtime_requirement =
+            ContractRequirement::<ComponentHost>::provisional(crate::component_host_contract_id());
         let registry_requirement = ContractRequirement::<ComponentRegistry>::provisional(
             crate::component_registry_contract_id(),
         );
@@ -157,7 +158,7 @@ impl ModuleRuntime for CaptureModule {
 
 fn fixture(
     declarations: Vec<ComponentDeclaration>,
-    attachments: Vec<ComponentRuntimeDefinition>,
+    attachments: Vec<ComponentParticipationRealization>,
 ) -> (Instance, Rails) {
     let capture = Arc::new(Mutex::new(None));
     let composition =
@@ -165,7 +166,7 @@ fn fixture(
             .register_block(
                 BlockBuilder::new(BlockId::new("catalog.block").expect("block id"))
                     .register_module(
-                        ComponentRuntimeModule::with_components(declarations, attachments)
+                        ComponentHostModule::with_components(declarations, attachments)
                             .expect("component host"),
                     )
                     .register_module(CaptureModule::new(Arc::clone(&capture)))
@@ -204,7 +205,7 @@ fn undeclared_operation_registration_fails_and_rolls_back() {
             .register_block(
                 BlockBuilder::new(BlockId::new("catalog.forged.block").expect("block id"))
                     .register_module(
-                        ComponentRuntimeModule::with_components(
+                        ComponentHostModule::with_components(
                             vec![empty_declaration("catalog.forged")],
                             vec![attachment("catalog.forged", move |scope| {
                                 let error = scope
@@ -243,9 +244,9 @@ fn undeclared_operation_registration_fails_and_rolls_back() {
             .materializer
             .materialize(&component_id("catalog.forged"))
             .expect_err("undeclared handler must fail materialization"),
-        ComponentError::ComponentRuntimeMaterializationFailed {
+        ComponentError::ComponentParticipationMaterializationFailed {
             component_id: component_id("catalog.forged"),
-            phase: crate::ComponentRuntimeFailurePhase::Prepare,
+            phase: crate::ComponentParticipationPreparationPhase::Prepare,
         }
     );
     assert_eq!(
@@ -280,7 +281,7 @@ fn declared_operation_type_mismatch_fails_registration() {
             .register_block(
                 BlockBuilder::new(BlockId::new("catalog.mismatch.block").expect("block id"))
                     .register_module(
-                        ComponentRuntimeModule::with_components(
+                        ComponentHostModule::with_components(
                             vec![echo_declaration("catalog.mismatched", ECHO_A_ID)],
                             vec![attachment("catalog.mismatched", move |scope| {
                                 let error = scope
@@ -316,9 +317,9 @@ fn declared_operation_type_mismatch_fails_registration() {
             .materializer
             .materialize(&component_id("catalog.mismatched"))
             .expect_err("mismatched handler must fail materialization"),
-        ComponentError::ComponentRuntimeMaterializationFailed {
+        ComponentError::ComponentParticipationMaterializationFailed {
             component_id: component_id("catalog.mismatched"),
-            phase: crate::ComponentRuntimeFailurePhase::Prepare,
+            phase: crate::ComponentParticipationPreparationPhase::Prepare,
         }
     );
     assert_eq!(
@@ -365,7 +366,7 @@ fn mixed_catalog_knows_declarations_and_realizes_only_attached() {
             .materializer
             .materialize(&component_id("catalog.b"))
             .expect_err("declaration-only component has no runtime attachment"),
-        ComponentError::MissingComponentRuntimeAttachment(component_id("catalog.b"))
+        ComponentError::MissingComponentParticipationRealization(component_id("catalog.b"))
     );
 }
 
@@ -392,14 +393,15 @@ fn unknown_component_is_distinct_from_missing_attachment() {
             .materializer
             .dematerialize(&component_id("catalog.a"))
             .expect_err("known component without participation is not materialized"),
-        ComponentError::ComponentRuntimeNotMaterialized(component_id("catalog.a"))
+        ComponentError::ComponentParticipationNotMaterialized(component_id("catalog.a"))
     );
 }
 
 #[test]
 fn registry_rejects_undeclared_component_without_minting_participation() {
     let (_instance, rails) = fixture(vec![empty_declaration("catalog.declared")], Vec::new());
-    let unknown = Component::bind(component_id("catalog.unknown"), rails.runtime.as_ref());
+    let unknown =
+        ComponentInstanceBinding::bind(component_id("catalog.unknown"), rails.runtime.as_ref());
 
     assert_eq!(
         rails
@@ -410,7 +412,8 @@ fn registry_rejects_undeclared_component_without_minting_participation() {
     );
     assert!(rails.registry.components().is_empty());
 
-    let declared = Component::bind(component_id("catalog.declared"), rails.runtime.as_ref());
+    let declared =
+        ComponentInstanceBinding::bind(component_id("catalog.declared"), rails.runtime.as_ref());
     let status = rails
         .registry
         .register(declared, Health::Healthy)
@@ -425,7 +428,8 @@ fn registry_rejects_undeclared_component_without_minting_participation() {
 #[test]
 fn declaration_only_component_can_participate_externally() {
     let (_instance, rails) = fixture(vec![empty_declaration("catalog.external")], Vec::new());
-    let external = Component::bind(component_id("catalog.external"), rails.runtime.as_ref());
+    let external =
+        ComponentInstanceBinding::bind(component_id("catalog.external"), rails.runtime.as_ref());
     let participation = rails
         .registry
         .register(external, Health::Healthy)
@@ -454,7 +458,7 @@ fn declaration_only_component_can_participate_externally() {
             .materializer
             .materialize(&component_id("catalog.external"))
             .expect_err("external participation does not imply native attachment"),
-        ComponentError::MissingComponentRuntimeAttachment(component_id("catalog.external"))
+        ComponentError::MissingComponentParticipationRealization(component_id("catalog.external"))
     );
 }
 
@@ -466,7 +470,7 @@ fn fresh_instances_preserve_declarations_without_sharing_live_state() {
             .register_block(
                 BlockBuilder::new(BlockId::new("catalog.fresh.block").expect("block id"))
                     .register_module(
-                        ComponentRuntimeModule::with_components(
+                        ComponentHostModule::with_components(
                             vec![echo_declaration("catalog.a", ECHO_A_ID)],
                             vec![echo_attachment("catalog.a", ECHO_A_ID)],
                         )
@@ -536,9 +540,8 @@ impl PushingCaptureModule {
         let materializer_requirement = ContractRequirement::<ComponentMaterializer>::provisional(
             crate::component_materializer_contract_id(),
         );
-        let runtime_requirement = ContractRequirement::<ComponentRuntime>::provisional(
-            crate::component_runtime_contract_id(),
-        );
+        let runtime_requirement =
+            ContractRequirement::<ComponentHost>::provisional(crate::component_host_contract_id());
         let registry_requirement = ContractRequirement::<ComponentRegistry>::provisional(
             crate::component_registry_contract_id(),
         );
@@ -563,11 +566,9 @@ impl ModuleRuntime for PushingCaptureModule {
 
     fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
         vec![
-            ContractRequirement::<ComponentRuntime>::provisional(
-                crate::component_runtime_contract_id(),
-            )
-            .declaration()
-            .clone(),
+            ContractRequirement::<ComponentHost>::provisional(crate::component_host_contract_id())
+                .declaration()
+                .clone(),
             ContractRequirement::<ComponentMaterializer>::provisional(
                 crate::component_materializer_contract_id(),
             )

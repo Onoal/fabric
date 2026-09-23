@@ -2,9 +2,10 @@ use fabric_core::ContractRequirementDeclaration;
 use fabric_resource::ResourceId;
 use fabric_system::SystemId;
 
-use crate::{ComponentId, OperationDefinition};
+pub use crate::ComponentId;
+use crate::OperationDefinition;
 
-/// A stable local role for one capability relation owned by a Component.
+/// A stable local role for one capability relation owned by a ComponentInstanceBinding.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComponentRelationName(String);
 
@@ -12,7 +13,7 @@ impl ComponentRelationName {
     pub fn new(value: impl Into<String>) -> Result<Self, &'static str> {
         let value = value.into();
         if value.is_empty() {
-            return Err("Component relation name must not be empty");
+            return Err("ComponentInstanceBinding relation name must not be empty");
         }
         Ok(Self(value))
     }
@@ -23,8 +24,9 @@ impl ComponentRelationName {
 }
 
 /// Legacy spelling retained for the existing Resource-specific lowering.
-/// Canonical Component authoring uses [`ComponentRelationName`] for every
+/// Canonical ComponentInstanceBinding authoring uses [`ComponentRelationName`] for every
 /// relation target, regardless of whether it is a Resource or System.
+#[doc(hidden)]
 pub type ComponentResourceRequirementName = ComponentRelationName;
 
 /// Runtime-free declaration of one named semantic capability relation.
@@ -48,7 +50,8 @@ impl ComponentRelationDeclaration {
     }
 }
 
-/// Runtime-free declaration of a Resource capability required by a Component.
+/// Runtime-free declaration of a Resource capability required by a ComponentInstanceBinding.
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentResourceRequirementDeclaration {
     name: ComponentResourceRequirementName,
@@ -56,6 +59,7 @@ pub struct ComponentResourceRequirementDeclaration {
     requirement: ContractRequirementDeclaration,
 }
 
+#[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentSystemRequirementDeclaration {
     system_id: SystemId,
@@ -102,16 +106,16 @@ impl ComponentResourceRequirementDeclaration {
     }
 }
 
-/// Runtime-free declarative truth for one Component.
+/// Runtime-free declarative truth for one ComponentInstanceBinding.
 ///
 /// A declaration carries stable semantic behavior identity (the
 /// `ComponentId`) plus zero or more behavior endpoint declarations. It is
 /// independent of runtime scope, health, instances, and handler attachment:
 ///
 /// - a declaration with operations describes invocable behavior endpoints;
-/// - a declaration without operations describes a valid Component whose
+/// - a declaration without operations describes a valid ComponentInstanceBinding whose
 ///   behavior is not invocation-based (pure consumer, coordinator, or a
-///   Component using other semantic rails).
+///   ComponentInstanceBinding using other semantic rails).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentDeclaration {
     component_id: ComponentId,

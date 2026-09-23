@@ -2,8 +2,8 @@ use std::error::Error;
 use std::fmt;
 
 use fabric_component::{
-    ComponentDeclaration, ComponentRuntimeDefinition, ComponentRuntimeHandle,
-    ComponentRuntimeModule, component_runtime_handle_contract_key,
+    ComponentDeclaration, ComponentHostHandle, ComponentHostModule,
+    ComponentParticipationRealization, component_host_handle_contract_key,
 };
 use fabric_core::{
     Block, BlockId, Composition, CompositionError, CompositionExport, CompositionId, ContractId,
@@ -229,14 +229,14 @@ const COMPONENT_RUNTIME_EXPORT_ID: &str = "fabric.sdk.export.component-runtime";
 
 #[derive(Debug)]
 pub enum FabricBuildError {
-    Component(fabric_component::ComponentError),
+    ComponentInstanceBinding(fabric_component::ComponentError),
     Composition(CompositionError),
 }
 
 impl fmt::Display for FabricBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Component(error) => error.fmt(f),
+            Self::ComponentInstanceBinding(error) => error.fmt(f),
             Self::Composition(error) => error.fmt(f),
         }
     }
@@ -245,7 +245,7 @@ impl fmt::Display for FabricBuildError {
 impl Error for FabricBuildError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Component(error) => Some(error),
+            Self::ComponentInstanceBinding(error) => Some(error),
             Self::Composition(error) => Some(error),
         }
     }
@@ -253,7 +253,7 @@ impl Error for FabricBuildError {
 
 impl From<fabric_component::ComponentError> for FabricBuildError {
     fn from(value: fabric_component::ComponentError) -> Self {
-        Self::Component(value)
+        Self::ComponentInstanceBinding(value)
     }
 }
 
@@ -267,7 +267,7 @@ impl From<CompositionError> for FabricBuildError {
 pub struct BuiltFabric {
     composition: Composition,
     manifest: FabricManifest,
-    component_runtime_export: Option<CompositionExport<ComponentRuntimeHandle>>,
+    component_host_export: Option<CompositionExport<ComponentHostHandle>>,
 }
 
 impl BuiltFabric {
@@ -287,10 +287,8 @@ impl BuiltFabric {
         (self.composition, self.manifest)
     }
 
-    pub(crate) fn component_runtime_export(
-        &self,
-    ) -> Option<&CompositionExport<ComponentRuntimeHandle>> {
-        self.component_runtime_export.as_ref()
+    pub(crate) fn component_host_export(&self) -> Option<&CompositionExport<ComponentHostHandle>> {
+        self.component_host_export.as_ref()
     }
 }
 
@@ -311,9 +309,9 @@ pub struct Fabric {
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
     component_declarations: Vec<ComponentDeclaration>,
-    component_self_realizations: Vec<ComponentRuntimeDefinition>,
+    component_self_realizations: Vec<ComponentParticipationRealization>,
     component_augmentation_preparations:
-        Vec<fabric_component::ComponentAugmentationRuntimeDefinition>,
+        Vec<fabric_component::ComponentAugmentationParticipationRealization>,
 }
 
 impl Fabric {
@@ -454,11 +452,11 @@ impl Fabric {
         } = self;
 
         let mut default_modules = typed_modules;
-        // The native host carries every composed Component declaration, even
+        // The native host carries every composed ComponentInstanceBinding declaration, even
         // when no local self realization exists. Declaration-only Components are
         // host-known without any fake runtime behavior.
-        let component_runtime_export = if !component_declarations.is_empty() {
-            let native_module = ComponentRuntimeModule::with_components_and_augmentations(
+        let component_host_export = if !component_declarations.is_empty() {
+            let native_module = ComponentHostModule::with_components_and_augmentations(
                 component_declarations,
                 component_self_realizations,
                 component_augmentation_preparations,
@@ -468,7 +466,7 @@ impl Fabric {
             Some(CompositionExport::new(
                 ContractId::new(COMPONENT_RUNTIME_EXPORT_ID).expect("static export id"),
                 fabric_core::ContractRequirement::provisional(
-                    component_runtime_handle_contract_key().id().clone(),
+                    component_host_handle_contract_key().id().clone(),
                 ),
             ))
         } else {
@@ -492,7 +490,7 @@ impl Fabric {
         for selection in &provider_selections {
             builder = builder.select_provider(selection.clone());
         }
-        if let Some(export) = &component_runtime_export {
+        if let Some(export) = &component_host_export {
             builder = builder.export(export.clone());
         }
         let composition = builder.build()?;
@@ -514,7 +512,7 @@ impl Fabric {
         Ok(BuiltFabric {
             composition,
             manifest,
-            component_runtime_export,
+            component_host_export,
         })
     }
 }

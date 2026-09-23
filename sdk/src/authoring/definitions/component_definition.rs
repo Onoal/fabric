@@ -7,18 +7,18 @@ use crate::authoring::{
     PrimarySystemContract, SystemRequires, SystemSelection,
 };
 use fabric_component::{
-    ComponentAugmentationRuntimeDefinition, ComponentDeclaration, ComponentError, ComponentId,
+    ComponentAugmentationParticipationRealization, ComponentDeclaration, ComponentError,
+    ComponentId, ComponentParticipationPreparation, ComponentParticipationRealization,
     ComponentResourceDependency, ComponentResourceRequirementDeclaration,
-    ComponentResourceRequirementName, ComponentRuntimeDefinition, ComponentRuntimePreparation,
-    ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
-    component_system_dependency_contract_key,
+    ComponentResourceRequirementName, ComponentSystemRequirementDeclaration,
+    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 use fabric_core::{
     ContractProviderSelection, ContractRequirement, ContractVersionRequirement, Health, Module,
     ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
 };
 
-/// Typed Resource access for a Component self realization. The requirement
+/// Typed Resource access for a ComponentInstanceBinding self realization. The requirement
 /// is declaration truth owned by the ComponentSpec and has already been
 /// resolved by Core before this scope is made available.
 pub trait ComponentResourceScope {
@@ -37,7 +37,7 @@ pub trait ComponentResourceScope {
         R: PrimaryResourceContract;
 }
 
-impl ComponentResourceScope for fabric_component::ComponentRuntimeScope {
+impl ComponentResourceScope for fabric_component::ComponentParticipationScope {
     fn resource<R>(
         &self,
         requirement: &Requires<R>,
@@ -46,7 +46,7 @@ impl ComponentResourceScope for fabric_component::ComponentRuntimeScope {
         R: PrimaryResourceContract,
     {
         let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
-            .expect("contract ids are valid default Component requirement names");
+            .expect("contract ids are valid default ComponentInstanceBinding requirement names");
         self.named_resource_dependency(&name, requirement.as_contract_requirement())
     }
 
@@ -95,7 +95,7 @@ pub trait ComponentSystemScope {
     where
         S: PrimarySystemContract;
 }
-impl ComponentSystemScope for fabric_component::ComponentRuntimeScope {
+impl ComponentSystemScope for fabric_component::ComponentParticipationScope {
     fn system<S>(
         &self,
         requirement: &SystemRequires<S>,
@@ -418,24 +418,24 @@ where
 {
     config: C::Config,
     declaration: ComponentDeclaration,
-    self_realization: Option<ComponentRuntimeDefinition>,
+    self_realization: Option<ComponentParticipationRealization>,
     resource_contributions: Vec<Box<dyn ComponentResourceContribution>>,
     system_contributions: Vec<Box<dyn ComponentSystemContribution>>,
     provider_selections: Vec<ContractProviderSelection>,
     semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
-    pub(crate) augmentation_preparations: Vec<ComponentAugmentationRuntimeDefinition>,
+    pub(crate) augmentation_preparations: Vec<ComponentAugmentationParticipationRealization>,
 }
 
 #[doc(hidden)]
 pub struct ComponentSpecParts {
     pub(crate) declaration: ComponentDeclaration,
-    pub(crate) self_realization: Option<ComponentRuntimeDefinition>,
+    pub(crate) self_realization: Option<ComponentParticipationRealization>,
     pub(crate) carriers: Vec<Box<dyn Module>>,
     pub(crate) provider_selections: Vec<ContractProviderSelection>,
     pub(crate) semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     pub(crate) semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
-    pub(crate) augmentation_preparations: Vec<ComponentAugmentationRuntimeDefinition>,
+    pub(crate) augmentation_preparations: Vec<ComponentAugmentationParticipationRealization>,
 }
 
 pub trait ComponentDefinition: Sized + Send + Sync + 'static {
@@ -450,7 +450,7 @@ pub trait ComponentDefinition: Sized + Send + Sync + 'static {
     }
 }
 
-/// Internal target-driven lowering for canonical Component relations.
+/// Internal target-driven lowering for canonical ComponentInstanceBinding relations.
 ///
 /// Resource and System targets retain their distinct carrier machinery; this
 /// trait prevents that distinction from leaking into `component!` authoring.
@@ -465,13 +465,13 @@ pub trait ComponentRelationTarget: RelationTarget {
         C: ComponentDefinition;
 
     fn resolve_component_relation(
-        scope: &fabric_component::ComponentRuntimeScope,
+        scope: &fabric_component::ComponentParticipationScope,
         name: &ComponentResourceRequirementName,
         compatibility: &ComponentRelationCompatibility,
     ) -> Result<Arc<Self::Contract>, ComponentError>;
 }
 
-/// Version compatibility supplied by canonical Component relation syntax.
+/// Version compatibility supplied by canonical ComponentInstanceBinding relation syntax.
 /// The target definition reconstructs its own typed requirement from it.
 #[doc(hidden)]
 #[derive(Clone)]
@@ -481,18 +481,18 @@ pub enum ComponentRelationCompatibility {
 }
 
 pub trait SelfRealizingComponentDefinition: ComponentDefinition {
-    fn self_realization(config: &Self::Config) -> ComponentRuntimeDefinition;
+    fn self_realization(config: &Self::Config) -> ComponentParticipationRealization;
 }
 
-/// The typed behavior capability supplied by an Adapter for one Component target.
+/// The typed behavior capability supplied by an Adapter for one ComponentInstanceBinding target.
 ///
-/// Fabric retains the configured Component occurrence and supplies it when a
+/// Fabric retains the configured ComponentInstanceBinding occurrence and supplies it when a
 /// participation is prepared. The Adapter therefore owns only its concrete
 /// realization state and configuration.
 type ComponentRealizationPrepareFn<C> = dyn Fn(
         &<C as ComponentDefinition>::Config,
-        &fabric_component::ComponentRuntimeScope,
-    ) -> Result<ComponentRuntimePreparation, ComponentError>
+        &fabric_component::ComponentParticipationScope,
+    ) -> Result<ComponentParticipationPreparation, ComponentError>
     + Send
     + Sync;
 
@@ -521,7 +521,7 @@ where
     pub fn new(
         prepare: impl Fn(
             &C::Config,
-            &fabric_component::ComponentRuntimeScope,
+            &fabric_component::ComponentParticipationScope,
         ) -> Result<Health, ComponentError>
         + Send
         + Sync
@@ -529,18 +529,18 @@ where
     ) -> Self {
         Self {
             prepare: Arc::new(move |config, scope| {
-                prepare(config, scope).map(ComponentRuntimePreparation::new)
+                prepare(config, scope).map(ComponentParticipationPreparation::new)
             }),
         }
     }
 
-    /// Constructs a Component realization contribution that owns cleanup for
+    /// Constructs a ComponentInstanceBinding realization contribution that owns cleanup for
     /// the one participation it prepared.
     pub fn new_with_teardown(
         prepare: impl Fn(
             &C::Config,
-            &fabric_component::ComponentRuntimeScope,
-        ) -> Result<ComponentRuntimePreparation, ComponentError>
+            &fabric_component::ComponentParticipationScope,
+        ) -> Result<ComponentParticipationPreparation, ComponentError>
         + Send
         + Sync
         + 'static,
@@ -553,7 +553,7 @@ where
     pub fn prepare(
         &self,
         config: &C::Config,
-        scope: &fabric_component::ComponentRuntimeScope,
+        scope: &fabric_component::ComponentParticipationScope,
     ) -> Result<Health, ComponentError> {
         Ok((self.prepare)(config, scope)?.health())
     }
@@ -561,18 +561,18 @@ where
     pub fn prepare_with_teardown(
         &self,
         config: &C::Config,
-        scope: &fabric_component::ComponentRuntimeScope,
-    ) -> Result<ComponentRuntimePreparation, ComponentError> {
+        scope: &fabric_component::ComponentParticipationScope,
+    ) -> Result<ComponentParticipationPreparation, ComponentError> {
         (self.prepare)(config, scope)
     }
 }
 
-/// Declares the typed external realization capability for a Component.
+/// Declares the typed external realization capability for a ComponentInstanceBinding.
 pub trait AdaptableComponentDefinition: ComponentDefinition {
     fn realization_requirement() -> ContractRequirement<ComponentRealizationContract<Self>>;
 }
 
-/// A selected external Adapter realization for one Component specification.
+/// A selected external Adapter realization for one ComponentInstanceBinding specification.
 pub struct ComponentRealization<C, A>
 where
     C: AdaptableComponentDefinition,
@@ -686,7 +686,7 @@ where
     {
         let realization = C::self_realization(&config);
         if realization.component_id() != &C::component_id() {
-            return Err(ComponentError::DuplicateComponentRuntimeDefinition(
+            return Err(ComponentError::DuplicateComponentParticipationRealization(
                 realization.component_id().clone(),
             ));
         }
@@ -704,7 +704,7 @@ where
         &self.declaration
     }
 
-    pub fn into_self_realization(self) -> Option<ComponentRuntimeDefinition> {
+    pub fn into_self_realization(self) -> Option<ComponentParticipationRealization> {
         self.self_realization
     }
 
@@ -713,7 +713,7 @@ where
         R: PrimaryResourceContract,
     {
         let name = ComponentResourceRequirementName::new(requirement.declaration().id().as_str())
-            .expect("contract ids are valid default Component requirement names");
+            .expect("contract ids are valid default ComponentInstanceBinding requirement names");
         self = self.requires_named_resource(ComponentResourceRequirement::new(name, requirement));
         self
     }
@@ -772,7 +772,7 @@ where
             .system_contributions
             .iter()
             .find(|value| value.declaration().system_id() == &S::system_id())
-            .expect("Component System requirement must be declared before selecting a provider");
+            .expect("ComponentInstanceBinding System requirement must be declared before selecting a provider");
         self.provider_selections
             .push(contribution.selection(&component_id, provider.module_id().clone()));
         let declaration = contribution.declaration();
@@ -793,7 +793,7 @@ where
             .resource_contributions
             .iter()
             .find(|contribution| contribution.declaration().resource_id() == &R::resource_id())
-            .expect("Component resource requirement must be declared before selecting a provider");
+            .expect("ComponentInstanceBinding resource requirement must be declared before selecting a provider");
         self.provider_selections
             .push(contribution.selection(&component_id, provider.module_id().clone()));
         let declaration = contribution.declaration();
@@ -820,7 +820,7 @@ where
             .resource_contributions
             .iter()
             .find(|value| value.declaration().name() == requirement.name())
-            .expect("Component Resource requirement must be declared before selecting a provider");
+            .expect("ComponentInstanceBinding Resource requirement must be declared before selecting a provider");
         self.provider_selections
             .push(contribution.selection(&component_id, provider.module_id().clone()));
         let declaration = contribution.declaration();
@@ -887,7 +887,7 @@ where
         let realization_contract = Arc::new(Mutex::new(None::<ComponentRealizationContract<C>>));
         let forwarded = Arc::clone(&realization_contract);
         let realization =
-            ComponentRuntimeDefinition::new_with_teardown(C::component_id(), move |scope| {
+            ComponentParticipationRealization::new_with_teardown(C::component_id(), move |scope| {
                 let realization = forwarded
                     .lock()
                     .expect("component realization bridge lock")

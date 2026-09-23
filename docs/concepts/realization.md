@@ -1,7 +1,7 @@
 # Realization
 
 A **realization** is the concrete live machinery that makes a semantic
-Resource or System operational in one materialized occurrence.
+Resource, System, or Component operational in one materialized occurrence.
 
 ```text
 semantic subject -- API --> consumer
@@ -11,6 +11,10 @@ semantic subject -- API --> consumer
        `-- Adapter realization
 ```
 
+For Components, the resulting live occurrence is a generation-scoped
+`ComponentParticipation`. Component preparation and cleanup belong to that
+participation, while the Instance-local `ComponentHost` orchestrates it.
+
 The semantic subject owns identity, semantic Config, Relations, and its API.
 The realization owns implementation details: concrete Config, live state,
 lifecycle hooks, and its own health observation. The same semantic target can
@@ -18,11 +22,13 @@ be selected with different compatible Adapters in different Compositions.
 
 ## Three forms
 
-1. **Self realization**: the Resource/System explicitly owns runtime behavior.
+1. **Self realization**: the Resource/System explicitly owns runtime behavior;
+   a Component `runtime` supplies its default participation realization.
    Use `state`, `runtime`, or `lifecycle` only when that semantic owner truly
    owns that live behavior.
 2. **Direct Adapter realization**: the Adapter implements the target API
-   directly. This is the normal path.
+   directly, or supplies the Component participation realization boundary.
+   This is the normal path.
 3. **Differential realization**: the semantic owner deliberately mediates one
    or more API methods; the Adapter supplies the remaining direct methods plus
    realization-only operations. Fabric composes one typed semantic provider

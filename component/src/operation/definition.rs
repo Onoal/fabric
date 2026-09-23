@@ -1,4 +1,4 @@
-use crate::{Component, OperationId, OperationTypeId};
+use crate::{ComponentInstanceBinding, OperationId, OperationTypeId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperationDefinition {
@@ -10,7 +10,7 @@ pub struct OperationDefinition {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperationDescriptor {
     definition: OperationDefinition,
-    owner: Component,
+    owner: ComponentInstanceBinding,
 }
 
 impl OperationDefinition {
@@ -36,7 +36,7 @@ impl OperationDefinition {
 }
 
 impl OperationDescriptor {
-    pub fn new(definition: OperationDefinition, owner: Component) -> Self {
+    pub fn new(definition: OperationDefinition, owner: ComponentInstanceBinding) -> Self {
         Self { definition, owner }
     }
 
@@ -44,7 +44,7 @@ impl OperationDescriptor {
         &self.definition
     }
 
-    pub fn owner(&self) -> &Component {
+    pub fn owner(&self) -> &ComponentInstanceBinding {
         &self.owner
     }
 }

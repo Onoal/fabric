@@ -7,17 +7,16 @@ use fabric_core::{
 };
 
 use fabric_component::{
-    ComponentError, ComponentRuntime, ComponentRuntimeLifecycle, ComponentRuntimeModule,
-    ComponentRuntimeStatus,
+    ComponentError, ComponentHost, ComponentHostLifecycle, ComponentHostModule, ComponentHostStatus,
 };
 
-type CapturedContract = Arc<Mutex<Option<Arc<ComponentRuntime>>>>;
-type CapturedStatuses = Arc<Mutex<Vec<ComponentRuntimeStatus>>>;
+type CapturedContract = Arc<Mutex<Option<Arc<ComponentHost>>>>;
+type CapturedStatuses = Arc<Mutex<Vec<ComponentHostStatus>>>;
 
 #[derive(Clone)]
 struct ComponentRuntimeLifecycleProbeModule {
     module_id: ModuleId,
-    runtime_requirement: ContractRequirement<ComponentRuntime>,
+    runtime_requirement: ContractRequirement<ComponentHost>,
     captured_contract: CapturedContract,
     observed_statuses: CapturedStatuses,
     health: Health,
@@ -32,7 +31,7 @@ impl ComponentRuntimeLifecycleProbeModule {
         Self {
             module_id: ModuleId::new(module_id).expect("module id"),
             runtime_requirement: ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             ),
             captured_contract,
             observed_statuses,
@@ -124,7 +123,7 @@ enum LifecycleFailurePhase {
 struct LifecycleFailureModule {
     module_id: ModuleId,
     phase: LifecycleFailurePhase,
-    runtime_requirement: Option<ContractRequirement<ComponentRuntime>>,
+    runtime_requirement: Option<ContractRequirement<ComponentHost>>,
     captured_contract: CapturedContract,
     observed_statuses: CapturedStatuses,
 }
@@ -138,7 +137,7 @@ impl LifecycleFailureModule {
             module_id: ModuleId::new("runtime.lifecycle.initialize-failure").expect("module id"),
             phase: LifecycleFailurePhase::Initialize,
             runtime_requirement: Some(ContractRequirement::provisional(
-                fabric_component::component_runtime_contract_id(),
+                fabric_component::component_host_contract_id(),
             )),
             captured_contract,
             observed_statuses,
@@ -236,7 +235,7 @@ fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
         CompositionBuilder::new(CompositionId::new("runtime.lifecycle").expect("composition"))
             .register_block(
                 BlockBuilder::new(BlockId::new("runtime.lifecycle.block").expect("block"))
-                    .register_module(ComponentRuntimeModule::new())
+                    .register_module(ComponentHostModule::new())
                     .register_module(ComponentRuntimeLifecycleProbeModule::new(
                         "runtime.lifecycle.probe",
                         Arc::clone(&captured_contract),
@@ -257,31 +256,28 @@ fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
         .expect("captured contract");
     let built_status = contract.current_status();
     assert_eq!(built_status.instance_id().as_str(), "runtime.alpha");
-    assert_eq!(built_status.lifecycle(), ComponentRuntimeLifecycle::Stopped);
+    assert_eq!(built_status.lifecycle(), ComponentHostLifecycle::Stopped);
     assert_eq!(built_status.health(), Health::Unavailable);
 
     instance.start().expect("start instance");
 
     let observed = observed_statuses.lock().expect("observed statuses").clone();
     assert_eq!(observed.len(), 2);
-    assert_eq!(observed[0].lifecycle(), ComponentRuntimeLifecycle::Starting);
+    assert_eq!(observed[0].lifecycle(), ComponentHostLifecycle::Starting);
     assert_eq!(observed[0].health(), Health::Degraded);
     assert_eq!(observed[0].instance_id().as_str(), "runtime.alpha");
-    assert_eq!(observed[1].lifecycle(), ComponentRuntimeLifecycle::Ready);
+    assert_eq!(observed[1].lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(observed[1].health(), Health::Healthy);
 
     let running_status = contract.current_status();
-    assert_eq!(running_status.lifecycle(), ComponentRuntimeLifecycle::Ready);
+    assert_eq!(running_status.lifecycle(), ComponentHostLifecycle::Ready);
     assert_eq!(running_status.health(), Health::Healthy);
 
     instance.stop().expect("stop instance");
     instance.stop().expect("stopped instance is idempotent");
 
     let stopped_status = contract.current_status();
-    assert_eq!(
-        stopped_status.lifecycle(),
-        ComponentRuntimeLifecycle::Stopped
-    );
+    assert_eq!(stopped_status.lifecycle(), ComponentHostLifecycle::Stopped);
     assert_eq!(stopped_status.health(), Health::Unavailable);
     assert_eq!(stopped_status.instance_id().as_str(), "runtime.alpha");
     assert_eq!(
@@ -294,15 +290,15 @@ fn runtime_instance_identity_remains_stable_across_lifecycle_transitions() {
 
 #[test]
 fn runtime_lifecycle_invalid_transition_fails_deterministically() {
-    let error = ComponentRuntimeLifecycle::Stopped
-        .transition_to(ComponentRuntimeLifecycle::Ready)
+    let error = ComponentHostLifecycle::Stopped
+        .transition_to(ComponentHostLifecycle::Ready)
         .expect_err("stopped cannot transition directly to ready");
 
     assert!(matches!(
         error,
-        ComponentError::InvalidComponentRuntimeLifecycleTransition {
-            from: ComponentRuntimeLifecycle::Stopped,
-            to: ComponentRuntimeLifecycle::Ready,
+        ComponentError::InvalidComponentHostLifecycleTransition {
+            from: ComponentHostLifecycle::Stopped,
+            to: ComponentHostLifecycle::Ready,
         }
     ));
 }
@@ -318,7 +314,7 @@ fn runtime_lifecycle_truth_is_shared_across_multiple_consumers() {
         CompositionBuilder::new(CompositionId::new("runtime.shared.truth").expect("composition"))
             .register_block(
                 BlockBuilder::new(BlockId::new("runtime.shared.truth.block").expect("block"))
-                    .register_module(ComponentRuntimeModule::new())
+                    .register_module(ComponentHostModule::new())
                     .register_module(ComponentRuntimeLifecycleProbeModule::new(
                         "runtime.shared.probe.a",
                         Arc::clone(&first_contract),
@@ -358,38 +354,38 @@ fn runtime_lifecycle_truth_is_shared_across_multiple_consumers() {
 
 #[test]
 fn valid_runtime_lifecycle_progression_is_explicit() {
-    let lifecycle = ComponentRuntimeLifecycle::Stopped
-        .transition_to(ComponentRuntimeLifecycle::Starting)
+    let lifecycle = ComponentHostLifecycle::Stopped
+        .transition_to(ComponentHostLifecycle::Starting)
         .expect("stopped -> starting");
     let lifecycle = lifecycle
-        .transition_to(ComponentRuntimeLifecycle::Ready)
+        .transition_to(ComponentHostLifecycle::Ready)
         .expect("starting -> ready");
     let lifecycle = lifecycle
-        .transition_to(ComponentRuntimeLifecycle::Stopping)
+        .transition_to(ComponentHostLifecycle::Stopping)
         .expect("ready -> stopping");
     let lifecycle = lifecycle
-        .transition_to(ComponentRuntimeLifecycle::Stopped)
+        .transition_to(ComponentHostLifecycle::Stopped)
         .expect("stopping -> stopped");
 
-    assert_eq!(lifecycle, ComponentRuntimeLifecycle::Stopped);
+    assert_eq!(lifecycle, ComponentHostLifecycle::Stopped);
 }
 
 #[test]
 fn abandoned_startup_uses_the_same_stopping_cleanup_path() {
-    let lifecycle = ComponentRuntimeLifecycle::Stopped
-        .transition_to(ComponentRuntimeLifecycle::Starting)
+    let lifecycle = ComponentHostLifecycle::Stopped
+        .transition_to(ComponentHostLifecycle::Starting)
         .expect("stopped -> starting");
     let lifecycle = lifecycle
-        .transition_to(ComponentRuntimeLifecycle::Stopping)
+        .transition_to(ComponentHostLifecycle::Stopping)
         .expect("starting -> stopping");
     let lifecycle = lifecycle
-        .transition_to(ComponentRuntimeLifecycle::Stopped)
+        .transition_to(ComponentHostLifecycle::Stopped)
         .expect("stopping -> stopped");
 
-    assert_eq!(lifecycle, ComponentRuntimeLifecycle::Stopped);
+    assert_eq!(lifecycle, ComponentHostLifecycle::Stopped);
     assert!(
-        ComponentRuntimeLifecycle::Starting
-            .transition_to(ComponentRuntimeLifecycle::Stopped)
+        ComponentHostLifecycle::Starting
+            .transition_to(ComponentHostLifecycle::Stopped)
             .is_err()
     );
 }
@@ -403,7 +399,7 @@ fn initialize_failure_cleans_a_starting_component_host_without_cleanup_error() {
     )
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.lifecycle.block").expect("block"))
-            .register_module(ComponentRuntimeModule::new())
+            .register_module(ComponentHostModule::new())
             .register_module(LifecycleFailureModule::after_component_initialize(
                 Arc::clone(&captured_contract),
                 Arc::clone(&observed_statuses),
@@ -432,7 +428,7 @@ fn initialize_failure_cleans_a_starting_component_host_without_cleanup_error() {
     let observed = observed_statuses.lock().expect("observed statuses").clone();
     assert_eq!(observed.len(), 1);
     assert_eq!(observed[0].instance_id(), &instance_id);
-    assert_eq!(observed[0].lifecycle(), ComponentRuntimeLifecycle::Starting);
+    assert_eq!(observed[0].lifecycle(), ComponentHostLifecycle::Starting);
     assert_eq!(observed[0].health(), Health::Degraded);
 
     let runtime = captured_contract
@@ -442,7 +438,7 @@ fn initialize_failure_cleans_a_starting_component_host_without_cleanup_error() {
         .expect("captured contract");
     assert_eq!(
         runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Stopped
+        ComponentHostLifecycle::Stopped
     );
     assert_eq!(runtime.current_status().health(), Health::Unavailable);
 }
@@ -457,7 +453,7 @@ fn start_failure_before_component_host_start_cleans_the_starting_host_without_cl
     .register_block(
         BlockBuilder::new(BlockId::new("runtime.lifecycle.block").expect("block"))
             .register_module(LifecycleFailureModule::before_component_start())
-            .register_module(ComponentRuntimeModule::new())
+            .register_module(ComponentHostModule::new())
             .register_module(ComponentRuntimeLifecycleProbeModule::new(
                 "runtime.lifecycle.start-observer",
                 Arc::clone(&captured_contract),
@@ -485,7 +481,7 @@ fn start_failure_before_component_host_start_cleans_the_starting_host_without_cl
 
     let observed = observed_statuses.lock().expect("observed statuses").clone();
     assert_eq!(observed.len(), 1);
-    assert_eq!(observed[0].lifecycle(), ComponentRuntimeLifecycle::Starting);
+    assert_eq!(observed[0].lifecycle(), ComponentHostLifecycle::Starting);
     assert_eq!(observed[0].health(), Health::Degraded);
 
     let runtime = captured_contract
@@ -495,7 +491,7 @@ fn start_failure_before_component_host_start_cleans_the_starting_host_without_cl
         .expect("captured contract");
     assert_eq!(
         runtime.current_status().lifecycle(),
-        ComponentRuntimeLifecycle::Stopped
+        ComponentHostLifecycle::Stopped
     );
     assert_eq!(runtime.current_status().health(), Health::Unavailable);
 }

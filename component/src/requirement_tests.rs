@@ -7,11 +7,11 @@ use fabric_core::{
 };
 
 use crate::{
-    Component, ComponentCommunication, ComponentContract, ComponentDeclaration,
+    ComponentCommunication, ComponentContract, ComponentDeclaration,
     ComponentDependencyAvailabilityBlocker, ComponentEffectiveAvailability, ComponentError,
-    ComponentId, ComponentParticipation, ComponentRegistry, ComponentRequirementKind,
-    ComponentRequirementRail, ComponentRuntime, ComponentRuntimeModule, ComponentRuntimeService,
-    InvocationRail,
+    ComponentHost, ComponentHostModule, ComponentHostService, ComponentId,
+    ComponentInstanceBinding, ComponentParticipation, ComponentRegistry, ComponentRequirementKind,
+    ComponentRequirementRail, InvocationRail,
 };
 
 const NOTES_CONTRACT_ID: &str = "fabric.component.requirement.notes";
@@ -26,7 +26,7 @@ impl Notes {
 }
 
 struct Rails {
-    runtime: Arc<ComponentRuntime>,
+    runtime: Arc<ComponentHost>,
     registry: Arc<ComponentRegistry>,
     requirements: Arc<ComponentRequirementRail>,
     communication: Arc<ComponentCommunication>,
@@ -38,7 +38,7 @@ type Capture = Arc<Mutex<Option<Rails>>>;
 #[derive(Clone)]
 struct CaptureModule {
     module_id: ModuleId,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     registry: ContractRequirement<ComponentRegistry>,
     requirements: ContractRequirement<ComponentRequirementRail>,
     communication: ContractRequirement<ComponentCommunication>,
@@ -50,7 +50,7 @@ impl CaptureModule {
     fn new(capture: Capture) -> Self {
         Self {
             module_id: ModuleId::new("component.requirement.capture").expect("module id"),
-            runtime: ContractRequirement::provisional(crate::component_runtime_contract_id()),
+            runtime: ContractRequirement::provisional(crate::component_host_contract_id()),
             registry: ContractRequirement::provisional(crate::component_registry_contract_id()),
             requirements: ContractRequirement::provisional(
                 crate::component_requirement_contract_id(),
@@ -135,7 +135,7 @@ fn fixture() -> (Instance, Rails) {
     .register_block(
         BlockBuilder::new(BlockId::new("component.requirement.block").expect("block id"))
             .register_module(
-                ComponentRuntimeModule::with_components(
+                ComponentHostModule::with_components(
                     [
                         "component.a",
                         "component.b",
@@ -176,14 +176,18 @@ fn fixture() -> (Instance, Rails) {
     (instance, rails)
 }
 
-fn component(rails: &Rails, component_id: &str) -> Component {
-    Component::bind(
+fn component(rails: &Rails, component_id: &str) -> ComponentInstanceBinding {
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         rails.runtime.as_ref(),
     )
 }
 
-fn participate(rails: &Rails, component: Component, health: Health) -> ComponentParticipation {
+fn participate(
+    rails: &Rails,
+    component: ComponentInstanceBinding,
+    health: Health,
+) -> ComponentParticipation {
     let participation = rails
         .registry
         .register(component, health)
@@ -198,8 +202,8 @@ fn participate(rails: &Rails, component: Component, health: Health) -> Component
 }
 
 fn requirement(
-    consumer: Component,
-    provider: Component,
+    consumer: ComponentInstanceBinding,
+    provider: ComponentInstanceBinding,
     kind: ComponentRequirementKind,
 ) -> crate::ResolvedComponentRequirement {
     crate::ResolvedComponentRequirement::synthetic(
@@ -212,8 +216,8 @@ fn requirement(
 
 fn notes_handle(
     rails: &Rails,
-    consumer: Component,
-    provider: Component,
+    consumer: ComponentInstanceBinding,
+    provider: ComponentInstanceBinding,
     kind: ComponentRequirementKind,
 ) -> ComponentContract<Notes> {
     rails
@@ -222,11 +226,11 @@ fn notes_handle(
         .expect("bind notes")
 }
 
-fn foreign_component(instance_id: &str, component_id: &str) -> Component {
-    let runtime = ComponentRuntime::new(Arc::new(StaticComponentRuntimeService {
+fn foreign_component(instance_id: &str, component_id: &str) -> ComponentInstanceBinding {
+    let runtime = ComponentHost::new(Arc::new(StaticComponentRuntimeService {
         instance_id: InstanceId::new(instance_id).expect("instance id"),
     }));
-    Component::bind(
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         &runtime,
     )
@@ -237,7 +241,7 @@ struct StaticComponentRuntimeService {
     instance_id: InstanceId,
 }
 
-impl ComponentRuntimeService for StaticComponentRuntimeService {
+impl ComponentHostService for StaticComponentRuntimeService {
     fn instance_id(&self) -> InstanceId {
         self.instance_id.clone()
     }
@@ -246,17 +250,17 @@ impl ComponentRuntimeService for StaticComponentRuntimeService {
         Ok(self.instance_id())
     }
 
-    fn current_status(&self) -> crate::ComponentRuntimeStatus {
-        crate::ComponentRuntimeStatus::new(
+    fn current_status(&self) -> crate::ComponentHostStatus {
+        crate::ComponentHostStatus::new(
             self.instance_id(),
             None,
-            crate::ComponentRuntimeLifecycle::Ready,
+            crate::ComponentHostLifecycle::Ready,
             Health::Healthy,
         )
     }
 
-    fn current_lifecycle(&self) -> crate::ComponentRuntimeLifecycle {
-        crate::ComponentRuntimeLifecycle::Ready
+    fn current_lifecycle(&self) -> crate::ComponentHostLifecycle {
+        crate::ComponentHostLifecycle::Ready
     }
 
     fn current_health(&self) -> Health {

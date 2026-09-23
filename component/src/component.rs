@@ -2,13 +2,13 @@ use std::fmt;
 
 use fabric_core::InstanceId;
 
-use crate::{ComponentError, ComponentRuntime};
+use crate::{ComponentError, ComponentHost};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComponentId(String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Component {
+pub struct ComponentInstanceBinding {
     component_id: ComponentId,
     instance_id: InstanceId,
 }
@@ -25,8 +25,8 @@ impl ComponentId {
     }
 }
 
-impl Component {
-    pub fn bind(component_id: ComponentId, runtime: &ComponentRuntime) -> Self {
+impl ComponentInstanceBinding {
+    pub fn bind(component_id: ComponentId, runtime: &ComponentHost) -> Self {
         Self {
             component_id,
             instance_id: runtime.instance_id(),

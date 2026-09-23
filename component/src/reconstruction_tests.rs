@@ -13,13 +13,14 @@ use fabric_core::{
 };
 
 use crate::{
-    Component, ComponentControlRail, ComponentDeclaration, ComponentDesiredState, ComponentError,
-    ComponentId, ComponentReadinessPolicy, ComponentReadinessRail, ComponentReconstructionOutcome,
-    ComponentReconstructionRail, ComponentReconstructionReport, ComponentReconstructionResult,
+    ComponentControlRail, ComponentDeclaration, ComponentDesiredState, ComponentError,
+    ComponentHost, ComponentHostLifecycle, ComponentHostModule, ComponentId,
+    ComponentInstanceBinding, ComponentParticipationPreparationPhase,
+    ComponentParticipationRealization, ComponentParticipationScope, ComponentReadinessPolicy,
+    ComponentReadinessRail, ComponentReconstructionOutcome, ComponentReconstructionRail,
+    ComponentReconstructionReport, ComponentReconstructionResult,
     ComponentReconstructionRuntimeState, ComponentRegistry, ComponentRequirementKind,
-    ComponentRequirementRail, ComponentRuntime, ComponentRuntimeDefinition,
-    ComponentRuntimeFailurePhase, ComponentRuntimeLifecycle, ComponentRuntimeModule,
-    ComponentRuntimeScope, InvocationRail, OperationId, OperationKey, OperationRail,
+    ComponentRequirementRail, InvocationRail, OperationId, OperationKey, OperationRail,
     ParticipationState, ResolvedComponentRequirement, SurfaceRegistry,
 };
 
@@ -34,7 +35,7 @@ struct EchoOutput(&'static str);
 
 #[derive(Clone)]
 struct Rails {
-    runtime: Arc<ComponentRuntime>,
+    runtime: Arc<ComponentHost>,
     registry: Arc<ComponentRegistry>,
     control: Arc<ComponentControlRail>,
     readiness: Arc<ComponentReadinessRail>,
@@ -49,7 +50,7 @@ type Capture = Arc<Mutex<Option<Rails>>>;
 #[derive(Clone)]
 struct CaptureModule {
     module_id: ModuleId,
-    runtime: ContractRequirement<ComponentRuntime>,
+    runtime: ContractRequirement<ComponentHost>,
     registry: ContractRequirement<ComponentRegistry>,
     control: ContractRequirement<ComponentControlRail>,
     readiness: ContractRequirement<ComponentReadinessRail>,
@@ -65,7 +66,7 @@ impl CaptureModule {
     fn new(capture: Capture) -> Self {
         Self {
             module_id: ModuleId::new("runtime.reconstruction.capture").expect("module id"),
-            runtime: ContractRequirement::provisional(crate::component_runtime_contract_id()),
+            runtime: ContractRequirement::provisional(crate::component_host_contract_id()),
             registry: ContractRequirement::provisional(crate::component_registry_contract_id()),
             control: ContractRequirement::provisional(crate::component_control_contract_id()),
             readiness: ContractRequirement::provisional(crate::component_readiness_contract_id()),
@@ -189,8 +190,8 @@ where
     }
 }
 
-fn component(runtime_contract: &ComponentRuntime, component_id: &str) -> Component {
-    Component::bind(
+fn component(runtime_contract: &ComponentHost, component_id: &str) -> ComponentInstanceBinding {
+    ComponentInstanceBinding::bind(
         ComponentId::new(component_id).expect("component id"),
         runtime_contract,
     )
@@ -198,17 +199,20 @@ fn component(runtime_contract: &ComponentRuntime, component_id: &str) -> Compone
 
 fn definition(
     component_id: &str,
-    prepare: impl Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError> + Send + Sync + 'static,
+    prepare: impl Fn(&ComponentParticipationScope) -> Result<Health, ComponentError>
+    + Send
+    + Sync
+    + 'static,
 ) -> (
     crate::ComponentDeclaration,
-    Option<ComponentRuntimeDefinition>,
+    Option<ComponentParticipationRealization>,
 ) {
     (
         crate::ComponentDeclaration::new(
             ComponentId::new(component_id).expect("component id"),
             Vec::new(),
         ),
-        Some(ComponentRuntimeDefinition::new(
+        Some(ComponentParticipationRealization::new(
             ComponentId::new(component_id).expect("component id"),
             prepare,
         )),
@@ -217,17 +221,20 @@ fn definition(
 
 fn definition_with_operation(
     component_id: &str,
-    prepare: impl Fn(&ComponentRuntimeScope) -> Result<Health, ComponentError> + Send + Sync + 'static,
+    prepare: impl Fn(&ComponentParticipationScope) -> Result<Health, ComponentError>
+    + Send
+    + Sync
+    + 'static,
 ) -> (
     crate::ComponentDeclaration,
-    Option<ComponentRuntimeDefinition>,
+    Option<ComponentParticipationRealization>,
 ) {
     (
         crate::ComponentDeclaration::new(
             ComponentId::new(component_id).expect("component id"),
             vec![operation_key().definition().clone()],
         ),
-        Some(ComponentRuntimeDefinition::new(
+        Some(ComponentParticipationRealization::new(
             ComponentId::new(component_id).expect("component id"),
             prepare,
         )),
@@ -235,8 +242,8 @@ fn definition_with_operation(
 }
 
 fn requirement(
-    consumer: Component,
-    provider: Component,
+    consumer: ComponentInstanceBinding,
+    provider: ComponentInstanceBinding,
     kind: ComponentRequirementKind,
 ) -> ResolvedComponentRequirement {
     ResolvedComponentRequirement::synthetic(
@@ -262,7 +269,7 @@ fn fixture(
     components: impl IntoIterator<
         Item = (
             crate::ComponentDeclaration,
-            Option<ComponentRuntimeDefinition>,
+            Option<ComponentParticipationRealization>,
         ),
     >,
 ) -> (Instance, Rails) {
@@ -280,12 +287,8 @@ fn fixture(
             .register_block(
                 BlockBuilder::new(BlockId::new("runtime.reconstruction.block").expect("block"))
                     .register_module(
-                        ComponentRuntimeModule::with_configuration(
-                            policy,
-                            declarations,
-                            attachments,
-                        )
-                        .expect("component runtime"),
+                        ComponentHostModule::with_configuration(policy, declarations, attachments)
+                            .expect("component runtime"),
                     )
                     .register_module(CaptureModule::new(Arc::clone(&capture)))
                     .build(),
@@ -514,10 +517,12 @@ fn reconstruction_failures_stay_local_and_retry_cleanly() {
             definition("component.a", move |_| {
                 let attempt = attempts_a_for_definition.fetch_add(1, Ordering::SeqCst);
                 if attempt == 0 {
-                    return Err(ComponentError::ComponentRuntimeMaterializationFailed {
-                        component_id: ComponentId::new("component.a").expect("component id"),
-                        phase: ComponentRuntimeFailurePhase::Prepare,
-                    });
+                    return Err(
+                        ComponentError::ComponentParticipationMaterializationFailed {
+                            component_id: ComponentId::new("component.a").expect("component id"),
+                            phase: ComponentParticipationPreparationPhase::Prepare,
+                        },
+                    );
                 }
                 Ok(Health::Healthy)
             }),
@@ -608,7 +613,7 @@ fn reconstruction_updates_readiness_without_mutating_desired_or_semantic_truth()
     let component_b = component(&rails.runtime, "component.b");
     assert_eq!(
         rails.readiness.aggregate_readiness().status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
 
     rails
@@ -626,7 +631,7 @@ fn reconstruction_updates_readiness_without_mutating_desired_or_semantic_truth()
     assert_eq!(report.outcomes().len(), 2);
     assert_eq!(
         rails.readiness.aggregate_readiness().status().lifecycle(),
-        ComponentRuntimeLifecycle::Ready
+        ComponentHostLifecycle::Ready
     );
     assert_eq!(
         rails
@@ -704,7 +709,7 @@ fn reconstruction_rejects_stopped_runtime_globally() {
     assert_eq!(
         rails.reconstruction.reconstruct(),
         Err(ComponentError::ComponentReconstructionUnavailableLifecycle(
-            ComponentRuntimeLifecycle::Stopped,
+            ComponentHostLifecycle::Stopped,
         ))
     );
     assert_eq!(

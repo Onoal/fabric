@@ -6,10 +6,10 @@ impl crate::InvocationService for SharedComponentState {
     fn begin_external(&self) -> Result<crate::InvocationContext, ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");
         match state.current_status().lifecycle() {
-            ComponentRuntimeLifecycle::Ready => {}
-            ComponentRuntimeLifecycle::Starting
-            | ComponentRuntimeLifecycle::Stopping
-            | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),
+            ComponentHostLifecycle::Ready => {}
+            ComponentHostLifecycle::Starting
+            | ComponentHostLifecycle::Stopping
+            | ComponentHostLifecycle::Stopped => return Err(ComponentError::Unavailable),
         }
         let invocation_id = crate::InvocationId::new(state.next_invocation_id);
         state.next_invocation_id += 1;
@@ -51,7 +51,7 @@ impl crate::InvocationService for SharedComponentState {
             instance_id,
             state.current_generation()?,
             invocation_id,
-            crate::InvocationOrigin::Component(participation.component().clone()),
+            crate::InvocationOrigin::ComponentInstanceBinding(participation.component().clone()),
         ))
     }
 

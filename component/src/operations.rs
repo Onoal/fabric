@@ -6,8 +6,8 @@ use std::sync::Arc;
 use fabric_core::{ContractId, ContractKey};
 
 use crate::{
-    Component, ComponentError, ComponentParticipation, InvocationContext, OperationDefinition,
-    OperationDescriptor, OperationId, OperationKey,
+    ComponentError, ComponentInstanceBinding, ComponentParticipation, InvocationContext,
+    OperationDefinition, OperationDescriptor, OperationId, OperationKey,
 };
 
 type ErasedOperationInput = Box<dyn Any + Send + Sync>;
@@ -82,7 +82,10 @@ impl OperationRail {
         Self { inner }
     }
 
-    pub fn owner<I, O>(&self, operation: &OperationKey<I, O>) -> Result<Component, ComponentError>
+    pub fn owner<I, O>(
+        &self,
+        operation: &OperationKey<I, O>,
+    ) -> Result<ComponentInstanceBinding, ComponentError>
     where
         I: Send + Sync + 'static,
         O: Send + Sync + 'static,

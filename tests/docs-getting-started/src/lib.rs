@@ -28,17 +28,13 @@ pub struct GreetOutput {
 fabric::component! {
     pub Greeter {
         id: "example.greeter";
-        requires { store: Store(provisional); }
-        operations {
-            greet {
-                id: "example.greeter.greet";
-                input: GreetInput = "example.greeter.greet.input";
-                output: GreetOutput = "example.greeter.greet.output";
-                handler |dependencies, input: GreetInput| async move {
-                    Ok(GreetOutput {
-                        message: format!("hello, {} ({})", input.name, dependencies.store.count()),
-                    })
-                };
+        relations { requires { store: Store; } }
+        api { fn greet(&self, input: GreetInput) -> GreetOutput; }
+        runtime {
+            fn greet(&self, input: GreetInput) -> GreetOutput {
+                GreetOutput {
+                    message: format!("hello, {} ({})", input.name, self.relations().store.count()),
+                }
             }
         }
     }
@@ -46,7 +42,8 @@ fabric::component! {
 
 #[test]
 fn getting_started_flow_builds_inspects_materializes_and_invokes() {
-    let _component_id = <Greeter as ComponentDefinition>::component_id();
+    let _component_id =
+        <Greeter as fabric::authoring::component::ComponentDefinition>::component_id();
     let built = Fabric::new("example.greeter")
         .expect("valid composition")
         .resource(
@@ -55,7 +52,7 @@ fn getting_started_flow_builds_inspects_materializes_and_invokes() {
                 .using(MemoryStore::new())
                 .expect("Adapter selection"),
         )
-        .component(Greeter::define(GreeterConfig {}))
+        .component(Greeter::define())
         .build()
         .expect("build");
 
@@ -73,7 +70,7 @@ fn getting_started_flow_builds_inspects_materializes_and_invokes() {
         .expect("materialize component");
 
     let output = futures::executor::block_on(components.invoke_external(
-        &greeter::operations::greet(),
+        &greeter::api::greet(),
         GreetInput {
             name: "Ada".to_owned(),
         },

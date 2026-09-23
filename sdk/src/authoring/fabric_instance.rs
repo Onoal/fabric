@@ -1,5 +1,5 @@
 use fabric_component::{
-    ComponentError, ComponentId, ComponentRuntimeHandle, ComponentStatus, OperationFuture,
+    ComponentError, ComponentHostHandle, ComponentId, ComponentStatus, OperationFuture,
     OperationKey,
 };
 use fabric_core::{
@@ -11,7 +11,7 @@ use super::{BuiltFabric, ComponentDefinition};
 use crate::ids::IntoInstanceId;
 
 /// High-level live Fabric Instance. It delegates lifecycle and inspection to
-/// Core while exposing only the deliberate Component operator boundary.
+/// Core while exposing only the deliberate ComponentInstanceBinding operator boundary.
 pub struct FabricInstance {
     core: Instance,
     components: Option<FabricComponents>,
@@ -29,7 +29,7 @@ impl std::fmt::Debug for FabricInstance {
 
 #[derive(Clone)]
 pub struct FabricComponents {
-    handle: std::sync::Arc<ComponentRuntimeHandle>,
+    handle: std::sync::Arc<ComponentHostHandle>,
 }
 
 impl BuiltFabric {
@@ -67,13 +67,11 @@ impl BuiltFabric {
                 .composition()
                 .materialize(instance_id.into_instance_id()?)?,
         };
-        let components = self
-            .component_runtime_export()
-            .map(|export| FabricComponents {
-                handle: core
-                    .export(export)
-                    .expect("BuiltFabric component export must be retained by its Instance"),
-            });
+        let components = self.component_host_export().map(|export| FabricComponents {
+            handle: core
+                .export(export)
+                .expect("BuiltFabric component export must be retained by its Instance"),
+        });
         Ok(FabricInstance { core, components })
     }
 }
@@ -104,9 +102,9 @@ impl FabricInstance {
         self.core.stop()
     }
 
-    /// Returns the bounded Component control surface, if this Composition has
-    /// a Component host. Resource/System-only Compositions intentionally have
-    /// no fake Component operator.
+    /// Returns the bounded ComponentInstanceBinding control surface, if this Composition has
+    /// a ComponentInstanceBinding host. Resource/System-only Compositions intentionally have
+    /// no fake ComponentInstanceBinding operator.
     pub fn components(&self) -> Option<&FabricComponents> {
         self.components.as_ref()
     }

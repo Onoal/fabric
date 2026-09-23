@@ -1,6 +1,6 @@
-use fabric_component::{ComponentError, ComponentId, ComponentRuntimeDefinition, ComponentRuntimeScope};
+use fabric_component::{ComponentError, ComponentId, ComponentParticipationRealization, ComponentParticipationScope};
 use fabric_core::Health;
-use fabric::prelude::ComponentDefinition;
+use fabric::authoring::component::ComponentDefinition;
 
 struct ForeignComponent;
 
@@ -13,13 +13,13 @@ impl ComponentDefinition for ForeignComponent {
 
     fn prepare(
         _config: &Self::Config,
-        _scope: &ComponentRuntimeScope,
+        _scope: &ComponentParticipationScope,
     ) -> Result<Health, ComponentError> {
         Ok(Health::Healthy)
     }
 
-    fn runtime_definition(_config: Self::Config) -> ComponentRuntimeDefinition {
-        ComponentRuntimeDefinition::new(
+    fn runtime_definition(_config: Self::Config) -> ComponentParticipationRealization {
+        ComponentParticipationRealization::new(
             ComponentId::new("fabric.test.hijacked").expect("component id"),
             |_scope| Ok(Health::Healthy),
         )

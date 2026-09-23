@@ -149,6 +149,49 @@ fn runtime_authoring_stays_sdk_machinery_not_a_lifecycle_ontology() {
 }
 
 #[test]
+fn component_normal_surface_is_small_and_named_surfaces_keep_advanced_capability() {
+    let root = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read root exports");
+    let prelude =
+        fs::read_to_string(crate_root().join("src/prelude.rs")).expect("read prelude exports");
+    let component =
+        fs::read_to_string(crate_root().join("src/component.rs")).expect("read component API");
+    let authoring =
+        fs::read_to_string(crate_root().join("src/authoring/mod.rs")).expect("read authoring API");
+
+    for leaked in [
+        "OperationId",
+        "OperationTypeId",
+        "OperationKey",
+        "ComponentParticipationPreparation",
+        "ComponentParticipationScope",
+        "ComponentHostStatus",
+        "InvocationContext",
+        "ComponentDefinition",
+    ] {
+        assert!(
+            !root.contains(leaked) && !prelude.contains(leaked),
+            "normal root/prelude must not expose Component implementation vocabulary {leaked}"
+        );
+    }
+    for family in [
+        "pub mod declaration",
+        "pub mod participation",
+        "pub mod invocation",
+        "pub mod operator",
+        "pub mod advanced",
+    ] {
+        assert!(
+            component.contains(family),
+            "Component API must expose {family}"
+        );
+    }
+    assert!(
+        component.contains("#[doc(hidden)]") && authoring.contains("pub mod component"),
+        "macro ABI must be hidden and handwritten Component APIs must have a named authoring module"
+    );
+}
+
+#[test]
 fn requires_anchor_has_no_public_foreign_contract_escape() {
     let source = fs::read_to_string(crate_root().join("src/authoring/definitions/requires.rs"))
         .expect("read requires definition");
@@ -371,7 +414,9 @@ fn component_definition_owns_canonical_component_identity() {
         "ComponentSpec must preserve declarative truth independently of local realization"
     );
     assert!(
-        source.contains("pub fn into_self_realization(self) -> Option<ComponentRuntimeDefinition>"),
+        source.contains(
+            "pub fn into_self_realization(self) -> Option<ComponentParticipationRealization>"
+        ),
         "ComponentSpec must expose explicit self realization separately from declaration"
     );
     assert!(
@@ -379,7 +424,7 @@ fn component_definition_owns_canonical_component_identity() {
         "ComponentSpec must not expose arbitrary runtime-definition construction"
     );
     assert!(
-        !source.contains("impl<C> From<ComponentSpec<C>> for ComponentRuntimeDefinition"),
+        !source.contains("impl<C> From<ComponentSpec<C>> for ComponentParticipationRealization"),
         "ComponentSpec must not convert infallibly into runtime-only state"
     );
     for forbidden in [
@@ -620,7 +665,7 @@ fn normal_prelude_quarantines_legacy_and_raw_machinery() {
         "ModuleRuntime",
         "InvocationRail",
         "OperationRail",
-        "ComponentRuntimeModule",
+        "ComponentHostModule",
         "BlockAuthor",
         "FabricBuilder",
         "CompositionExt",
@@ -638,8 +683,8 @@ fn normal_prelude_quarantines_legacy_and_raw_machinery() {
         "ModuleDeclaration",
         "ModuleBindings",
         "ContractProviderSelection",
-        "ComponentRuntimeDefinition",
-        "ComponentRuntimeScope",
+        "ComponentParticipationRealization",
+        "ComponentParticipationScope",
     ] {
         let root_export = format!("pub use core::{{{raw}");
         assert!(
@@ -821,6 +866,32 @@ fn sdk_docs_describe_the_current_public_contract() {
             !readme.contains(&forbidden),
             "SDK README must not present internal development labels as current API: {forbidden}"
         );
+    }
+}
+
+#[test]
+fn current_component_docs_do_not_reteach_pre_purification_vocabulary() {
+    for file in [
+        "../docs/architecture.md",
+        "../docs/concepts/component.md",
+        "../docs/concepts/adapter.md",
+        "../docs/concepts/realization.md",
+        "../docs/concepts/state.md",
+        "README.md",
+    ] {
+        let source =
+            fs::read_to_string(crate_root().join(file)).expect("read current documentation");
+        for stale in [
+            "Components declare behavior as operations",
+            "ComponentRuntimeDefinition",
+            "Canonical Component runtime authoring is intentionally deferred",
+            "handwritten\n`AdapterDefinition` remains the public advanced path for Component targets",
+        ] {
+            assert!(
+                !source.contains(stale),
+                "{file} must not teach stale Component vocabulary: {stale}"
+            );
+        }
     }
 }
 

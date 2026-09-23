@@ -16,8 +16,9 @@ direct Core authoring.
 - **Adapter** is concrete realization machinery for a Resource or System. In
   normal authoring it names its target once; that target supplies the typed
   realization requirement. Component participation remains a distinct model.
-- **Component** owns semantic behavior expressed as typed operations. It can
-  require Resources and Systems.
+- **Component** is a semantic behavioral participant. It owns identity and
+  may declare Config, Relations, and a typed API; a self runtime or Adapter
+  realization prepares its live participation.
 - **Host** represents environmental compatibility for live Adapter
   materialization. It is not a scheduler, placement engine, capacity model, or
   device/cloud ontology.
@@ -71,7 +72,7 @@ Resource attachment targets `ResourceId + ResourceName`. System attachment
 targets the selected `SystemId` occurrence; normal typed authoring has one
 coherent occurrence per identity and no `SystemName`. Component attachment
 targets a configured `ComponentSpec` under its `ComponentId`. Component keeps
-its own special runtime rule: one base `ComponentRuntimeDefinition` plus zero
+its own special runtime rule: one base `ComponentParticipationRealization` plus zero
 or more augmentation preparation contributions operating on the same
 generation-scoped participation. Augmentation never alters the base Component
 operation declaration.
@@ -186,12 +187,14 @@ not a second declaration language and does not make the Component live. A
 declaration-only Component is valid in Composition, but participation requires
 a realization.
 
-The older `operations { ... }` frontend remains a transitional
-self-realizing path. It alone currently accepts handlers, typed dependency
-values, and `context: invocation`. `InvocationContext` is runtime-supplied
+Canonical `runtime` supplies a default self realization for one participation;
+canonical Component-target `adapter!` supplies the same realization boundary.
+The older `operations { ... }` frontend remains a transitional self-realizing
+path. It alone currently accepts handlers, typed dependency values, and
+`context: invocation`. `InvocationContext` is runtime-supplied
 provenance—InstanceId, InstanceGeneration, InvocationId, and root
 InvocationOrigin—not identity, authority, authentication, tracing, or network
-metadata. Canonical Component runtime authoring is intentionally deferred.
+metadata.
 
 ## Runtime boundary
 

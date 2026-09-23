@@ -20,9 +20,9 @@ use crate::communication::{
     ComponentCommunication, ComponentCommunicationService, component_communication_contract_key,
 };
 use crate::component_scope::ComponentScopeService;
-use crate::contract::{ComponentRuntime, ComponentRuntimeService, component_runtime_contract_key};
+use crate::contract::{ComponentHost, ComponentHostService, component_host_contract_key};
 use crate::control_snapshot::ComponentControlSnapshot;
-use crate::lifecycle::{ComponentRuntimeLifecycle, ComponentRuntimeStatus};
+use crate::lifecycle::{ComponentHostLifecycle, ComponentHostStatus};
 use crate::operations::{
     OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
     OperationRegistrarService, operation_rail_contract_key, operation_registrar_contract_key,
@@ -47,21 +47,23 @@ use crate::requirement::{
     ResolvedComponentRequirement, component_requirement_contract_key,
 };
 use crate::runtime::{
-    ComponentAugmentationRuntimeDefinition, ComponentMaterializer, ComponentMaterializerService,
-    ComponentResourceDependency, ComponentRuntimeContribution, ComponentRuntimeDefinition,
-    ComponentRuntimeScope, ComponentRuntimeTeardown, component_materializer_contract_key,
+    ComponentAugmentationParticipationRealization, ComponentMaterializer,
+    ComponentMaterializerService, ComponentParticipationCleanup,
+    ComponentParticipationContribution, ComponentParticipationRealization,
+    ComponentParticipationScope, ComponentResourceDependency, component_materializer_contract_key,
     component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 use crate::surface::{
     Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
 };
 use crate::{
-    Component, ComponentDeclaration, ComponentError, ComponentId, ComponentParticipation,
-    ComponentParticipationId, OperationDefinition, OperationDescriptor, OperationId,
-};
-use crate::{
     ComponentControl, ComponentControlRail, ComponentControlService, ComponentDesiredState,
     component_control_contract_key,
+};
+use crate::{
+    ComponentDeclaration, ComponentError, ComponentId, ComponentInstanceBinding,
+    ComponentParticipation, ComponentParticipationId, OperationDefinition, OperationDescriptor,
+    OperationId,
 };
 use state::{
     RegisteredOperation, bound_component, current_active_participation, current_participation,
@@ -78,7 +80,7 @@ type RegisteredOperationHandler = Arc<
         + Sync,
 >;
 
-pub struct ComponentRuntimeModule {
+pub struct ComponentHostModule {
     module_id: ModuleId,
     shared: Arc<SharedComponentState>,
 }
@@ -96,12 +98,12 @@ struct ComponentReconstructionAdapter {
 }
 
 struct ComponentModuleState {
-    status: ComponentRuntimeStatus,
+    status: ComponentHostStatus,
     readiness_policy: ComponentReadinessPolicy,
     component_declarations: BTreeMap<crate::ComponentId, ComponentDeclaration>,
-    runtime_attachments: BTreeMap<crate::ComponentId, ComponentRuntimeDefinition>,
+    runtime_attachments: BTreeMap<crate::ComponentId, ComponentParticipationRealization>,
     augmentation_preparations:
-        BTreeMap<crate::ComponentId, Vec<crate::ComponentAugmentationRuntimeDefinition>>,
+        BTreeMap<crate::ComponentId, Vec<crate::ComponentAugmentationParticipationRealization>>,
     prepared_contributions: BTreeMap<crate::ComponentId, PreparedParticipation>,
     resource_dependencies: Arc<BTreeMap<fabric_core::ContractId, Arc<ComponentResourceDependency>>>,
     components: BTreeMap<crate::ComponentId, ComponentStatus>,
@@ -115,8 +117,8 @@ struct ComponentModuleState {
 }
 
 struct PreparedComponentContribution {
-    kind: ComponentRuntimeContribution,
-    teardown: Option<ComponentRuntimeTeardown>,
+    kind: ComponentParticipationContribution,
+    teardown: Option<ComponentParticipationCleanup>,
 }
 
 struct PreparedParticipation {
@@ -129,13 +131,13 @@ fn unbound_instance_id() -> InstanceId {
         .expect("static unbound component runtime instance id")
 }
 
-impl Default for ComponentRuntimeModule {
+impl Default for ComponentHostModule {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ComponentRuntimeModule {
+impl ComponentHostModule {
     pub fn new() -> Self {
         Self::with_readiness_policy(ComponentReadinessPolicy::empty())
     }
@@ -158,17 +160,17 @@ impl ComponentRuntimeModule {
 
     pub fn with_components(
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
-        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
     ) -> Result<Self, ComponentError> {
         Self::with_components_and_augmentations(declarations, attachments, Vec::new())
     }
 
     /// Constructs the native host with one base attachment and zero or more
-    /// additive preparation contributions per declared Component.
+    /// additive preparation contributions per declared ComponentInstanceBinding.
     pub fn with_components_and_augmentations(
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
-        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
-        augmentations: impl IntoIterator<Item = ComponentAugmentationRuntimeDefinition>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
+        augmentations: impl IntoIterator<Item = ComponentAugmentationParticipationRealization>,
     ) -> Result<Self, ComponentError> {
         let augmentations = augmentations
             .into_iter()
@@ -204,7 +206,7 @@ impl ComponentRuntimeModule {
     pub fn with_configuration(
         readiness_policy: ComponentReadinessPolicy,
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
-        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
     ) -> Result<Self, ComponentError> {
         Self::with_optional_control_snapshot(readiness_policy, declarations, attachments, None)
     }
@@ -212,7 +214,7 @@ impl ComponentRuntimeModule {
     pub fn with_configuration_and_control_snapshot(
         readiness_policy: ComponentReadinessPolicy,
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
-        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
         control_snapshot: ComponentControlSnapshot,
     ) -> Result<Self, ComponentError> {
         Self::with_optional_control_snapshot(
@@ -226,7 +228,7 @@ impl ComponentRuntimeModule {
     fn with_optional_control_snapshot(
         readiness_policy: ComponentReadinessPolicy,
         declarations: impl IntoIterator<Item = ComponentDeclaration>,
-        attachments: impl IntoIterator<Item = ComponentRuntimeDefinition>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
         control_snapshot: Option<ComponentControlSnapshot>,
     ) -> Result<Self, ComponentError> {
         let (component_declarations, runtime_attachments) =
@@ -237,10 +239,10 @@ impl ComponentRuntimeModule {
                 .expect("static component runtime module id"),
             shared: Arc::new(SharedComponentState {
                 inner: Mutex::new(ComponentModuleState {
-                    status: ComponentRuntimeStatus::new(
+                    status: ComponentHostStatus::new(
                         unbound_instance_id(),
                         None,
-                        ComponentRuntimeLifecycle::Stopped,
+                        ComponentHostLifecycle::Stopped,
                         Health::Unavailable,
                     ),
                     readiness_policy,
@@ -267,8 +269,8 @@ impl SharedComponentState {
     fn record_prepared_contribution(
         &self,
         participation: &ComponentParticipation,
-        kind: ComponentRuntimeContribution,
-        teardown: Option<ComponentRuntimeTeardown>,
+        kind: ComponentParticipationContribution,
+        teardown: Option<ComponentParticipationCleanup>,
     ) -> Result<(), ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");
         if !current_preparing_participation(&state, participation) {
@@ -342,29 +344,29 @@ impl SharedComponentState {
                 continue;
             };
             if let Err(source) = teardown() {
-                failures.push(crate::ComponentRuntimeTeardownFailure::new(
+                failures.push(crate::ComponentParticipationCleanupFailure::new(
                     participation.clone(),
                     contribution.kind,
                     source,
                 ));
             }
         }
-        match crate::ComponentRuntimeTeardownError::from_failures(failures) {
-            Some(cleanup) => Err(ComponentError::ComponentRuntimeTeardownFailed(cleanup)),
+        match crate::ComponentParticipationCleanupError::from_failures(failures) {
+            Some(cleanup) => Err(ComponentError::ComponentParticipationCleanupFailed(cleanup)),
             None => Ok(status),
         }
     }
 }
 
-impl ModuleRuntime for ComponentRuntimeModule {
+impl ModuleRuntime for ComponentHostModule {
     fn id(&self) -> &ModuleId {
         &self.module_id
     }
 
     fn provided_contract_declarations(&self) -> Vec<fabric_core::ProvidedContractDeclaration> {
         vec![
-            crate::component_runtime_handle_contract_key().declaration(),
-            component_runtime_contract_key().declaration(),
+            crate::component_host_handle_contract_key().declaration(),
+            component_host_contract_key().declaration(),
             crate::invocation_contract_key().declaration(),
             component_communication_contract_key().declaration(),
             component_control_contract_key().declaration(),
@@ -380,7 +382,7 @@ impl ModuleRuntime for ComponentRuntimeModule {
     }
 
     fn export_contracts(&self) -> Result<Vec<ModuleContract>, fabric_core::ModuleError> {
-        let service: Arc<dyn ComponentRuntimeService> = self.shared.clone();
+        let service: Arc<dyn ComponentHostService> = self.shared.clone();
         let invocation: Arc<dyn crate::InvocationService> = self.shared.clone();
         let component_communication: Arc<dyn ComponentCommunicationService> = self.shared.clone();
         let component_control: Arc<dyn ComponentControlService> = self.shared.clone();
@@ -401,19 +403,19 @@ impl ModuleRuntime for ComponentRuntimeModule {
         let materializer = Arc::new(ComponentMaterializer::new(runtime_host));
         let invocation_rail = Arc::new(crate::InvocationRail::new(invocation));
         let operations = Arc::new(OperationRail::new(operation_rail));
-        let handle = crate::ComponentRuntimeHandle::new(
+        let handle = crate::ComponentHostHandle::new(
             materializer.clone(),
             invocation_rail.clone(),
             operations.clone(),
         );
         Ok(vec![
             ModuleContract::new(
-                &crate::component_runtime_handle_contract_key(),
+                &crate::component_host_handle_contract_key(),
                 Arc::new(handle),
             ),
             ModuleContract::new(
-                &component_runtime_contract_key(),
-                Arc::new(ComponentRuntime::new(service)),
+                &component_host_contract_key(),
+                Arc::new(ComponentHost::new(service)),
             ),
             ModuleContract::new(&crate::invocation_contract_key(), invocation_rail),
             ModuleContract::new(
@@ -583,7 +585,7 @@ impl ModuleRuntime for ComponentRuntimeModule {
             .current_generation()
             .map_err(|error| ModuleError::new(error.to_string()))?;
         state
-            .transition_to(ComponentRuntimeLifecycle::Starting)
+            .transition_to(ComponentHostLifecycle::Starting)
             .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         state.set_health(Health::Degraded);
         Ok(())
@@ -596,7 +598,7 @@ impl ModuleRuntime for ComponentRuntimeModule {
             .lock()
             .expect("component runtime state lock");
         state
-            .transition_to(ComponentRuntimeLifecycle::Ready)
+            .transition_to(ComponentHostLifecycle::Ready)
             .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         let projected = project_aggregate_readiness(&state);
         state.set_health(projected.status().health());
@@ -610,11 +612,11 @@ impl ModuleRuntime for ComponentRuntimeModule {
                 .inner
                 .lock()
                 .expect("component runtime state lock");
-            if state.current_status().lifecycle() == ComponentRuntimeLifecycle::Stopped {
+            if state.current_status().lifecycle() == ComponentHostLifecycle::Stopped {
                 return Ok(());
             }
             state
-                .transition_to(ComponentRuntimeLifecycle::Stopping)
+                .transition_to(ComponentHostLifecycle::Stopping)
                 .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
             state.set_health(Health::Unavailable);
             state
@@ -643,7 +645,7 @@ impl ModuleRuntime for ComponentRuntimeModule {
         state.components.clear();
         state.prepared_contributions.clear();
         state
-            .transition_to(ComponentRuntimeLifecycle::Stopped)
+            .transition_to(ComponentHostLifecycle::Stopped)
             .map_err(|error| fabric_core::ModuleError::new(error.to_string()))?;
         state.set_health(Health::Unavailable);
         if failures.is_empty() {
@@ -669,7 +671,7 @@ impl ModuleRuntime for ComponentRuntimeModule {
     }
 }
 
-impl Module for ComponentRuntimeModule {
+impl Module for ComponentHostModule {
     fn declaration(&self) -> fabric_core::ModuleDeclaration {
         fabric_core::ModuleDeclaration::new(self.module_id.clone())
             .with_provided_contracts(self.provided_contract_declarations())
@@ -734,7 +736,7 @@ impl Module for ComponentRuntimeModule {
     }
 }
 
-impl ComponentRuntimeService for SharedComponentState {
+impl ComponentHostService for SharedComponentState {
     fn instance_id(&self) -> InstanceId {
         self.inner
             .lock()
@@ -745,21 +747,21 @@ impl ComponentRuntimeService for SharedComponentState {
     fn current_instance_id(&self) -> Result<InstanceId, ComponentError> {
         let state = self.inner.lock().expect("component runtime state lock");
         match state.current_status().lifecycle() {
-            ComponentRuntimeLifecycle::Ready => Ok(state.instance_id()),
-            ComponentRuntimeLifecycle::Starting
-            | ComponentRuntimeLifecycle::Stopping
-            | ComponentRuntimeLifecycle::Stopped => Err(ComponentError::Unavailable),
+            ComponentHostLifecycle::Ready => Ok(state.instance_id()),
+            ComponentHostLifecycle::Starting
+            | ComponentHostLifecycle::Stopping
+            | ComponentHostLifecycle::Stopped => Err(ComponentError::Unavailable),
         }
     }
 
-    fn current_status(&self) -> ComponentRuntimeStatus {
+    fn current_status(&self) -> ComponentHostStatus {
         self.inner
             .lock()
             .expect("component runtime state lock")
             .current_status()
     }
 
-    fn current_lifecycle(&self) -> ComponentRuntimeLifecycle {
+    fn current_lifecycle(&self) -> ComponentHostLifecycle {
         self.inner
             .lock()
             .expect("component runtime state lock")
@@ -788,10 +790,10 @@ impl ComponentReadinessService for SharedComponentState {
     fn aggregate_readiness(&self) -> ComponentAggregateReadiness {
         let state = self.inner.lock().expect("component runtime state lock");
         match state.status.lifecycle() {
-            ComponentRuntimeLifecycle::Ready => project_aggregate_readiness(&state),
-            ComponentRuntimeLifecycle::Starting
-            | ComponentRuntimeLifecycle::Stopping
-            | ComponentRuntimeLifecycle::Stopped => ComponentAggregateReadiness::new(
+            ComponentHostLifecycle::Ready => project_aggregate_readiness(&state),
+            ComponentHostLifecycle::Starting
+            | ComponentHostLifecycle::Stopping
+            | ComponentHostLifecycle::Stopped => ComponentAggregateReadiness::new(
                 state.status.clone(),
                 state.readiness_policy.clone(),
                 Vec::new(),
@@ -804,11 +806,11 @@ impl ComponentMaterializerAdapter {
     fn rollback_materialization(
         &self,
         participation: &ComponentParticipation,
-    ) -> Option<crate::ComponentRuntimeTeardownError> {
+    ) -> Option<crate::ComponentParticipationCleanupError> {
         let registry =
             ComponentRegistry::new(self.shared.clone() as Arc<dyn ComponentRegistryService>);
         match registry.unregister(participation) {
-            Err(ComponentError::ComponentRuntimeTeardownFailed(cleanup)) => Some(cleanup),
+            Err(ComponentError::ComponentParticipationCleanupFailed(cleanup)) => Some(cleanup),
             _ => None,
         }
     }
@@ -817,14 +819,14 @@ impl ComponentMaterializerAdapter {
         &self,
         component_id: &ComponentId,
         participation: &ComponentParticipation,
-        phase: crate::ComponentRuntimeFailurePhase,
+        phase: crate::ComponentParticipationPreparationPhase,
     ) -> ComponentError {
-        let primary = ComponentError::ComponentRuntimeMaterializationFailed {
+        let primary = ComponentError::ComponentParticipationMaterializationFailed {
             component_id: component_id.clone(),
             phase,
         };
         match self.rollback_materialization(participation) {
-            Some(cleanup) => ComponentError::ComponentRuntimeMaterializationCleanupFailed {
+            Some(cleanup) => ComponentError::ComponentParticipationMaterializationCleanupFailed {
                 primary: Box::new(primary),
                 cleanup,
             },
@@ -874,10 +876,10 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .lock()
                 .expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready => {}
-                ComponentRuntimeLifecycle::Starting
-                | ComponentRuntimeLifecycle::Stopping
-                | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),
+                ComponentHostLifecycle::Ready => {}
+                ComponentHostLifecycle::Starting
+                | ComponentHostLifecycle::Stopping
+                | ComponentHostLifecycle::Stopped => return Err(ComponentError::Unavailable),
             }
             if !state.component_declarations.contains_key(component_id) {
                 return Err(ComponentError::UnknownComponent(component_id.clone()));
@@ -887,10 +889,10 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .get(component_id)
                 .cloned()
                 .ok_or_else(|| {
-                    ComponentError::MissingComponentRuntimeAttachment(component_id.clone())
+                    ComponentError::MissingComponentParticipationRealization(component_id.clone())
                 })?;
             if state.components.contains_key(component_id) {
-                return Err(ComponentError::ComponentRuntimeAlreadyMaterialized(
+                return Err(ComponentError::ComponentParticipationAlreadyMaterialized(
                     component_id.clone(),
                 ));
             }
@@ -919,7 +921,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             .clone();
         let preparing = registry.register(component, Health::Unavailable)?;
         let participation = preparing.participation().clone();
-        let scope = ComponentRuntimeScope::new(
+        let scope = ComponentParticipationScope::new(
             participation.clone(),
             operation_invocation,
             operations,
@@ -932,7 +934,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 return Err(self.materialization_failure(
                     component_id,
                     &participation,
-                    crate::ComponentRuntimeFailurePhase::Prepare,
+                    crate::ComponentParticipationPreparationPhase::Prepare,
                 ));
             }
         };
@@ -941,7 +943,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             .shared
             .record_prepared_contribution(
                 &participation,
-                ComponentRuntimeContribution::Base,
+                ComponentParticipationContribution::Base,
                 teardown,
             )
             .is_err()
@@ -949,7 +951,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             return Err(self.materialization_failure(
                 component_id,
                 &participation,
-                crate::ComponentRuntimeFailurePhase::Prepare,
+                crate::ComponentParticipationPreparationPhase::Prepare,
             ));
         }
         let augmentations = self
@@ -968,7 +970,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                     return Err(self.materialization_failure(
                         component_id,
                         &participation,
-                        crate::ComponentRuntimeFailurePhase::Prepare,
+                        crate::ComponentParticipationPreparationPhase::Prepare,
                     ));
                 }
             };
@@ -976,7 +978,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .shared
                 .record_prepared_contribution(
                     &participation,
-                    ComponentRuntimeContribution::Augmentation { index },
+                    ComponentParticipationContribution::Augmentation { index },
                     preparation.into_teardown(),
                 )
                 .is_err()
@@ -984,7 +986,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 return Err(self.materialization_failure(
                     component_id,
                     &participation,
-                    crate::ComponentRuntimeFailurePhase::Prepare,
+                    crate::ComponentParticipationPreparationPhase::Prepare,
                 ));
             }
         }
@@ -992,14 +994,14 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             return Err(self.materialization_failure(
                 component_id,
                 &participation,
-                crate::ComponentRuntimeFailurePhase::Prepare,
+                crate::ComponentParticipationPreparationPhase::Prepare,
             ));
         }
         if registry.update_health(&participation, health).is_err() {
             return Err(self.materialization_failure(
                 component_id,
                 &participation,
-                crate::ComponentRuntimeFailurePhase::UpdateHealth,
+                crate::ComponentParticipationPreparationPhase::UpdateHealth,
             ));
         }
         match registry.activate(&participation) {
@@ -1007,7 +1009,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             Err(_) => Err(self.materialization_failure(
                 component_id,
                 &participation,
-                crate::ComponentRuntimeFailurePhase::Activate,
+                crate::ComponentParticipationPreparationPhase::Activate,
             )),
         }
     }
@@ -1020,10 +1022,10 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
                 .lock()
                 .expect("component runtime state lock");
             match state.current_status().lifecycle() {
-                ComponentRuntimeLifecycle::Ready => {}
-                ComponentRuntimeLifecycle::Starting
-                | ComponentRuntimeLifecycle::Stopping
-                | ComponentRuntimeLifecycle::Stopped => return Err(ComponentError::Unavailable),
+                ComponentHostLifecycle::Ready => {}
+                ComponentHostLifecycle::Starting
+                | ComponentHostLifecycle::Stopping
+                | ComponentHostLifecycle::Stopped => return Err(ComponentError::Unavailable),
             }
             if !state.component_declarations.contains_key(component_id) {
                 return Err(ComponentError::UnknownComponent(component_id.clone()));
@@ -1035,7 +1037,7 @@ impl ComponentMaterializerService for ComponentMaterializerAdapter {
             .component(component_id)
             .map_err(|error| match error {
                 ComponentError::UnknownComponent(_) => {
-                    ComponentError::ComponentRuntimeNotMaterialized(component_id.clone())
+                    ComponentError::ComponentParticipationNotMaterialized(component_id.clone())
                 }
                 other => other,
             })?
@@ -1073,7 +1075,7 @@ impl ComponentReconstructionService for ComponentReconstructionAdapter {
                     .collect::<std::collections::BTreeSet<_>>(),
             )
         };
-        if !matches!(lifecycle, ComponentRuntimeLifecycle::Ready) {
+        if !matches!(lifecycle, ComponentHostLifecycle::Ready) {
             return Err(ComponentError::ComponentReconstructionUnavailableLifecycle(
                 lifecycle,
             ));

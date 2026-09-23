@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 use fabric_component::{
-    ComponentAugmentationRuntimeDefinition, ComponentAugmentationRuntimePreparation,
-    ComponentError, ComponentRuntimeScope,
+    ComponentAugmentationParticipationPreparation, ComponentAugmentationParticipationRealization,
+    ComponentError, ComponentParticipationScope,
 };
 use fabric_core::{
     ContractKey, ContractProviderSelection, ContractRequirement, HostMaterializationRequirement,
@@ -15,7 +15,7 @@ use super::{
 };
 use crate::authoring::requirement_for_key;
 
-/// Externally owned semantic meaning attached to one configured Component.
+/// Externally owned semantic meaning attached to one configured ComponentInstanceBinding.
 pub trait ComponentAugmentationDefinition<C>: Sized + Send + Sync + 'static
 where
     C: ComponentDefinition,
@@ -25,7 +25,7 @@ where
     fn contract_key() -> ContractKey<Self::Contract>;
 }
 
-/// Independently authored implementation for Component augmentation `X`.
+/// Independently authored implementation for ComponentInstanceBinding augmentation `X`.
 pub trait ComponentAugmentationSupportDefinition<C, X>: Clone + Send + Sync + 'static
 where
     C: ComponentDefinition,
@@ -40,7 +40,7 @@ where
     fn prepare(
         &self,
         config: &X::Config,
-        scope: &ComponentRuntimeScope,
+        scope: &ComponentParticipationScope,
     ) -> Result<(), ComponentError>;
 
     /// Prepares one participation-scoped contribution. Existing support can
@@ -49,14 +49,14 @@ where
     fn prepare_with_teardown(
         &self,
         config: &X::Config,
-        scope: &ComponentRuntimeScope,
-    ) -> Result<ComponentAugmentationRuntimePreparation, ComponentError> {
+        scope: &ComponentParticipationScope,
+    ) -> Result<ComponentAugmentationParticipationPreparation, ComponentError> {
         self.prepare(config, scope)?;
-        Ok(ComponentAugmentationRuntimePreparation::new())
+        Ok(ComponentAugmentationParticipationPreparation::new())
     }
 }
 
-/// One semantic attachment carried by the configured Component contribution.
+/// One semantic attachment carried by the configured ComponentInstanceBinding contribution.
 pub struct ComponentAugmentation<C, X>
 where
     C: ComponentDefinition,
@@ -114,7 +114,7 @@ where
     }
 }
 
-/// One independently supported Component augmentation attachment.
+/// One independently supported ComponentInstanceBinding augmentation attachment.
 pub struct ComponentAugmentationRealization<C, X, S>
 where
     C: ComponentDefinition,
@@ -127,7 +127,7 @@ where
 }
 
 /// A typed consumer requirement for `X` supplied by one augmentation attached
-/// to a specific Component semantic target.
+/// to a specific ComponentInstanceBinding semantic target.
 pub struct ComponentAugmentationRequirement<C, X>
 where
     C: ComponentDefinition,
@@ -166,7 +166,7 @@ where
     }
 
     /// Pins a consumer's `X` requirement to the support provider for this
-    /// exact Component augmentation attachment.
+    /// exact ComponentInstanceBinding augmentation attachment.
     pub fn provider_selection(&self, consumer: ModuleId) -> ContractProviderSelection {
         ContractProviderSelection::new(
             consumer,
@@ -176,7 +176,7 @@ where
     }
 }
 
-/// A configured Component carrying one or more independently owned semantic
+/// A configured ComponentInstanceBinding carrying one or more independently owned semantic
 /// augmentation contributions.
 pub struct ComponentAugmentationSet<C>
 where
@@ -187,7 +187,7 @@ where
     pub(crate) manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
 }
 
-/// One more semantic attachment being appended to a Component augmentation
+/// One more semantic attachment being appended to a ComponentInstanceBinding augmentation
 /// set. It may remain bare or receive an independently authored support.
 pub struct ComponentAugmentationSetAttachment<C, X>
 where
@@ -199,9 +199,9 @@ where
     manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
 }
 
-/// A supported augmentation appended to an existing Component augmentation
+/// A supported augmentation appended to an existing ComponentInstanceBinding augmentation
 /// set. It retains the typed target-bound requirement until the caller either
-/// uses it as the Component contribution or continues chaining.
+/// uses it as the ComponentInstanceBinding contribution or continues chaining.
 pub struct ComponentAugmentationSetRealization<C, X>
 where
     C: ComponentDefinition,
@@ -211,8 +211,8 @@ where
     requirement: ComponentAugmentationRequirement<C, X>,
 }
 
-/// A Component augmentation set combined with the ordinary Adapter realization
-/// of its base Component.
+/// A ComponentInstanceBinding augmentation set combined with the ordinary Adapter realization
+/// of its base ComponentInstanceBinding.
 pub struct ComponentAugmentationSetAdapterRealization<C, A>
 where
     C: AdaptableComponentDefinition,
@@ -224,7 +224,7 @@ where
 }
 
 /// An augmentation support contribution combined with the ordinary Adapter
-/// realization of its base Component.
+/// realization of its base ComponentInstanceBinding.
 pub struct ComponentAugmentedAdapterRealization<C, X, S, A>
 where
     C: AdaptableComponentDefinition,
@@ -252,7 +252,7 @@ where
     }
 
     /// Creates a typed requirement that remains bound to this supported
-    /// attachment's Component target and provider occurrence.
+    /// attachment's ComponentInstanceBinding target and provider occurrence.
     pub fn requirement(&self) -> ComponentAugmentationRequirement<C, X> {
         ComponentAugmentationRequirement {
             requirement: self.attachment.requirement(),
@@ -266,10 +266,10 @@ where
         let support = self.support.clone();
         let config = attachment.config.clone();
         let preparation_config = config.clone();
-        let preparation =
-            ComponentAugmentationRuntimeDefinition::new_with_teardown(component_id, move |scope| {
-                support.prepare_with_teardown(&preparation_config, scope)
-            });
+        let preparation = ComponentAugmentationParticipationRealization::new_with_teardown(
+            component_id,
+            move |scope| support.prepare_with_teardown(&preparation_config, scope),
+        );
         let mut component = attachment.component;
         component.augmentation_preparations.push(preparation);
         (
@@ -284,7 +284,7 @@ where
     }
 
     /// Converts this supported attachment into a set which can carry more
-    /// independently owned Component augmentations.
+    /// independently owned ComponentInstanceBinding augmentations.
     pub fn into_set(self) -> ComponentAugmentationSet<C> {
         let contract = self.contract_key();
         let component_id = self.component_id();
@@ -308,7 +308,7 @@ where
     C: ComponentDefinition,
 {
     /// Attaches another independently owned semantic contribution to this
-    /// same configured Component.
+    /// same configured ComponentInstanceBinding.
     pub fn augment<X>(
         self,
         config: X::Config,
@@ -373,12 +373,12 @@ where
     X: ComponentAugmentationDefinition<C>,
 {
     /// Returns the typed requirement pinned to this supported augmentation's
-    /// target Component and provider occurrence.
+    /// target ComponentInstanceBinding and provider occurrence.
     pub fn requirement(&self) -> ComponentAugmentationRequirement<C, X> {
         self.requirement.clone()
     }
 
-    /// Continues Component augmentation authoring while retaining any copied
+    /// Continues ComponentInstanceBinding augmentation authoring while retaining any copied
     /// typed requirement handles obtained from this value.
     pub fn into_set(self) -> ComponentAugmentationSet<C> {
         self.set
@@ -413,8 +413,8 @@ impl<C> ComponentAugmentationSet<C>
 where
     C: AdaptableComponentDefinition,
 {
-    /// Combines the base Component's ordinary Adapter realization with all
-    /// already attached Component augmentation contributions.
+    /// Combines the base ComponentInstanceBinding's ordinary Adapter realization with all
+    /// already attached ComponentInstanceBinding augmentation contributions.
     pub fn using_adapter<A>(
         self,
         adapter: A,

@@ -3,7 +3,12 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey, InstanceGeneration, InstanceId};
 
-use crate::{Component, ComponentError, ComponentParticipation};
+use crate::{ComponentError, ComponentInstanceBinding, ComponentParticipation};
+
+pub use crate::{
+    OperationDefinition, OperationDescriptor, OperationFuture, OperationId, OperationKey,
+    OperationRail, OperationRailService, OperationTypeId,
+};
 
 const COMPONENT_INVOCATION_CONTRACT_ID: &str = "fabric.component.invocation";
 
@@ -22,7 +27,7 @@ pub struct InvocationId(u64);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InvocationOrigin {
     External,
-    Component(Component),
+    ComponentInstanceBinding(ComponentInstanceBinding),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

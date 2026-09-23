@@ -37,17 +37,11 @@ pub use fabric_sdk_macros::{adapter, component, resource, system};
 // definitions, provider machinery, runtime state, and contract internals live
 // under `authoring`; raw orchestration remains under `core`.
 pub use authoring::{
-    BuiltFabric, ComponentDefinition, Fabric, FabricBuildError, FabricComponents, FabricInstance,
-    IntoFabricResource, IntoFabricResourceAugmentation, IntoFabricSystem,
-    IntoFabricSystemAugmentation, ResourceSelection, SystemSelection,
+    BuiltFabric, Fabric, FabricBuildError, FabricComponents, FabricInstance, IntoFabricResource,
+    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
+    ResourceSelection, SystemSelection,
 };
-pub use component::{
-    ComponentAugmentationRuntimePreparation, ComponentError, ComponentId, ComponentRequirementKind,
-    ComponentResourceRequirementName, ComponentRuntimeContribution, ComponentRuntimePreparation,
-    ComponentRuntimeTeardownError, ComponentRuntimeTeardownFailure, ComponentStatus,
-    InvocationContext, InvocationOrigin, OperationId, OperationKey, OperationTypeId,
-    ParticipationState,
-};
+pub use component::{ComponentError, ComponentId};
 pub use core::{
     CompositionError, CompositionId, Health, InstanceError, InstanceGeneration, InstanceId,
     LifecycleState, RuntimeCleanupError,

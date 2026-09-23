@@ -3,7 +3,7 @@ use super::*;
 impl ComponentControlService for SharedComponentState {
     fn set_desired(
         &self,
-        component: Component,
+        component: ComponentInstanceBinding,
         desired: ComponentDesiredState,
     ) -> Result<ComponentControl, ComponentError> {
         let mut state = self.inner.lock().expect("component runtime state lock");

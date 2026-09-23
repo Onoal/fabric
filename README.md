@@ -27,9 +27,9 @@ Relations, API                state, lifecycle, health
 
 - **Resource**: an occurrence-based semantic capability.
 - **System**: an instance-wide shared semantic capability.
-- **Adapter**: a concrete realization of a Resource or System.
-- **Component**: typed behavior that consumes capabilities and exposes
-  operations.
+- **Adapter**: a concrete realization of a Component, Resource, or System.
+- **Component**: a semantic behavioral participant that consumes capabilities
+  and may expose a typed API.
 - **Host**: environment facts that determine whether a realization can run.
 - **Composition**: reusable declarative truth and provider selection.
 - **Instance**: one generation-scoped live materialization of a Composition.

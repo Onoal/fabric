@@ -222,8 +222,9 @@ format.
 
 `Module` is Core structural/runtime machinery, not a normal high-level semantic
 world. `Block` is advanced grouping and reporting machinery, not dependency
-topology. Core graph truth—not Block order—determines dependency and lifecycle
-ordering.
+topology. Core graph truth determines provider-before-consumer dependency and
+lifecycle ordering; flattened Block/module insertion order is only the current
+deterministic tie-break for otherwise independent modules.
 
 The normal authoring path is `fabric::*`; `fabric::prelude::*` remains an
 optional compatibility convenience. Advanced capability remains public through named modules including

@@ -326,9 +326,11 @@ The normal path is `Fabric::new(...).resource(...).system(...).component(...)
 `ContractProviderSelection`, and `CompositionExport` through the named raw API.
 
 `Block` is grouping and reporting machinery, not semantic dependency topology.
-Core resolves binding, initialization, and lifecycle ordering from the
-declaration graph—not Block order, authoring order, or insertion order. See
-the [Advanced Raw API](../advanced/raw-api.md) for that level of authoring.
+Core resolves provider-before-consumer ordering from the declaration graph. For
+otherwise independent modules, its current deterministic tie-break follows the
+flattened Block/module insertion order; that order is not semantic dependency
+priority. See the [Advanced Raw API](../advanced/raw-api.md) for that level of
+authoring.
 
 ## Composition and Manifest
 

@@ -979,6 +979,46 @@ fn explicit_composition_export_retains_only_the_declared_runtime_contract() {
 }
 
 #[test]
+fn distinct_authored_export_ids_can_bind_the_same_declared_contract() {
+    let recorder = Recorder::new();
+    let key =
+        ContractKey::provisional(ContractId::new("test.export.shared-contract").expect("contract"));
+    let public_a = CompositionExport::<TestContract>::new(
+        ContractId::new("test.export.public-a").expect("export id"),
+        ContractRequirement::provisional(key.id().clone()),
+    );
+    let public_b = CompositionExport::<TestContract>::new(
+        ContractId::new("test.export.public-b").expect("export id"),
+        ContractRequirement::provisional(key.id().clone()),
+    );
+    let composition = CompositionBuilder::new(
+        CompositionId::new("test.export.shared-contract".to_owned()).expect("composition"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("test.export.shared-contract".to_owned()).expect("block"))
+            .register_module(TestProvider::new("provider", key, recorder))
+            .build(),
+    )
+    .export(public_a.clone())
+    .export(public_b.clone())
+    .build()
+    .expect("distinct public export ids may share one declared provider");
+
+    assert_eq!(composition.exports().len(), 2);
+    let mut instance = materialize_test_instance(&composition, "test.export.shared-contract")
+        .expect("materialize");
+    assert_eq!(
+        instance.export(&public_a).expect("public a").greet(),
+        "hello from provider"
+    );
+    assert_eq!(
+        instance.export(&public_b).expect("public b").greet(),
+        "hello from provider"
+    );
+    instance.stop().expect("stop instance");
+}
+
+#[test]
 fn declared_export_provider_errors_fail_composition_build() {
     let contract_id = ContractId::new("test.export.build-errors".to_owned()).expect("contract");
     let export = || {

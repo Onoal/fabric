@@ -210,9 +210,10 @@ Stopped --stop()---------------------> Stopped
 
 Starting follows the validated dependency order from the Composition's
 declaration graph: providers are initialized and started before dependent
-runtime modules. Stopping uses the reverse dependency order. Neither order is
-defined by Block order, builder insertion order, or source-file order; see the
-[Composition Block clarification](composition.md#advanced-structural-machinery).
+runtime modules. Stopping uses the reverse dependency order. Otherwise
+independent modules use the current deterministic flattened Block/module
+insertion order as a tie-break; it is not semantic dependency priority. See
+the [Composition Block clarification](composition.md#advanced-structural-machinery).
 
 If initialization or startup fails, Fabric stops already initialized runtime
 modules, transitions the Instance to `Stopped`, and returns `InstanceError`.
@@ -352,7 +353,7 @@ There is intentionally no normal `instance.get::<Anything>()` or arbitrary
 type-based runtime-service lookup. Runtime capability access is bounded and
 deliberate.
 
-Each materialization resolves and retains its own runtime export values. Two
+Each materialization collects and retains its own selected runtime export values. Two
 Instances from the same Composition should therefore be understood as separate
 runtime realizations, not one shared live runtime.
 

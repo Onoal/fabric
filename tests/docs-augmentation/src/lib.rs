@@ -228,12 +228,12 @@ mod tests {
             .expect("attachment")
             .using(TraceSupport);
         let trace_requirement = trace.requirement();
-        let built = Fabric::new("docs.augmentation.component")
+        let composition = Fabric::new("docs.augmentation.component")
             .expect("id")
             .component(trace)
             .build()
             .expect("build");
-        assert_eq!(built.manifest().component_augmentations().len(), 2);
+        assert_eq!(composition.manifest().component_augmentations().len(), 2);
         let _ = (audit_requirement, trace_requirement);
 
         let bare = Greeter::define(GreeterConfig {})

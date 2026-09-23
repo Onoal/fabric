@@ -7,7 +7,7 @@ use fabric_core::{
 };
 use fabric_host::HostDescriptor;
 
-use super::{BuiltFabric, ComponentDefinition};
+use super::{ComponentDefinition, Composition};
 use crate::ids::IntoInstanceId;
 
 /// High-level live Fabric Instance. It delegates lifecycle and inspection to
@@ -32,7 +32,7 @@ pub struct FabricComponents {
     handle: std::sync::Arc<ComponentHostHandle>,
 }
 
-impl BuiltFabric {
+impl Composition {
     pub fn materialize_named<I>(&self, instance_id: I) -> Result<FabricInstance, CompositionError>
     where
         I: IntoInstanceId,
@@ -61,16 +61,14 @@ impl BuiltFabric {
     {
         let core = match host {
             Some(host) => self
-                .composition()
+                .core()
                 .materialize_on(instance_id.into_instance_id()?, host)?,
-            None => self
-                .composition()
-                .materialize(instance_id.into_instance_id()?)?,
+            None => self.core().materialize(instance_id.into_instance_id()?)?,
         };
         let components = self.component_host_export().map(|export| FabricComponents {
             handle: core
                 .export(export)
-                .expect("BuiltFabric component export must be retained by its Instance"),
+                .expect("Composition component export must be retained by its Instance"),
         });
         Ok(FabricInstance { core, components })
     }

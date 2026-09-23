@@ -564,15 +564,18 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
 
     assert!(
         authoring.contains("pub use fabric::{")
-            && authoring.contains("BuiltFabric")
+            && authoring.contains("Composition")
             && authoring.contains("Fabric,")
             && authoring.contains("FabricBuildError")
             && authoring.contains("FabricManifest"),
-        "sdk authoring surface should export the normal typed authoring owner and built artifact"
+        "sdk authoring surface should export the normal typed authoring owner and built Composition"
     );
     assert!(
-        lib.contains("BuiltFabric") && prelude.contains("BuiltFabric"),
-        "sdk lib and prelude should expose the immutable built artifact"
+        lib.contains("Composition, Fabric")
+            && prelude.contains("Composition, CompositionError")
+            && !lib.contains("BuiltFabric")
+            && !prelude.contains("BuiltFabric"),
+        "sdk root and prelude must expose only the canonical SDK Composition"
     );
     assert!(
         lib.contains("Fabric,") && prelude.contains("Fabric,"),
@@ -597,17 +600,23 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         "normal typed contributions should lower into one deterministic grouping-only Block"
     );
     assert!(
-        builder.contains("pub fn composition(&self) -> &Composition")
+        builder.contains("pub struct Composition")
+            && builder.contains("core: CoreComposition")
+            && builder.contains("pub fn id(&self) -> &CompositionId")
+            && builder.contains("pub fn core(&self) -> &CoreComposition")
             && builder.contains("pub fn manifest(&self) -> &FabricManifest")
-            && builder.contains("pub fn into_composition(self) -> Composition"),
-        "BuiltFabric should expose Core Composition and read-only manifest views"
+            && builder.contains("pub fn into_core(self) -> CoreComposition")
+            && !builder.contains("BuiltFabric")
+            && !builder.contains("pub fn into_composition")
+            && !builder.contains("pub fn into_parts(self) -> (CoreComposition, FabricManifest)"),
+        "SDK Composition must own private Core and Manifest views without legacy aliases"
     );
     assert!(
         resource.contains("into_bridge_parts()") && system.contains("into_bridge_parts()"),
         "typed realization contributions must perform the provider decomposition internally"
     );
     assert!(
-        builder.contains("into_parts()"),
+        builder.contains("component.into_parts()"),
         "component contributions must lower declaration, attachment, and dependency carriers together"
     );
     assert!(
@@ -625,11 +634,13 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
     let fabric_instance = fs::read_to_string(crate_root().join("src/authoring/fabric_instance.rs"))
         .expect("read FabricInstance source");
     assert!(
-        !composition_ext.contains("for super::fabric::BuiltFabric")
+        composition_ext.contains("impl CompositionExt for CoreComposition")
+            && !composition_ext.contains("impl CompositionExt for crate::Composition")
+            && fabric_instance.contains("impl Composition")
             && fabric_instance.contains("pub struct FabricInstance")
             && fabric_instance.contains("pub fn materialize_named")
             && fabric_instance.contains("pub fn components"),
-        "BuiltFabric must materialize the bounded high-level FabricInstance while CompositionExt remains raw"
+        "SDK Composition must materialize the bounded high-level FabricInstance while CompositionExt remains raw"
     );
     for source in [&builder, &manifest, &resource, &system] {
         for forbidden in [
@@ -877,7 +888,7 @@ fn sdk_docs_describe_the_current_public_contract() {
     );
     assert!(
         readme.contains("`FabricManifest` is immutable semantic Composition inspection")
-            && readme.contains("built.manifest().diagnostics()"),
+            && readme.contains("composition.manifest().diagnostics()"),
         "SDK README must separate semantic Manifest inspection from raw diagnostics"
     );
     assert!(

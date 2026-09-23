@@ -32,18 +32,15 @@ fn component_fabric() -> Fabric {
 
 #[test]
 fn materialization_lifecycle_report_and_component_boundary_are_distinct() {
-    let built = component_fabric().build().expect("valid Composition");
-    let mut instance = built
+    let composition = component_fabric().build().expect("valid Composition");
+    let mut instance = composition
         .materialize_named("example.instance.local")
         .expect("materialize");
 
     assert_eq!(instance.lifecycle(), LifecycleState::Ready);
     assert!(instance.components().is_some());
     let ready_report = instance.report();
-    assert_eq!(
-        ready_report.composition_id,
-        built.composition().id().clone()
-    );
+    assert_eq!(ready_report.composition_id, composition.id().clone());
     assert_eq!(ready_report.instance_id, instance.instance_id().clone());
     assert_eq!(ready_report.generation, instance.generation());
     assert_eq!(ready_report.lifecycle, LifecycleState::Ready);
@@ -65,11 +62,11 @@ fn materialization_lifecycle_report_and_component_boundary_are_distinct() {
 
 #[test]
 fn one_composition_creates_independent_instances_and_fresh_generations() {
-    let built = component_fabric().build().expect("valid Composition");
-    let first = built
+    let composition = component_fabric().build().expect("valid Composition");
+    let first = composition
         .materialize_named("example.instance.first")
         .expect("first Instance");
-    let second = built
+    let second = composition
         .materialize_named("example.instance.second")
         .expect("second Instance");
 
@@ -79,11 +76,11 @@ fn one_composition_creates_independent_instances_and_fresh_generations() {
 
 #[test]
 fn rematerializing_the_same_instance_id_mints_a_fresh_generation() {
-    let built = component_fabric().build().expect("valid Composition");
-    let first = built
+    let composition = component_fabric().build().expect("valid Composition");
+    let first = composition
         .materialize_named("example.instance.local")
         .expect("first Instance");
-    let second = built
+    let second = composition
         .materialize_named("example.instance.local")
         .expect("second Instance");
 
@@ -100,12 +97,12 @@ fn resource_only_instance_has_no_component_surface() {
         },
     )
     .expect("valid ResourceName");
-    let built = Fabric::new("example.instance.resource-only")
+    let composition = Fabric::new("example.instance.resource-only")
         .expect("valid CompositionId")
         .resource(store)
         .build()
         .expect("valid Composition");
-    let instance = built
+    let instance = composition
         .materialize_named("example.instance.resource-only.local")
         .expect("materialize");
 

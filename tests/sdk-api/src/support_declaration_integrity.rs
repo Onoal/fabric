@@ -256,7 +256,7 @@ fn provided_consumer(
 }
 
 fn declaration<'a>(
-    built: &'a BuiltFabric,
+    built: &'a Composition,
     contract: &ContractKey<NotesContract>,
 ) -> &'a ModuleDeclaration {
     built

@@ -29,8 +29,8 @@ pub use definitions::{
     ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
-    BuiltFabric, ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
-    ComponentSystemBindingManifestEntry, Fabric, FabricBuildError, FabricManifest,
+    ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
+    ComponentSystemBindingManifestEntry, Composition, Fabric, FabricBuildError, FabricManifest,
     FabricManifestDiagnostics, IntoFabricResource, IntoFabricResourceAugmentation,
     IntoFabricSystem, IntoFabricSystemAugmentation, ResourceAugmentationManifestEntry,
     ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,

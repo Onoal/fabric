@@ -20,12 +20,12 @@ mod tests {
                 value: 7,
             }))
             .expect("compatible resource Adapter");
-        let built = Fabric::new("example.adapter.resource")
+        let composition = Fabric::new("example.adapter.resource")
             .expect("composition")
             .resource(resource)
             .build()
             .expect("build");
-        assert_eq!(built.manifest().resources().len(), 1);
+        assert_eq!(composition.manifest().resources().len(), 1);
 
         let system = AdaptedOperations::select(AdaptedOperationsConfig::default())
             .expect("selection")
@@ -54,18 +54,18 @@ mod tests {
                 HostBoundExternalCounterAdapterConfig { value: 4 },
             ))
             .expect("compatible Adapter");
-        let built = Fabric::new("example.adapter.host")
+        let composition = Fabric::new("example.adapter.host")
             .expect("composition")
             .resource(host_bound)
             .build()
             .expect("build");
         let host = HostDescriptor::native();
         assert!(
-            built
+            composition
                 .materialize_named_on("example.adapter.host.missing", &host)
                 .is_err()
         );
-        let mut instance = built
+        let mut instance = composition
             .materialize_named_on(
                 "example.adapter.host.matching",
                 &host.with_facility(external_counter_host_facility()),

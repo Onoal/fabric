@@ -55,11 +55,11 @@ let attachment = ResourceAugmentation::<Store, Readback>::attach(&store, ())?;
 let supported = attachment.using(ReadbackSupport);
 let readback = supported.require_from(&store)?;
 
-let built = Fabric::new("example.resource-augmentation")?
+let composition = Fabric::new("example.resource-augmentation")?
     .resource(store)
     .resource_augmentation(supported)
     .build()?;
-# let _ = (readback, built);
+# let _ = (readback, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -84,11 +84,11 @@ let attachment = SystemAugmentation::<SharedClock, DriftObservation>::attach(&cl
 let supported = attachment.using(DriftSupport);
 let drift = supported.require_from(&clock)?;
 
-let built = Fabric::new("example.system-augmentation")?
+let composition = Fabric::new("example.system-augmentation")?
     .system(clock)
     .system_augmentation(supported)
     .build()?;
-# let _ = (drift, built);
+# let _ = (drift, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
@@ -120,10 +120,10 @@ let traced = audit.into_set()
     .using(TraceSupport);
 let trace_requirement = traced.requirement();
 
-let built = Fabric::new("example.component-augmentation")?
+let composition = Fabric::new("example.component-augmentation")?
     .component(traced)
     .build()?;
-# let _ = (audit_requirement, trace_requirement, built);
+# let _ = (audit_requirement, trace_requirement, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

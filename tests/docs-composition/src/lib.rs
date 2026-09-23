@@ -75,20 +75,20 @@ fn cache() -> ResourceSelection<NoteStore> {
 
 #[test]
 fn minimal_composition_builds_declaration_truth() {
-    let built = Fabric::new("example.minimal")
+    let composition: Composition = Fabric::new("example.minimal")
         .expect("valid CompositionId")
         .build()
         .expect("valid declaration");
 
-    assert_eq!(built.composition().id().as_str(), "example.minimal");
-    assert!(built.manifest().resources().is_empty());
+    assert_eq!(composition.id().as_str(), "example.minimal");
+    assert!(composition.manifest().resources().is_empty());
 }
 
 #[test]
 fn selected_resource_occurrences_bind_component_roles_independently() {
     let primary = primary();
     let cache = cache();
-    let built = Fabric::new("example.store-composition")
+    let composition = Fabric::new("example.store-composition")
         .expect("valid CompositionId")
         .resource(primary.clone())
         .resource(cache.clone())
@@ -116,13 +116,13 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
         .build()
         .expect("unambiguous selected providers");
 
-    let bindings = built.manifest().component_resource_bindings();
+    let bindings = composition.manifest().component_resource_bindings();
     assert_eq!(bindings[0].requirement_name().as_str(), "primary_store");
     assert_eq!(bindings[0].resource_name().as_str(), "primary");
     assert_eq!(bindings[1].requirement_name().as_str(), "cache_store");
     assert_eq!(bindings[1].resource_name().as_str(), "cache");
 
-    let mut instance = built
+    let mut instance = composition
         .materialize_named("example.store-composition.local")
         .expect("materialize");
     instance.start().expect("start");
@@ -155,10 +155,10 @@ fn local_store_stack() -> Fabric {
 
 #[test]
 fn ordinary_rust_can_reuse_partial_fabric_authoring_before_build() {
-    let built = local_store_stack()
+    let composition = local_store_stack()
         .component(StoreProbe::define())
         .build()
         .expect("one available provider can satisfy both requirements");
 
-    assert_eq!(built.manifest().resources().len(), 1);
+    assert_eq!(composition.manifest().resources().len(), 1);
 }

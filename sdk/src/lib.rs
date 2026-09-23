@@ -37,7 +37,7 @@ pub use fabric_sdk_macros::{adapter, component, resource, system};
 // definitions, provider machinery, runtime state, and contract internals live
 // under `authoring`; raw orchestration remains under `core`.
 pub use authoring::{
-    BuiltFabric, Fabric, FabricBuildError, FabricComponents, FabricInstance, IntoFabricResource,
+    Composition, Fabric, FabricBuildError, FabricComponents, FabricInstance, IntoFabricResource,
     IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
     ResourceSelection, SystemSelection,
 };

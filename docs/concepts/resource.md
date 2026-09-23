@@ -74,7 +74,7 @@ fabric::resource! {
 let primary = NoteStore::select(
     "primary", NoteStoreConfig { label: "primary".to_owned() },
 )?;
-let built = Fabric::new("example.resources")?.resource(primary).build()?;
+let composition = Fabric::new("example.resources")?.resource(primary).build()?;
 ```
 
 `resource!` generates ergonomic public machinery, but it is authoring
@@ -223,11 +223,11 @@ let attachment = ResourceAugmentation::<NoteStore, Readback>::attach(&primary, (
 let supported = attachment.using(ReadbackSupport);
 let readback = supported.require_from(&primary)?;
 
-let built = Fabric::new("example.resource-augmentation")?
+let composition = Fabric::new("example.resource-augmentation")?
     .resource(primary)
     .resource_augmentation(supported)
     .build()?;
-# let _ = (readback, built);
+# let _ = (readback, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

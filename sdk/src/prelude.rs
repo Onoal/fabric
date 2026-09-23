@@ -5,7 +5,7 @@
 //! [`crate::authoring`], and raw orchestration only through [`crate::core`].
 
 pub use crate::{
-    BuiltFabric, ComponentError, ComponentId, CompositionError, CompositionId, Fabric,
+    ComponentError, ComponentId, Composition, CompositionError, CompositionId, Fabric,
     FabricBuildError, FabricComponents, FabricInstance, Health, HostArchitecture,
     HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem, HostRequirement,
     InstanceError, InstanceGeneration, InstanceId, IntoFabricResource,

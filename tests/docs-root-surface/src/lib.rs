@@ -41,16 +41,16 @@ mod root_wildcard {
         let system = RootSystem::select().expect("selection");
         let component = RootComponent::define();
 
-        let built = Fabric::new("docs.root")
+        let composition: Composition = Fabric::new("docs.root")
             .expect("composition")
             .resource(store)
             .system(system)
             .component(component)
             .build()
             .expect("build");
-        assert_eq!(built.manifest().resources().len(), 1);
-        assert_eq!(built.manifest().systems().len(), 1);
-        assert_eq!(built.manifest().components().len(), 1);
+        assert_eq!(composition.manifest().resources().len(), 1);
+        assert_eq!(composition.manifest().systems().len(), 1);
+        assert_eq!(composition.manifest().components().len(), 1);
 
         let clock = Clock::select("clock", ClockConfig::default()).expect("selection");
         let realized = clock
@@ -84,11 +84,11 @@ mod prelude_compatibility {
 
     #[test]
     fn prelude_remains_a_normal_authoring_convenience() {
-        let built = Fabric::new("docs.root.prelude")
+        let composition: Composition = Fabric::new("docs.root.prelude")
             .expect("composition")
             .build()
             .expect("build");
-        assert!(built.manifest().resources().is_empty());
+        assert!(composition.manifest().resources().is_empty());
     }
 }
 

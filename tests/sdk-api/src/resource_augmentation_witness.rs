@@ -267,7 +267,7 @@ fn selected_clock(name: &str) -> ResourceSelection<Clock> {
 fn build_supported_clock<S>(
     composition_id: &str,
     support: S,
-) -> (BuiltFabric, ModuleId, Arc<Mutex<Option<RichObservation>>>)
+) -> (Composition, ModuleId, Arc<Mutex<Option<RichObservation>>>)
 where
     S: ResourceAugmentationSupportDefinition<Clock, AdditionalReadback>,
 {

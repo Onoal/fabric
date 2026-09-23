@@ -6,8 +6,8 @@ use fabric_component::{
     ComponentParticipationRealization, component_host_handle_contract_key,
 };
 use fabric_core::{
-    Block, BlockId, Composition, CompositionError, CompositionExport, CompositionId, ContractId,
-    ContractProviderSelection, Module, ModuleDeclaration, ModuleRuntime,
+    Block, BlockId, Composition as CoreComposition, CompositionError, CompositionExport,
+    CompositionId, ContractId, ContractProviderSelection, Module, ModuleDeclaration, ModuleRuntime,
 };
 
 struct StoredTypedModule {
@@ -263,28 +263,36 @@ impl From<CompositionError> for FabricBuildError {
     }
 }
 
-#[derive(Debug)]
-pub struct BuiltFabric {
-    composition: Composition,
+pub struct Composition {
+    core: CoreComposition,
     manifest: FabricManifest,
     component_host_export: Option<CompositionExport<ComponentHostHandle>>,
 }
 
-impl BuiltFabric {
-    pub fn composition(&self) -> &Composition {
-        &self.composition
+impl std::fmt::Debug for Composition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Composition")
+            .field("id", self.id())
+            .finish()
+    }
+}
+
+impl Composition {
+    pub fn id(&self) -> &CompositionId {
+        self.core.id()
+    }
+
+    /// Returns the generic resolved Core Composition for deliberate advanced use.
+    pub fn core(&self) -> &CoreComposition {
+        &self.core
     }
 
     pub fn manifest(&self) -> &FabricManifest {
         &self.manifest
     }
 
-    pub fn into_composition(self) -> Composition {
-        self.composition
-    }
-
-    pub fn into_parts(self) -> (Composition, FabricManifest) {
-        (self.composition, self.manifest)
+    pub fn into_core(self) -> CoreComposition {
+        self.core
     }
 
     pub(crate) fn component_host_export(&self) -> Option<&CompositionExport<ComponentHostHandle>> {
@@ -430,7 +438,7 @@ impl Fabric {
         self
     }
 
-    pub fn build(self) -> Result<BuiltFabric, FabricBuildError> {
+    pub fn build(self) -> Result<Composition, FabricBuildError> {
         let Self {
             composition_id,
             blocks,
@@ -509,8 +517,8 @@ impl Fabric {
             raw_block_ids,
             composition.exports().to_vec(),
         );
-        Ok(BuiltFabric {
-            composition,
+        Ok(Composition {
+            core: composition,
             manifest,
             component_host_export,
         })

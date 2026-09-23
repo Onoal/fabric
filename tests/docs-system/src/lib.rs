@@ -55,18 +55,18 @@ mod tests {
     #[test]
     fn system_selection_manifest_realization_and_uniqueness_are_declarative() {
         let audit = AuditSystem::select(AuditSystemConfig { seed: 7 }).expect("selection");
-        let built = Fabric::new("example.system")
+        let composition = Fabric::new("example.system")
             .expect("composition id")
             .system(audit)
             .build()
             .expect("build");
-        assert_eq!(built.manifest().systems().len(), 1);
+        assert_eq!(composition.manifest().systems().len(), 1);
         assert_eq!(
-            built.manifest().systems()[0].system_id(),
+            composition.manifest().systems()[0].system_id(),
             &AuditSystem::system_id()
         );
         assert_eq!(
-            built.manifest().systems()[0].schema().system(),
+            composition.manifest().systems()[0].schema().system(),
             &AuditSystem::system_id()
         );
 
@@ -112,7 +112,7 @@ mod tests {
         let audit = AuditSystem::select(AuditSystemConfig { seed: 7 }).expect("selection");
         let derived =
             DerivedAuditSystem::select(DerivedAuditSystemConfig { offset: 3 }).expect("selection");
-        let built = Fabric::new("example.system.dependencies")
+        let composition = Fabric::new("example.system.dependencies")
             .expect("composition id")
             .system(audit)
             .system(derived)
@@ -120,7 +120,7 @@ mod tests {
             .build()
             .expect("resolved dependencies");
 
-        let mut instance = built
+        let mut instance = composition
             .materialize_named("example.system.dependencies.local")
             .expect("materialize");
         instance.start().expect("start");

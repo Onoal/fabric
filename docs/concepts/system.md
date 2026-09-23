@@ -83,7 +83,7 @@ fabric::system! {
 }
 
 let operations = Operations::select(OperationsConfig { seed: 7 })?;
-let built = Fabric::new("example.system")?.system(operations).build()?;
+let composition = Fabric::new("example.system")?.system(operations).build()?;
 ```
 
 `Fabric::system(...)` adds semantic System declaration truth and, only when
@@ -245,11 +245,11 @@ let attachment = SystemAugmentation::<Operations, DriftObservation>::attach(&ope
 let supported = attachment.using(DriftSupport);
 let drift = supported.require_from(&operations)?;
 
-let built = Fabric::new("example.system-augmentation")?
+let composition = Fabric::new("example.system-augmentation")?
     .system(operations)
     .system_augmentation(supported)
     .build()?;
-# let _ = (drift, built);
+# let _ = (drift, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

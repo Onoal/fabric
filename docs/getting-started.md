@@ -70,7 +70,7 @@ Selection records declarative truth. `build()` validates the Composition;
 operational. Component participation is then explicit.
 
 ```rust
-let built = Fabric::new("example.greeter")?
+let composition = Fabric::new("example.greeter")?
     .resource(
         Store::select("primary")?
             .using(MemoryStore::new())?,
@@ -78,7 +78,7 @@ let built = Fabric::new("example.greeter")?
     .component(Greeter::define())
     .build()?;
 
-let mut instance = built.materialize_named_on(
+let mut instance = composition.materialize_named_on(
     "example.greeter.local",
     &HostDescriptor::native(),
 )?;

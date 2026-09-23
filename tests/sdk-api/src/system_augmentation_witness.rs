@@ -328,7 +328,7 @@ fn selected_system() -> SystemSelection<AdaptedOperations> {
 fn build_supported_system<P>(
     composition_id: &str,
     support: P,
-) -> (BuiltFabric, ModuleId, Arc<Mutex<Option<Observation>>>)
+) -> (Composition, ModuleId, Arc<Mutex<Option<Observation>>>)
 where
     P: SystemAugmentationSupportDefinition<AdaptedOperations, DriftObservation>,
 {

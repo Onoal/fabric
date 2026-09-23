@@ -80,7 +80,7 @@ fn typed_resource_and_system_dependencies_reach_the_canonical_runtime() {
         .expect("Resource selection");
     let operations =
         TestOperations::select(TestOperationsConfig::new(7, 1)).expect("System selection");
-    let built = Fabric::new("example.component.dependencies")
+    let composition = Fabric::new("example.component.dependencies")
         .expect("CompositionId")
         .resource(counter.clone())
         .system(operations.clone())
@@ -91,7 +91,7 @@ fn typed_resource_and_system_dependencies_reach_the_canonical_runtime() {
         )
         .build()
         .expect("valid dependencies");
-    let mut instance = built
+    let mut instance = composition
         .materialize_named("example.component.dependencies.local")
         .expect("Instance");
     let instance_id = instance.instance_id().clone();
@@ -115,15 +115,15 @@ fn typed_resource_and_system_dependencies_reach_the_canonical_runtime() {
 
 #[test]
 fn declaration_only_component_is_valid_but_has_no_native_attachment() {
-    let built = Fabric::new("example.component.declaration-only")
+    let composition = Fabric::new("example.component.declaration-only")
         .expect("CompositionId")
         .component(DeclarationOnlyComponent::define(
             DeclarationOnlyComponentConfig,
         ))
         .build()
         .expect("declaration-only ComponentInstanceBinding is valid");
-    assert_eq!(built.manifest().components()[0].operations().len(), 0);
-    let mut instance = built
+    assert_eq!(composition.manifest().components()[0].operations().len(), 0);
+    let mut instance = composition
         .materialize_named("example.component.declaration-only.local")
         .expect("Instance");
     instance.start().expect("start");
@@ -141,15 +141,19 @@ fn declaration_only_component_is_valid_but_has_no_native_attachment() {
 
 #[test]
 fn component_api_domain_output_and_participation_are_distinct() {
-    let built = Fabric::new("example.component")
+    let composition = Fabric::new("example.component")
         .expect("CompositionId")
         .component(DocumentComponent::define())
         .component(ZeroOperationComponent::define())
         .build()
         .expect("declarations are valid");
-    assert_eq!(built.manifest().components().len(), 2);
-    assert!(built.manifest().components()[1].operations().is_empty());
-    let mut instance = built
+    assert_eq!(composition.manifest().components().len(), 2);
+    assert!(
+        composition.manifest().components()[1]
+            .operations()
+            .is_empty()
+    );
+    let mut instance = composition
         .materialize_named("example.component.local")
         .expect("Instance");
     instance.start().expect("start");

@@ -66,19 +66,19 @@ Instance is not a change to the Composition.
 
 ## Materialize a Composition
 
-The normal high-level path begins with `Fabric`, builds a `BuiltFabric`, and
+The normal high-level path begins with `Fabric`, builds a `Composition`, and
 then materializes a `FabricInstance`:
 
 ```rust
 use fabric::*;
 
-let built = Fabric::new("example.instance")
+let composition = Fabric::new("example.instance")
     .expect("valid CompositionId")
     // declarations go here
     .build()
     .expect("valid Composition");
 
-let mut instance = built
+let mut instance = composition
     .materialize_named("example.instance.local")
     .expect("materialize");
 ```
@@ -88,7 +88,7 @@ materialization requirement. When a realization declares Host compatibility
 requirements, supply the concrete `HostDescriptor` at materialization:
 
 ```rust
-let instance = built.materialize_named_on("example.instance.local", &host)?;
+let instance = composition.materialize_named_on("example.instance.local", &host)?;
 ```
 
 The Composition declares compatibility requirements; the `HostDescriptor` is
@@ -169,8 +169,8 @@ Composition, package, schema, deployment, or user-selected version.
 ### Example B: two Instances from one Composition
 
 ```rust
-let first = built.materialize_named("example.instance.first")?;
-let second = built.materialize_named("example.instance.second")?;
+let first = composition.materialize_named("example.instance.first")?;
+let second = composition.materialize_named("example.instance.second")?;
 
 assert_ne!(first.instance_id(), second.instance_id());
 assert_ne!(first.generation(), second.generation());
@@ -183,8 +183,8 @@ One Composition can create independent runtime state for both Instances.
 The same logical `InstanceId` does not mean the same runtime incarnation:
 
 ```rust
-let first = built.materialize_named("example.instance.local")?;
-let second = built.materialize_named("example.instance.local")?;
+let first = composition.materialize_named("example.instance.local")?;
+let second = composition.materialize_named("example.instance.local")?;
 
 assert_eq!(first.instance_id(), second.instance_id());
 assert_ne!(first.generation(), second.generation());
@@ -330,7 +330,7 @@ replacement categories:
 ### Example E: inspect declaration and runtime separately
 
 ```rust
-let manifest = built.manifest();
+let manifest = composition.manifest();
 assert_eq!(manifest.components().len(), 1);
 
 let report = instance.report();

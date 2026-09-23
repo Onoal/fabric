@@ -42,35 +42,26 @@ chosen—before a live runtime is created.
 This is not a generic service registry or a deployment description. It is the
 declarative truth Core validates and later materializes.
 
-## Fabric, Composition, and BuiltFabric
+## Fabric and Composition
 
 Normal Rust authoring begins with [`Fabric`](../../sdk/README.md), the
-high-level authoring surface:
+high-level authoring surface. `Fabric` accumulates typed semantic
+contributions; it is neither runtime state nor the resulting Composition.
 
-```rust
-use fabric::*;
-
-let fabric = Fabric::new("example.composition")
-    .expect("valid CompositionId")
-    // .resource(...)
-    // .system(...)
-    // .component(...)
-    ;
-```
-
-`Fabric` accumulates typed semantic contributions. It is not the runtime and
-is not itself Core's resulting Composition. Calling `build()` validates those
-contributions and produces `BuiltFabric`:
+Calling `build()` validates those contributions and produces the normal SDK
+`Composition`:
 
 ```text
-Fabric       = normal high-level authoring
-Composition  = validated declarative Core truth
-BuiltFabric  = Composition + FabricManifest
+Fabric                    = normal high-level authoring
+Composition               = composition semantic system
+Composition.manifest()    = immutable semantic/provenance inspection
+Composition.core()        = deliberate advanced Core escape hatch
+fabric::core::Composition = generic resolved structural representation
 ```
 
-`BuiltFabric::composition()` exposes the Core Composition for advanced uses;
-`BuiltFabric::manifest()` exposes semantic inspection for normal users. The
-two are related, but neither replaces the other.
+The SDK Composition wraps the resolved Core Composition; neither replaces the
+other. Normal users materialize the SDK Composition. Advanced users may inspect
+the Core value through `Composition::core()`.
 
 ### Example A: a minimal Composition
 
@@ -80,13 +71,13 @@ an Instance.
 ```rust
 use fabric::*;
 
-let built = Fabric::new("example.minimal")
+let composition = Fabric::new("example.minimal")
     .expect("valid CompositionId")
     .build()
     .expect("valid declaration");
 
-assert_eq!(built.composition().id().as_str(), "example.minimal");
-assert!(built.manifest().resources().is_empty());
+assert_eq!(composition.id().as_str(), "example.minimal");
+assert!(composition.manifest().resources().is_empty());
 ```
 
 The identifier above is a `CompositionId`: it identifies the declaration, not
@@ -207,7 +198,7 @@ let cache = NoteStore::select(
 )
 .expect("valid ResourceName");
 
-let built = Fabric::new("example.store-composition")
+let composition = Fabric::new("example.store-composition")
     .expect("valid CompositionId")
     .resource(primary.clone())
     .resource(cache.clone())
@@ -217,7 +208,7 @@ let built = Fabric::new("example.store-composition")
     .build()
     .expect("unambiguous selected providers");
 
-let bindings = built.manifest().component_resource_bindings();
+let bindings = composition.manifest().component_resource_bindings();
 assert_eq!(bindings[0].requirement_name().as_str(), "primary_store");
 assert_eq!(bindings[1].requirement_name().as_str(), "cache_store");
 ```
@@ -263,7 +254,7 @@ Continuing Example C, only after a successful build can the Composition be
 materialized:
 
 ```rust
-let mut instance = built
+let mut instance = composition
     .materialize_named("example.store-composition.local")
     .expect("materialize a separate live Instance");
 instance.start().expect("start");
@@ -308,7 +299,7 @@ fn local_store_stack() -> Fabric {
         .resource(primary)
 }
 
-let built = local_store_stack()
+let composition = local_store_stack()
     .component(StoreProbe::define(StoreProbeConfig {}))
     .build()
     .expect("one available provider can satisfy both requirements");

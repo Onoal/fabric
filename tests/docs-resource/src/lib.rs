@@ -25,13 +25,13 @@ mod tests {
         let cache = DirectCounter::select("cache", DirectCounterConfig { value: 2 }).expect("name");
         assert_ne!(primary.name(), cache.name());
 
-        let built = Fabric::new("example.resources")
+        let composition = Fabric::new("example.resources")
             .expect("id")
             .resource(primary)
             .resource(cache)
             .build()
             .expect("build");
-        assert_eq!(built.manifest().resources().len(), 2);
+        assert_eq!(composition.manifest().resources().len(), 2);
 
         let note_store = NoteStore::select(
             "notes",

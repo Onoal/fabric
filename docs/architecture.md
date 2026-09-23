@@ -196,13 +196,28 @@ metadata.
 
 ## Runtime boundary
 
+The normal build boundary is explicit:
+
+```text
+Fabric
+  ↓ build
+SDK Composition
+  ├── FabricManifest (semantic/provenance inspection)
+  └── fabric::core::Composition (resolved generic structure)
+        ↓ materialize
+      FabricInstance
+```
+
+`Composition::core()` is the deliberate advanced escape hatch; normal code
+continues through the SDK Composition.
+
 Composition can explicitly export a bounded typed runtime capability. Core
 freezes each declared export's provider ownership at build; each Instance then
 retains that selected provider's live value for its own materialization.
 Instance does not expose arbitrary contract lookup. A Component-bearing
 high-level Fabric build exports one Component operational capability.
 
-`BuiltFabric` materializes to `FabricInstance`, which delegates identity,
+`Composition` materializes to `FabricInstance`, which delegates identity,
 generation, lifecycle, and reporting to the Core Instance. Its optional
 `FabricComponents` façade materializes and dematerializes Components and
 invokes typed `OperationKey<I, O>` values. Handles are local to one Instance

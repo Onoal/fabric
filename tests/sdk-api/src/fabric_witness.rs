@@ -1501,8 +1501,8 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
         .expect("second declaration");
 
     assert_eq!(
-        first_built.composition().id(),
-        second_built.composition().id(),
+        first_built.core().id(),
+        second_built.core().id(),
         "CompositionId does not establish declaration revision equality"
     );
     assert_eq!(
@@ -1677,10 +1677,7 @@ fn generational_resource_realization_change_is_fresh_and_has_no_state_transfer()
         .build()
         .expect("second declaration");
 
-    assert_eq!(
-        first_built.composition().id(),
-        second_built.composition().id()
-    );
+    assert_eq!(first_built.core().id(), second_built.core().id());
     assert_eq!(
         first_built.manifest().resources()[0].resource_id(),
         second_built.manifest().resources()[0].resource_id()
@@ -2141,31 +2138,32 @@ fn fabric_duplicate_system_identity_fails_through_core() {
 }
 
 #[test]
-fn fabric_built_artifact_splits_into_composition_and_manifest() {
-    let built = Fabric::new("fabric.test.fabric.parts")
+fn sdk_composition_preserves_manifest_and_explicit_core_escape_hatches() {
+    let composition: fabric::Composition = Fabric::new("fabric.test.fabric.parts")
         .expect("fabric")
         .resource(
             DirectCounter::select("primary", DirectCounterConfig { value: 1 }).expect("selection"),
         )
         .build()
-        .expect("parts build");
+        .expect("composition build");
 
-    let (composition, manifest) = built.into_parts();
-    takes_raw_composition(&composition);
-    assert_eq!(manifest.resources().len(), 1);
+    assert_eq!(composition.id().as_str(), "fabric.test.fabric.parts");
+    assert_eq!(composition.manifest().resources().len(), 1);
+    let core: &fabric::core::Composition = composition.core();
+    takes_raw_composition(core);
 
-    let built = Fabric::new("fabric.test.fabric.composition-view")
+    let composition = Fabric::new("fabric.test.fabric.core-consume")
         .expect("fabric")
         .resource(
             DirectCounter::select("primary", DirectCounterConfig { value: 2 }).expect("selection"),
         )
         .build()
-        .expect("composition view build");
-    takes_raw_composition(built.composition());
-    assert_eq!(built.manifest().resources().len(), 1);
+        .expect("composition build");
+    let core: fabric::core::Composition = composition.into_core();
+    takes_raw_composition(&core);
 }
 
-fn takes_raw_composition(_composition: &fabric_core::Composition) {}
+fn takes_raw_composition(_composition: &fabric::core::Composition) {}
 
 struct ResourceOwnedComponent;
 struct ResourceOwnedComponentB;

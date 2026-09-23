@@ -45,16 +45,16 @@ start, operate Components, then stop:
 ```rust
 use fabric::*;
 
-let built = Fabric::new("example")
+let composition = Fabric::new("example")
     .expect("valid composition id")
     .component(Greeter::define())
     .build()
     .expect("build");
 
-let manifest = built.manifest();
+let manifest = composition.manifest();
 assert_eq!(manifest.components().len(), 1);
 
-let mut instance = built.materialize_named("example.local").expect("instance");
+let mut instance = composition.materialize_named("example.local").expect("instance");
 instance.start().expect("start");
 let components = instance.components().expect("component host");
 components.materialize::<Greeter>().expect("materialize component");
@@ -66,8 +66,8 @@ components.dematerialize::<Greeter>().expect("dematerialize component");
 instance.stop().expect("stop instance");
 ```
 
-`BuiltFabric` materializes to `FabricInstance`; raw
-`built.composition().materialize(...)` remains available to advanced Core
+`Composition` materializes to `FabricInstance`; raw
+`composition.core().materialize(...)` remains available to advanced Core
 users. `FabricInstance::components()` is `None` when the Composition has no
 Component host. It is a bounded Component operational façade, not a general
 Instance service locator.
@@ -166,7 +166,7 @@ System bindings. A Resource binding directly identifies the selected
 `ResourceId + ResourceName`; normal inspection need not use ModuleId.
 
 ```rust
-for binding in built.manifest().component_resource_bindings() {
+for binding in composition.manifest().component_resource_bindings() {
     println!("{} -> {} {:?}", binding.requirement_name(), binding.resource_id(), binding.resource_name());
 }
 ```
@@ -175,7 +175,7 @@ Raw backing diagnostics remain intentionally available, but outside normal
 semantic inspection:
 
 ```rust
-let diagnostics = built.manifest().diagnostics();
+let diagnostics = composition.manifest().diagnostics();
 let _modules = diagnostics.module_declarations();
 let _providers = diagnostics.provider_selections();
 ```

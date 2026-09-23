@@ -1,8 +1,12 @@
-use fabric_core::{Composition, CompositionError, Instance};
+use fabric_core::{Composition as CoreComposition, CompositionError, Instance};
 use fabric_host::HostDescriptor;
 
 use crate::ids::IntoInstanceId;
 
+/// Advanced named-instance convenience for [`CoreComposition`].
+///
+/// Normal SDK [`crate::Composition`] has inherent high-level materialization
+/// methods and intentionally does not implement this trait.
 pub trait CompositionExt {
     fn materialize_named<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
     where
@@ -17,7 +21,7 @@ pub trait CompositionExt {
         I: IntoInstanceId;
 }
 
-impl CompositionExt for Composition {
+impl CompositionExt for CoreComposition {
     fn materialize_named<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId,

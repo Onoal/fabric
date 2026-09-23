@@ -346,10 +346,10 @@ let traced = audit.into_set()
     .using(TraceSupport);
 let trace_requirement = traced.requirement();
 
-let built = Fabric::new("example.component-augmentation")?
+let composition = Fabric::new("example.component-augmentation")?
     .component(traced)
     .build()?;
-# let _ = (audit_requirement, trace_requirement, built);
+# let _ = (audit_requirement, trace_requirement, composition);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

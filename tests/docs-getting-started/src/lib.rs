@@ -42,7 +42,7 @@ fabric::component! {
 
 #[test]
 fn getting_started_flow_builds_inspects_materializes_and_invokes() {
-    let built = Fabric::new("example.greeter")
+    let composition = Fabric::new("example.greeter")
         .expect("valid composition")
         .resource(
             Store::select("primary")
@@ -54,10 +54,10 @@ fn getting_started_flow_builds_inspects_materializes_and_invokes() {
         .build()
         .expect("build");
 
-    let manifest = built.manifest();
+    let manifest = composition.manifest();
     assert_eq!(manifest.components().len(), 1);
 
-    let mut instance = built
+    let mut instance = composition
         .materialize_named_on("example.greeter.local", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");

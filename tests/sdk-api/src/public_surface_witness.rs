@@ -3,16 +3,16 @@ use fabric_test_component_greeter::{Greeter, GreeterConfig, GreeterInput, greete
 
 #[test]
 fn normal_prelude_supports_the_complete_high_level_component_flow() {
-    let built = Fabric::new("fabric.test.normal-prelude")
+    let composition: Composition = Fabric::new("fabric.test.normal-prelude")
         .expect("fabric")
         .component(Greeter::define(GreeterConfig {}))
         .build()
         .expect("build");
-    let manifest = built.manifest();
+    let manifest = composition.manifest();
     assert_eq!(manifest.components().len(), 1);
     assert!(manifest.component_resource_bindings().is_empty());
     assert!(manifest.component_system_bindings().is_empty());
-    let mut instance = built
+    let mut instance = composition
         .materialize_named("fabric.test.normal-prelude.instance")
         .expect("materialize");
     instance.start().expect("start");

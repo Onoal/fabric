@@ -127,6 +127,7 @@ component! {
         relations {
             requires {
                 component_store: CanonicalRuntimeStore;
+                component_clock: CanonicalRuntimeClock;
             }
         }
         api { fn inspect(&self, key: String) -> String; }
@@ -139,6 +140,7 @@ adapter! {
         relations {
             requires {
                 adapter_store: CanonicalRuntimeStore;
+                adapter_clock: CanonicalRuntimeClock;
             }
         }
         runtime {
@@ -158,16 +160,18 @@ adapter! {
                     .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
                     + 1;
                 format!(
-                    "{}:{}:{}:{count}",
+                    "{}:{}:{}:{}:{}:{count}",
                     self.component_config().prefix,
                     self.component_relations()
                         .component_store
                         .get(key.clone())
                         .expect("component relation"),
+                    self.component_relations().component_clock.now(),
                     self.relations()
                         .adapter_store
                         .get(key)
                         .expect("adapter relation"),
+                    self.relations().adapter_clock.now(),
                 )
             }
             prepare {
@@ -759,6 +763,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
     let built = Fabric::new("fabric.test.component-declaration.adapter-participation-audit")
         .expect("fabric")
         .resource(CanonicalRuntimeStore::select("component_store").expect("store"))
+        .system(CanonicalRuntimeClock::select().expect("clock"))
         .component(selected)
         .build()
         .expect("build");
@@ -789,7 +794,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
             "key".to_owned(),
         ))
         .expect("invoke"),
-        "component:store:key:store:key:1"
+        "component:store:key:7:store:key:7:1"
     );
     components
         .dematerialize::<AdapterParticipationAudit>()
@@ -808,7 +813,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
             "key".to_owned(),
         ))
         .expect("fresh invoke"),
-        "component:store:key:store:key:1",
+        "component:store:key:7:store:key:7:1",
         "state is fresh for a new ComponentParticipation"
     );
     instance.stop().expect("host stop");

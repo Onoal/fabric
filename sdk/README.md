@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.5.4" }
+fabric = { package = "onoal-fabric", version = "0.6.0" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:

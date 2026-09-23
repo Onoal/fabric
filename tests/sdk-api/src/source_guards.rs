@@ -46,7 +46,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
         "sdk-macros/Cargo.toml",
         "sdk/Cargo.toml",
     ] {
-        let source = fs::read_to_string(repository.join(manifest)).expect("read public manifest");
+        let manifest_path = repository.join(manifest);
+        let source = fs::read_to_string(&manifest_path).expect("read public manifest");
         assert!(
             source.contains("publish = [\"crates-io\"]"),
             "canonical package must explicitly allow crates.io publication: {manifest}"
@@ -56,6 +57,11 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
                 && source.contains("repository.workspace = true")
                 && source.contains("description ="),
             "canonical package must inherit release metadata: {manifest}"
+        );
+        let package_dir = manifest_path.parent().expect("package manifest directory");
+        assert!(
+            package_dir.join("README.md").is_file() && package_dir.join("LICENSE").is_file(),
+            "canonical package must ship its README and MIT license asset: {manifest}"
         );
     }
 
@@ -95,13 +101,13 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     for dependency in [
-        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.5.4\", path = \"host\" }",
-        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.5.4\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.5.4\", path = \"resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.5.4\", path = \"system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.5.4\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.5.4\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.5.4\", path = \"sdk\" }",
+        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.6.0\", path = \"host\" }",
+        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.6.0\", path = \"core\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.6.0\", path = \"resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.6.0\", path = \"system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.6.0\", path = \"component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.6.0\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.6.0\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -137,8 +143,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     assert!(
-        workspace_manifest.contains("version = \"0.5.4\""),
-        "the Fabric family source graph must share the 0.5.4 workspace version"
+        workspace_manifest.contains("version = \"0.6.0\""),
+        "the Fabric family source graph must share the 0.6.0 workspace version"
     );
     for manifest in [
         "host/Cargo.toml",

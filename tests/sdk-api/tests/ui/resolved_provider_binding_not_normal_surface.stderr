@@ -1,0 +1,11 @@
+error[E0432]: unresolved import `fabric::ResolvedProviderBinding`
+ --> tests/ui/resolved_provider_binding_not_normal_surface.rs:1:5
+  |
+1 | use fabric::ResolvedProviderBinding;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `ResolvedProviderBinding` in the root
+
+error[E0432]: unresolved import `fabric::prelude::ResolvedProviderBinding`
+ --> tests/ui/resolved_provider_binding_not_normal_surface.rs:2:5
+  |
+2 | use fabric::prelude::ResolvedProviderBinding as PreludeResolvedProviderBinding;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `ResolvedProviderBinding` in `prelude`

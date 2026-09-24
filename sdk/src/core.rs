@@ -7,5 +7,6 @@ pub use fabric_core::{
     InstanceError, InstanceGeneration, InstanceId, InstanceReport, InstanceRuntimeContext,
     LifecycleState, Module, ModuleBindings, ModuleCleanupFailure, ModuleContract,
     ModuleDeclaration, ModuleError, ModuleFactory, ModuleId, ModuleReport, ModuleRuntime,
-    ProvidedContractDeclaration, ResolvedContract, RuntimeCleanupError, module_factory,
+    ProvidedContractDeclaration, ResolvedContract, ResolvedProviderBinding, RuntimeCleanupError,
+    module_factory,
 };

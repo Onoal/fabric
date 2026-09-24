@@ -2,10 +2,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::block::BlockBuilder;
-use crate::composition::{ContractProviderSelection, ModuleBindings};
+use crate::composition::{ContractProviderSelection, ModuleBindings, ResolvedProviderBinding};
 use crate::contract::{
-    ContractIdentity, ContractKey, ContractRequirement, ContractRequirementDeclaration,
-    ContractVersion, ContractVersionRequirement, ModuleContract, ProvidedContractDeclaration,
+    ContractCompatibilityRequirement, ContractIdentity, ContractKey, ContractRequirement,
+    ContractRequirementDeclaration, ContractVersion, ContractVersionRequirement, ModuleContract,
+    ProvidedContractDeclaration,
 };
 use crate::error::{CompositionError, InstanceError, ModuleError};
 use crate::health::Health;
@@ -86,6 +87,22 @@ impl Module for DeclarationOnlyConsumer {
     fn declaration(&self) -> crate::ModuleDeclaration {
         crate::ModuleDeclaration::new(self.module_id.clone())
             .with_required_contracts(vec![self.requirement.declaration().clone()])
+    }
+}
+
+struct DeclarationOnlyModule {
+    declaration: crate::ModuleDeclaration,
+}
+
+impl DeclarationOnlyModule {
+    fn new(declaration: crate::ModuleDeclaration) -> Self {
+        Self { declaration }
+    }
+}
+
+impl Module for DeclarationOnlyModule {
+    fn declaration(&self) -> crate::ModuleDeclaration {
+        self.declaration.clone()
     }
 }
 
@@ -171,6 +188,327 @@ fn declaration_only_modules_validate_without_runtime_materialization() {
         Err(CompositionError::MissingRuntimeMaterializer { module_id })
             if module_id.as_str() == "fabric.test.declaration-only.provider"
     ));
+}
+
+fn binding_view_shape<'a>(
+    binding: ResolvedProviderBinding<'a>,
+) -> (
+    &'a ModuleId,
+    &'a ContractRequirementDeclaration,
+    &'a ModuleId,
+    &'a ProvidedContractDeclaration,
+) {
+    (
+        binding.consumer(),
+        binding.requirement(),
+        binding.provider(),
+        binding.provided(),
+    )
+}
+
+#[test]
+fn resolved_provider_binding_view_exposes_automatic_build_time_truth() {
+    let contract_id =
+        ContractId::new("fabric.test.resolved-binding.auto".to_owned()).expect("contract id");
+    let consumer_id =
+        ModuleId::new("fabric.test.resolved-binding.consumer".to_owned()).expect("consumer id");
+    let provider_id =
+        ModuleId::new("fabric.test.resolved-binding.provider".to_owned()).expect("provider id");
+    let provider_key = ContractKey::<TestContract>::versioned(
+        contract_id.clone(),
+        ContractVersion::parse("1.2.3").expect("version"),
+    );
+    let requirement = ContractRequirement::<TestContract>::versioned(
+        contract_id.clone(),
+        ContractVersionRequirement::parse("^1.2").expect("requirement"),
+    );
+    let composition = CompositionBuilder::new(
+        CompositionId::new("fabric.test.resolved-binding.auto".to_owned()).expect("composition id"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("resolved-binding-auto".to_owned()).expect("block id"))
+            .register_module(DeclarationOnlyProvider::new(
+                provider_id.as_str(),
+                provider_key.clone(),
+            ))
+            .register_module(DeclarationOnlyConsumer::new(
+                consumer_id.as_str(),
+                requirement.clone(),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("automatic provider binding");
+
+    let binding = composition
+        .resolved_binding(&consumer_id, &contract_id)
+        .expect("resolved binding");
+    let (consumer, frozen_requirement, provider, provided) = binding_view_shape(binding);
+
+    assert_eq!(consumer, &consumer_id);
+    assert_eq!(frozen_requirement, requirement.declaration());
+    assert_eq!(provider, &provider_id);
+    assert_eq!(provided, &provider_key.declaration());
+    assert_eq!(
+        frozen_requirement.compatibility(),
+        &ContractCompatibilityRequirement::versioned(
+            ContractVersionRequirement::parse("^1.2").expect("requirement")
+        )
+    );
+    assert_eq!(
+        provided.identity(),
+        &ContractIdentity::Versioned(ContractVersion::parse("1.2.3").expect("version"))
+    );
+}
+
+#[test]
+fn resolved_provider_binding_view_exposes_explicit_selected_provider_only() {
+    let contract_id =
+        ContractId::new("fabric.test.resolved-binding.explicit".to_owned()).expect("contract id");
+    let consumer_id =
+        ModuleId::new("fabric.test.resolved-binding.consumer".to_owned()).expect("consumer id");
+    let rejected_provider_id =
+        ModuleId::new("fabric.test.resolved-binding.rejected".to_owned()).expect("provider id");
+    let selected_provider_id =
+        ModuleId::new("fabric.test.resolved-binding.selected".to_owned()).expect("provider id");
+    let provider_key = ContractKey::<TestContract>::provisional(contract_id.clone());
+    let requirement = ContractRequirement::<TestContract>::provisional(contract_id.clone());
+    let composition = CompositionBuilder::new(
+        CompositionId::new("fabric.test.resolved-binding.explicit".to_owned())
+            .expect("composition id"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("resolved-binding-explicit".to_owned()).expect("block id"))
+            .register_module(DeclarationOnlyProvider::new(
+                rejected_provider_id.as_str(),
+                provider_key.clone(),
+            ))
+            .register_module(DeclarationOnlyProvider::new(
+                selected_provider_id.as_str(),
+                provider_key.clone(),
+            ))
+            .register_module(DeclarationOnlyConsumer::new(
+                consumer_id.as_str(),
+                requirement.clone(),
+            ))
+            .build(),
+    )
+    .select_provider(ContractProviderSelection::new(
+        consumer_id.clone(),
+        contract_id.clone(),
+        selected_provider_id.clone(),
+    ))
+    .build()
+    .expect("explicit provider binding");
+
+    let binding = composition
+        .resolved_binding(&consumer_id, &contract_id)
+        .expect("resolved binding");
+
+    assert_eq!(binding.consumer(), &consumer_id);
+    assert_eq!(binding.requirement(), requirement.declaration());
+    assert_eq!(binding.provider(), &selected_provider_id);
+    assert_ne!(binding.provider(), &rejected_provider_id);
+    assert_eq!(binding.provided(), &provider_key.declaration());
+}
+
+#[test]
+fn resolved_provider_binding_view_returns_none_for_absent_optional_and_unknown_keys() {
+    let optional_contract_id =
+        ContractId::new("fabric.test.resolved-binding.optional".to_owned()).expect("contract id");
+    let unknown_contract_id =
+        ContractId::new("fabric.test.resolved-binding.unknown".to_owned()).expect("contract id");
+    let consumer_id = ModuleId::new("fabric.test.resolved-binding.optional-consumer".to_owned())
+        .expect("consumer id");
+    let requirement = ContractRequirement::<TestContract>::versioned(
+        optional_contract_id.clone(),
+        ContractVersionRequirement::parse("^1").expect("requirement"),
+    );
+    let composition = CompositionBuilder::new(
+        CompositionId::new("fabric.test.resolved-binding.optional".to_owned())
+            .expect("composition id"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("resolved-binding-optional".to_owned()).expect("block id"))
+            .register_module(DeclarationOnlyModule::new(
+                crate::ModuleDeclaration::new(consumer_id.clone())
+                    .with_optional_contracts(vec![requirement.declaration().clone()]),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("optional requirement without provider");
+
+    assert!(
+        composition
+            .resolved_binding(&consumer_id, &optional_contract_id)
+            .is_none()
+    );
+    assert!(
+        composition
+            .resolved_binding(&consumer_id, &unknown_contract_id)
+            .is_none()
+    );
+    assert!(
+        composition
+            .resolved_binding(
+                &ModuleId::new("fabric.test.resolved-binding.missing-consumer".to_owned())
+                    .expect("missing consumer"),
+                &optional_contract_id,
+            )
+            .is_none()
+    );
+}
+
+#[test]
+fn resolved_provider_binding_view_is_consumer_scoped_and_requirement_scoped() {
+    let shared_contract_id =
+        ContractId::new("fabric.test.resolved-binding.shared".to_owned()).expect("contract id");
+    let other_contract_id =
+        ContractId::new("fabric.test.resolved-binding.other".to_owned()).expect("contract id");
+    let consumer_a_id =
+        ModuleId::new("fabric.test.resolved-binding.consumer-a".to_owned()).expect("consumer id");
+    let consumer_b_id =
+        ModuleId::new("fabric.test.resolved-binding.consumer-b".to_owned()).expect("consumer id");
+    let provider_v1_id =
+        ModuleId::new("fabric.test.resolved-binding.provider-v1".to_owned()).expect("provider id");
+    let provider_v2_id =
+        ModuleId::new("fabric.test.resolved-binding.provider-v2".to_owned()).expect("provider id");
+    let provider_other_id = ModuleId::new("fabric.test.resolved-binding.provider-other".to_owned())
+        .expect("provider id");
+    let shared_v1_key = ContractKey::<TestContract>::versioned(
+        shared_contract_id.clone(),
+        ContractVersion::parse("1.5.0").expect("version"),
+    );
+    let shared_v2_key = ContractKey::<TestContract>::versioned(
+        shared_contract_id.clone(),
+        ContractVersion::parse("2.4.0").expect("version"),
+    );
+    let other_key = ContractKey::<TestContract>::provisional(other_contract_id.clone());
+    let consumer_a_shared = ContractRequirement::<TestContract>::versioned(
+        shared_contract_id.clone(),
+        ContractVersionRequirement::parse("^1").expect("requirement"),
+    );
+    let consumer_a_other = ContractRequirement::<TestContract>::provisional(other_contract_id);
+    let consumer_b_shared = ContractRequirement::<TestContract>::versioned(
+        shared_contract_id.clone(),
+        ContractVersionRequirement::parse("^2").expect("requirement"),
+    );
+    let composition = CompositionBuilder::new(
+        CompositionId::new("fabric.test.resolved-binding.scoped".to_owned())
+            .expect("composition id"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("resolved-binding-scoped".to_owned()).expect("block id"))
+            .register_module(DeclarationOnlyProvider::new(
+                provider_v1_id.as_str(),
+                shared_v1_key.clone(),
+            ))
+            .register_module(DeclarationOnlyProvider::new(
+                provider_v2_id.as_str(),
+                shared_v2_key.clone(),
+            ))
+            .register_module(DeclarationOnlyProvider::new(
+                provider_other_id.as_str(),
+                other_key.clone(),
+            ))
+            .register_module(DeclarationOnlyModule::new(
+                crate::ModuleDeclaration::new(consumer_a_id.clone()).with_required_contracts(vec![
+                    consumer_a_shared.declaration().clone(),
+                    consumer_a_other.declaration().clone(),
+                ]),
+            ))
+            .register_module(DeclarationOnlyConsumer::new(
+                consumer_b_id.as_str(),
+                consumer_b_shared.clone(),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("scoped provider bindings");
+
+    let consumer_a_shared_binding = composition
+        .resolved_binding(&consumer_a_id, &shared_contract_id)
+        .expect("consumer A shared binding");
+    let consumer_a_other_binding = composition
+        .resolved_binding(&consumer_a_id, consumer_a_other.id())
+        .expect("consumer A other binding");
+    let consumer_b_shared_binding = composition
+        .resolved_binding(&consumer_b_id, &shared_contract_id)
+        .expect("consumer B shared binding");
+
+    assert_eq!(consumer_a_shared_binding.provider(), &provider_v1_id);
+    assert_eq!(
+        consumer_a_shared_binding.requirement(),
+        consumer_a_shared.declaration()
+    );
+    assert_eq!(consumer_a_other_binding.provider(), &provider_other_id);
+    assert_eq!(
+        consumer_a_other_binding.requirement(),
+        consumer_a_other.declaration()
+    );
+    assert_eq!(consumer_b_shared_binding.provider(), &provider_v2_id);
+    assert_eq!(
+        consumer_b_shared_binding.requirement(),
+        consumer_b_shared.declaration()
+    );
+}
+
+#[test]
+fn resolved_provider_binding_view_is_stable_across_materialization() {
+    let recorder = Recorder::new();
+    let contract_id = ContractId::new("fabric.test.resolved-binding.materialization".to_owned())
+        .expect("contract id");
+    let consumer_id = ModuleId::new("fabric.test.resolved-binding.runtime-consumer".to_owned())
+        .expect("consumer id");
+    let provider_id = ModuleId::new("fabric.test.resolved-binding.runtime-provider".to_owned())
+        .expect("provider id");
+    let provider_key = ContractKey::<TestContract>::provisional(contract_id.clone());
+    let requirement = ContractRequirement::<TestContract>::provisional(contract_id.clone());
+    let composition = CompositionBuilder::new(
+        CompositionId::new("fabric.test.resolved-binding.materialization".to_owned())
+            .expect("composition id"),
+    )
+    .register_block(
+        BlockBuilder::new(BlockId::new("resolved-binding-runtime".to_owned()).expect("block id"))
+            .register_module(TestProvider::new(
+                provider_id.as_str(),
+                provider_key.clone(),
+                Arc::clone(&recorder),
+            ))
+            .register_module(TestConsumer::new(
+                consumer_id.as_str(),
+                requirement.clone(),
+                Arc::clone(&recorder),
+            ))
+            .build(),
+    )
+    .build()
+    .expect("runtime provider binding");
+
+    let before = composition
+        .resolved_binding(&consumer_id, &contract_id)
+        .expect("binding before materialization");
+    assert_eq!(before.consumer(), &consumer_id);
+    assert_eq!(before.requirement(), requirement.declaration());
+    assert_eq!(before.provider(), &provider_id);
+    assert_eq!(before.provided(), &provider_key.declaration());
+
+    let mut instance = materialize_test_instance(
+        &composition,
+        "fabric.test.resolved-binding.materialization.instance",
+    )
+    .expect("materialize instance");
+    instance.start().expect("start instance");
+    instance.stop().expect("stop instance");
+
+    let after = composition
+        .resolved_binding(&consumer_id, &contract_id)
+        .expect("binding after materialization");
+    assert_eq!(after.consumer(), before.consumer());
+    assert_eq!(after.requirement(), before.requirement());
+    assert_eq!(after.provider(), before.provider());
+    assert_eq!(after.provided(), before.provided());
 }
 
 #[test]

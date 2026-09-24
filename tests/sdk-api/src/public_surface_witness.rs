@@ -37,13 +37,14 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
 #[test]
 fn raw_capabilities_remain_available_through_named_sdk_modules() {
     use fabric::component::invocation::{InvocationRail, OperationRail};
-    use fabric::core::{Module, ModuleBindings, ModuleRuntime};
+    use fabric::core::{Module, ModuleBindings, ModuleRuntime, ResolvedProviderBinding};
 
     let _: Option<InvocationRail> = None;
     let _: Option<OperationRail> = None;
     let _: Option<Box<dyn Module>> = None;
     let _: Option<Box<dyn ModuleRuntime>> = None;
     let _: Option<ModuleBindings> = None;
+    let _: Option<ResolvedProviderBinding<'_>> = None;
 }
 
 #[test]

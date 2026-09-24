@@ -64,6 +64,38 @@ pub struct Composition {
     resolution: CompositionResolution,
 }
 
+/// Immutable build-time Core truth for one resolved provider binding.
+///
+/// [`ContractProviderSelection`] is authored selection input.
+/// `ResolvedProviderBinding` is the actual successfully resolved Composition
+/// truth frozen by `CompositionBuilder::build`. It is structural Core truth,
+/// not higher-level semantic inspection.
+#[derive(Clone, Copy, Debug)]
+pub struct ResolvedProviderBinding<'a> {
+    consumer: &'a ModuleId,
+    requirement: &'a ContractRequirementDeclaration,
+    provider: &'a ModuleId,
+    provided: &'a ProvidedContractDeclaration,
+}
+
+impl<'a> ResolvedProviderBinding<'a> {
+    pub fn consumer(&self) -> &'a ModuleId {
+        self.consumer
+    }
+
+    pub fn requirement(&self) -> &'a ContractRequirementDeclaration {
+        self.requirement
+    }
+
+    pub fn provider(&self) -> &'a ModuleId {
+        self.provider
+    }
+
+    pub fn provided(&self) -> &'a ProvidedContractDeclaration {
+        self.provided
+    }
+}
+
 impl std::fmt::Debug for Composition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Composition")
@@ -123,6 +155,37 @@ impl Composition {
 
     pub fn exports(&self) -> &[CompositionExportDeclaration] {
         &self.exports
+    }
+
+    /// Returns the frozen provider selected for a consumer requirement.
+    ///
+    /// This is a read-only view over immutable build-time resolution. It does
+    /// not recalculate provider selection, inspect runtime values, or
+    /// materialize modules. `None` means that no resolved provider binding
+    /// exists for this `(consumer, contract)` key, including absent optional
+    /// requirements and unknown lookups.
+    pub fn resolved_binding(
+        &self,
+        consumer: &ModuleId,
+        contract_id: &ContractId,
+    ) -> Option<ResolvedProviderBinding<'_>> {
+        let declaration = self
+            .resolution
+            .declarations
+            .iter()
+            .find(|declaration| declaration.module_id() == consumer)?;
+        let requirement = declaration
+            .required_contracts()
+            .iter()
+            .chain(declaration.optional_contracts())
+            .find(|requirement| requirement.id() == contract_id)?;
+        let binding = self.resolution.bindings.get(consumer)?.get(contract_id)?;
+        Some(ResolvedProviderBinding {
+            consumer: declaration.module_id(),
+            requirement,
+            provider: &binding.provider,
+            provided: &binding.declaration,
+        })
     }
 
     pub fn materialize(&self, instance_id: InstanceId) -> Result<Instance, CompositionError> {

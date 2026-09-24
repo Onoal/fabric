@@ -35,6 +35,7 @@ mod tests;
 pub use block::{Block, BlockBuilder, BlockReport, ModuleReport};
 pub use composition::{
     Composition, CompositionBuilder, ContractProviderSelection, ModuleBindings, ResolvedContract,
+    ResolvedProviderBinding,
 };
 pub use contract::{
     ContractCompatibilityRequirement, ContractIdentity, ContractKey, ContractRequirement,

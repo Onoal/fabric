@@ -47,6 +47,12 @@ fn adapter_definition_identity_stays_off_normal_surfaces() {
 }
 
 #[test]
+fn resolved_provider_binding_view_stays_off_normal_surfaces() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/resolved_provider_binding_not_normal_surface.rs");
+}
+
+#[test]
 fn adapter_definition_identity_is_required_and_validated() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/ui/adapter_missing_id.rs");

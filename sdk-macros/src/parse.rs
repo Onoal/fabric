@@ -367,6 +367,7 @@ impl Parse for AdapterInput {
         let content;
         braced!(content in input);
 
+        let mut adapter_id = None;
         let mut schema = None;
         let mut config = None;
         let mut relations = None;
@@ -376,7 +377,15 @@ impl Parse for AdapterInput {
         let mut lifecycle = None;
 
         while !content.is_empty() {
-            if content.peek(kw::schema) {
+            if content.peek(kw::id) {
+                content.parse::<kw::id>()?;
+                content.parse::<Token![:]>()?;
+                if adapter_id.is_some() {
+                    return Err(content.error("adapter! supports only one `id: ...;` declaration"));
+                }
+                adapter_id = Some(content.parse::<LitStr>()?);
+                content.parse::<Token![;]>()?;
+            } else if content.peek(kw::schema) {
                 content.parse::<kw::schema>()?;
                 return Err(content.error(
                     "`schema: ...;` was removed from adapter! in Fabric 0.5; use `supports: ...;` for an explicit compatibility override",
@@ -475,6 +484,16 @@ impl Parse for AdapterInput {
         Ok(Self {
             visibility,
             name,
+            adapter_id: {
+                let adapter_id = adapter_id.ok_or_else(|| {
+                    Error::new(
+                        name_for_errors.span(),
+                        "adapter! requires an `id: ...;` declaration",
+                    )
+                })?;
+                validate_adapter_definition_id(&adapter_id)?;
+                adapter_id
+            },
             target,
             schema,
             config: config.unwrap_or(ConfigDefinition::None),
@@ -888,6 +907,26 @@ fn validate_differential_realization(
         }
     }
     Ok(())
+}
+
+fn validate_adapter_definition_id(adapter_id: &LitStr) -> Result<()> {
+    let value = adapter_id.value();
+    let valid = !value.is_empty()
+        && value.len() <= 128
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, 46 | 45 | 95)
+        })
+        && !value.as_bytes().starts_with(&[46])
+        && !value.as_bytes().ends_with(&[46])
+        && !value.as_bytes().windows(2).any(|window| window == [46, 46]);
+    if valid {
+        Ok(())
+    } else {
+        Err(Error::new(
+            adapter_id.span(),
+            "adapter! `id` must be a non-empty stable key of lowercase ASCII letters, digits, `.`, `-`, or `_` (maximum 128 characters)",
+        ))
+    }
 }
 
 fn parse_requirement_literal(input: ParseStream<'_>) -> Result<RequirementLiteral> {

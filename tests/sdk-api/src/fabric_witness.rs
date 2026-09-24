@@ -120,6 +120,11 @@ struct AlternateGatewayAdapter {
 }
 
 impl AdapterDefinition for PingoraAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.pingora-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Gateway;
     type Compatibility = ComponentId;
     fn compatibility(&self) -> ComponentId {
@@ -145,6 +150,11 @@ impl AdapterDefinition for PingoraAdapter {
 }
 
 impl AdapterDefinition for AlternateGatewayAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.alternate-gateway-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Gateway;
     type Compatibility = ComponentId;
     fn compatibility(&self) -> ComponentId {

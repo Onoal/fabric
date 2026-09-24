@@ -481,6 +481,11 @@ fn typed_requires_clock_still_preserves_fx5_requirement_declaration_integrity() 
 struct IncompatibleClockSchema;
 
 impl AdapterDefinition for IncompatibleClockSchema {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.incompatible-clock-schema")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 
@@ -531,6 +536,11 @@ impl AlternateClockAdapter {
 }
 
 impl AdapterDefinition for AlternateClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.alternate-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 
@@ -559,6 +569,11 @@ impl AdapterDefinition for AlternateClockAdapter {
 struct WrongVersionClockAdapter;
 
 impl AdapterDefinition for WrongVersionClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.wrong-version-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 
@@ -593,6 +608,11 @@ impl AdapterDefinition for WrongVersionClockAdapter {
 struct MissingContractClockAdapter;
 
 impl AdapterDefinition for MissingContractClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.missing-contract-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 

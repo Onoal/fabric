@@ -11,6 +11,7 @@ fabric::resource! {
 
 fabric::adapter! {
     pub MemoryStore for Store {
+        id: "test.memory-store";
         runtime { fn count(&self) -> usize { 7 } }
     }
 }

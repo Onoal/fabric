@@ -20,6 +20,7 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
     let sdk = fabric_path();
     let visibility = &input.visibility;
     let adapter_name = &input.name;
+    let adapter_id = &input.adapter_id;
     let config_name = format_ident!("{}Config", adapter_name);
     let config_ty = config_type_tokens(&input.config, &config_name);
     let config_definition =
@@ -199,6 +200,11 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         impl #sdk::authoring::AdapterDefinition for #adapter_name {
             type Target = #target;
             type Compatibility = #sdk::authoring::CanonicalAdapterSupport<#target>;
+
+            fn adapter_definition_id(&self) -> #sdk::authoring::AdapterDefinitionId {
+                #sdk::authoring::AdapterDefinitionId::new(#adapter_id)
+                    .expect("adapter! generated a valid static Adapter definition ID")
+            }
 
             fn compatibility(&self) -> Self::Compatibility {
                 #support

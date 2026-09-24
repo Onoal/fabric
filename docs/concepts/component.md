@@ -167,6 +167,7 @@ authoring uses the same participation realization boundary:
 ```rust
 adapter! {
     RemoteNotesIndexer for NotesIndexer {
+        id: "docs.remote-notes-indexer";
         config { endpoint: Url; }
         runtime {
             fn index(&self, note: Note) -> IndexResult { /* ... */ }

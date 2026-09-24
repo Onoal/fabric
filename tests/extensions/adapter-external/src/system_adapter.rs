@@ -2,6 +2,7 @@ use fabric_test_system_operations::{AdaptedOperations as ExternalOperations, Ope
 
 fabric::adapter! {
     pub ExternalOperationsAdapter for ExternalOperations {
+        id: "test.external-operations-adapter";
 
         config {
             value: u64;
@@ -17,6 +18,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub ExternalOperationsWithSystemAdapter for ExternalOperations {
+        id: "test.external-operations-with-system-adapter";
 
         config {
             offset: u64;

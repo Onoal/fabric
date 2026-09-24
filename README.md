@@ -68,6 +68,7 @@ fabric::resource! {
 
 fabric::adapter! {
     MemoryStore for Store {
+        id: "docs.memory-store";
         runtime {
             fn get(&self, _key: String) -> Option<String> { None }
         }

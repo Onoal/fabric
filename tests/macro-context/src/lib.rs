@@ -94,6 +94,7 @@ resource! {
 
 adapter! {
     pub RootStatefulStore for RootVersionedStore {
+        id: "test.root-stateful-store";
 
         state {
             RootStoreState = RootStoreState;

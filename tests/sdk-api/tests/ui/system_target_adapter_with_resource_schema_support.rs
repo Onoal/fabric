@@ -6,6 +6,11 @@ use fabric_test_system_operations::{AdaptedOperations, AdaptedOperationsConfig};
 struct WrongSchemaSupportSystemAdapter;
 
 impl AdapterDefinition for WrongSchemaSupportSystemAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.wrong-schema-support-system-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = AdaptedOperations;
     type Compatibility = AdapterResourceSchemaSupport;
 

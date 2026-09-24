@@ -9,6 +9,7 @@ component! {
 
 adapter! {
     Incomplete for Target {
+        id: "test.incomplete";
         runtime { prepare { Ok(()) } }
     }
 }

@@ -6,6 +6,11 @@ use fabric_test_resource_clock::{Clock, ClockConfig};
 struct WrongSchemaSupportClockAdapter;
 
 impl AdapterDefinition for WrongSchemaSupportClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.wrong-schema-support-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterSystemSchemaSupport;
 

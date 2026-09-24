@@ -148,6 +148,7 @@ the Adapter names the target once:
 ```rust
 fabric::adapter! {
     ExampleAdapter for ExampleResource {
+        id: "docs.example-adapter";
         // optional typed Config and implementation of ExampleResource's API
     }
 }

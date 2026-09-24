@@ -66,6 +66,7 @@ struct LocalStoreConfig { backend: Backend }
 
 fabric::adapter! {
     LocalStore for Store {
+        id: "docs.local-store";
         config: LocalStoreConfig;
         runtime { /* Store API methods use self.config() */ }
     }

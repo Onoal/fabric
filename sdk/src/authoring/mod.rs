@@ -13,10 +13,10 @@ pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
 pub use definitions::{
     AdaptableComponentDefinition, AdaptableResourceDefinition, AdapterBridgeMode,
-    AdapterDefinition, AdapterProviderModule, CanonicalAdapterSupport,
-    CanonicalComponentAdapterRuntime, ComponentAdapterCompatibility, ComponentAdapterTarget,
-    ComponentAugmentation, ComponentAugmentationDefinition, ComponentAugmentationRealization,
-    ComponentAugmentationRequirement, ComponentAugmentationSet,
+    AdapterDefinition, AdapterDefinitionId, AdapterDefinitionIdError, AdapterProviderModule,
+    CanonicalAdapterSupport, CanonicalComponentAdapterRuntime, ComponentAdapterCompatibility,
+    ComponentAdapterTarget, ComponentAugmentation, ComponentAugmentationDefinition,
+    ComponentAugmentationRealization, ComponentAugmentationRequirement, ComponentAugmentationSet,
     ComponentAugmentationSetAdapterRealization, ComponentAugmentationSetAttachment,
     ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
     ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,

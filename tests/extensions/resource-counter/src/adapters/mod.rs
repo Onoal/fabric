@@ -8,6 +8,7 @@ use crate::CounterValue;
 
 fabric::adapter! {
     pub FixedCounterAdapter for crate::AdaptedCounter {
+        id: "test.fixed-counter-adapter";
 
         config {
             value: u64;
@@ -23,6 +24,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub IncompatibleSchemaCounterAdapter for crate::AdaptedCounter {
+        id: "test.incompatible-schema-counter-adapter";
         supports: "^9";
 
         config {
@@ -39,6 +41,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub WrongVersionCounterAdapter for crate::AdaptedCounter {
+        id: "test.wrong-version-counter-adapter";
 
         config {
             value: u64;
@@ -68,6 +71,11 @@ impl Default for MissingContractCounterAdapter {
 }
 
 impl AdapterDefinition for MissingContractCounterAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.missing-contract-counter-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = crate::AdaptedCounter;
     type Compatibility = AdapterResourceSchemaSupport;
 

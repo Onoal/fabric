@@ -1,0 +1,5 @@
+error: adapter! `id` must be a non-empty stable key of lowercase ASCII letters, digits, `.`, `-`, or `_` (maximum 128 characters)
+  --> tests/ui/adapter_malformed_id.rs:12:13
+   |
+12 |         id: "Invalid Identity";
+   |             ^^^^^^^^^^^^^^^^^^

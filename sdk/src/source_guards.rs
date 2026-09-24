@@ -253,6 +253,12 @@ fn resource_selection_owns_total_module_id_derivation() {
             .expect("read adapter definition");
     let definitions = fs::read_to_string(crate_root().join("src/authoring/definitions/mod.rs"))
         .expect("read definitions mod");
+    let adapter_provider_module = fs::read_to_string(
+        crate_root().join("src/authoring/definitions/adapter_provider_module.rs"),
+    )
+    .expect("read adapter provider module");
+    let lib = fs::read_to_string(crate_root().join("src/lib.rs")).expect("read SDK root");
+    let prelude = fs::read_to_string(crate_root().join("src/prelude.rs")).expect("read prelude");
     let resource_selection =
         fs::read_to_string(crate_root().join("src/authoring/definitions/resource_selection.rs"))
             .expect("read resource selection");
@@ -314,6 +320,18 @@ fn resource_selection_owns_total_module_id_derivation() {
     assert!(
         adapter_definition.contains("type Compatibility: Clone + Send + Sync + 'static;"),
         "AdapterDefinition must own an explicit target-scoped compatibility type"
+    );
+    assert!(
+        adapter_definition.contains("fn adapter_definition_id(&self) -> AdapterDefinitionId;"),
+        "AdapterDefinition must require an explicit stable definition identity"
+    );
+    assert!(
+        !prelude.contains("AdapterDefinitionId") && !lib.contains("AdapterDefinitionId"),
+        "AdapterDefinitionId must stay off the normal root and prelude surfaces"
+    );
+    assert!(
+        !adapter_provider_module.contains("adapter_definition_id"),
+        "AdapterDefinitionId must not alter provider ModuleId lowering or Core structural identity"
     );
     assert!(
         !adapter_definition.contains("adapter_handle"),
@@ -773,7 +791,9 @@ fn sdk_exposes_a_curated_generic_system_surface() {
         "fabric should expose a dedicated generic adapter facade"
     );
     assert!(
-        adapter.contains("pub use crate::authoring::{AdapterDefinition, AdapterProviderModule};"),
+        adapter.contains("AdapterDefinition")
+            && adapter.contains("AdapterDefinitionId")
+            && adapter.contains("AdapterProviderModule"),
         "sdk adapter facade should re-export the target-neutral adapter authoring surface"
     );
     assert!(

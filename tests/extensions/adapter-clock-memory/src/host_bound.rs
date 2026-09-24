@@ -20,6 +20,11 @@ impl HostBoundClockAdapter {
 }
 
 impl AdapterDefinition for HostBoundClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.host-bound-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 

@@ -6,7 +6,7 @@ use fabric_core::{
 };
 use fabric_host::HostRequirement;
 
-use super::AdapterDefinition;
+use super::{AdapterDefinition, AdapterDefinitionId};
 
 /// Shared, occurrence-local state for normal Fabric runtime authoring.
 ///
@@ -242,6 +242,7 @@ pub struct StatefulAdapterDefinition<Target, Compatibility, State, Contract>
 where
     Contract: Send + Sync + 'static,
 {
+    adapter_definition_id: AdapterDefinitionId,
     compatibility: Compatibility,
     host_requirement: HostRequirement,
     contract: ContractKey<Contract>,
@@ -257,6 +258,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
+            adapter_definition_id: self.adapter_definition_id.clone(),
             compatibility: self.compatibility.clone(),
             host_requirement: self.host_requirement.clone(),
             contract: self.contract.clone(),
@@ -274,12 +276,14 @@ where
     Contract: Clone + Send + Sync + 'static,
 {
     pub fn new(
+        adapter_definition_id: AdapterDefinitionId,
         compatibility: Compatibility,
         host_requirement: HostRequirement,
         contract: ContractKey<Contract>,
         runtime: StatefulRuntimeAuthoring<State, Contract>,
     ) -> Self {
         Self {
+            adapter_definition_id,
             compatibility,
             host_requirement,
             contract,
@@ -299,6 +303,10 @@ where
 {
     type Target = Target;
     type Compatibility = Compatibility;
+
+    fn adapter_definition_id(&self) -> AdapterDefinitionId {
+        self.adapter_definition_id.clone()
+    }
 
     fn compatibility(&self) -> Self::Compatibility {
         self.compatibility.clone()
@@ -382,5 +390,46 @@ where
 
     fn health(&self) -> Health {
         (self.health)(&self.state, &self.context)
+    }
+}
+
+#[cfg(test)]
+mod stateful_adapter_definition_tests {
+    use super::{StatefulAdapterDefinition, StatefulRuntimeAuthoring};
+    use crate::authoring::{AdapterDefinition, AdapterDefinitionId};
+    use fabric_core::{ContractId, ContractKey};
+    use fabric_host::HostRequirement;
+
+    #[test]
+    fn stores_explicit_identity_without_deriving_it_from_generic_types() {
+        let runtime = || StatefulRuntimeAuthoring::new(|| 0usize, |_| 0usize);
+        let contract = || {
+            ContractKey::provisional(
+                ContractId::new("fabric.test.stateful-adapter-definition").expect("contract ID"),
+            )
+        };
+        let first = StatefulAdapterDefinition::<(), (), usize, usize>::new(
+            AdapterDefinitionId::new("test.stateful.first").expect("definition ID"),
+            (),
+            HostRequirement::new(),
+            contract(),
+            runtime(),
+        );
+        let second = StatefulAdapterDefinition::<(), (), usize, usize>::new(
+            AdapterDefinitionId::new("test.stateful.second").expect("definition ID"),
+            (),
+            HostRequirement::new(),
+            contract(),
+            runtime(),
+        );
+
+        assert_eq!(
+            first.adapter_definition_id().as_str(),
+            "test.stateful.first"
+        );
+        assert_eq!(
+            second.adapter_definition_id().as_str(),
+            "test.stateful.second"
+        );
     }
 }

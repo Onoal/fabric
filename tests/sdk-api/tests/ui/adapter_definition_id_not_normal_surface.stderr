@@ -1,0 +1,11 @@
+error[E0432]: unresolved import `fabric::AdapterDefinitionId`
+ --> tests/ui/adapter_definition_id_not_normal_surface.rs:1:5
+  |
+1 | use fabric::AdapterDefinitionId;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `AdapterDefinitionId` in the root
+
+error[E0432]: unresolved import `fabric::prelude::AdapterDefinitionId`
+ --> tests/ui/adapter_definition_id_not_normal_surface.rs:2:5
+  |
+2 | use fabric::prelude::AdapterDefinitionId as PreludeAdapterDefinitionId;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `AdapterDefinitionId` in `prelude`

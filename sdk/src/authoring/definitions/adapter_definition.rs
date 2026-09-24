@@ -1,3 +1,4 @@
+use std::fmt;
 use std::marker::PhantomData;
 
 use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
@@ -13,6 +14,55 @@ use fabric_system::{
 
 use crate::authoring::ComponentDefinition;
 use fabric_component::{ComponentError, ComponentParticipationScope};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AdapterDefinitionIdError;
+
+impl fmt::Display for AdapterDefinitionIdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Adapter definition ID must be a non-empty stable key")
+    }
+}
+
+impl std::error::Error for AdapterDefinitionIdError {}
+
+/// Stable machine identity for one concrete Adapter realization definition.
+///
+/// It identifies neither a configured Adapter value, a Core provider module,
+/// a live runtime occurrence, nor the semantic target it realizes.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AdapterDefinitionId(String);
+
+impl AdapterDefinitionId {
+    pub fn new(value: impl Into<String>) -> Result<Self, AdapterDefinitionIdError> {
+        let value = value.into();
+        let valid = !value.is_empty()
+            && value.len() <= 128
+            && value.bytes().all(|byte| {
+                byte.is_ascii_lowercase()
+                    || byte.is_ascii_digit()
+                    || matches!(byte, b'.' | b'-' | b'_')
+            })
+            && !value.starts_with('.')
+            && !value.ends_with('.')
+            && !value.contains("..");
+        if valid {
+            Ok(Self(value))
+        } else {
+            Err(AdapterDefinitionIdError)
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for AdapterDefinitionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 /// Target-owned context needed only when a canonical Adapter realizes a
 /// Component participation. Resource and System targets provide an empty
@@ -278,6 +328,8 @@ pub trait AdapterDefinition: Clone + Send + Sync + 'static {
     type Target: Send + Sync + 'static;
     type Compatibility: Clone + Send + Sync + 'static;
 
+    fn adapter_definition_id(&self) -> AdapterDefinitionId;
+
     fn compatibility(&self) -> Self::Compatibility;
 
     #[doc(hidden)]
@@ -294,5 +346,48 @@ pub trait AdapterDefinition: Clone + Send + Sync + 'static {
     fn materialize_provider(&self, provider_module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         let _ = provider_module_id;
         None
+    }
+}
+
+#[cfg(test)]
+mod adapter_definition_id_tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    use super::AdapterDefinitionId;
+
+    #[test]
+    fn accepts_and_orders_stable_definition_ids() {
+        let first = AdapterDefinitionId::new("example.memory-store").expect("valid ID");
+        let same = AdapterDefinitionId::new("example.memory-store").expect("valid ID");
+        let later = AdapterDefinitionId::new("example.postgres-store").expect("valid ID");
+
+        assert_eq!(first.as_str(), "example.memory-store");
+        assert_eq!(first.to_string(), "example.memory-store");
+        assert_eq!(first, same);
+        assert!(first < later);
+
+        let mut first_hasher = DefaultHasher::new();
+        first.hash(&mut first_hasher);
+        let mut same_hasher = DefaultHasher::new();
+        same.hash(&mut same_hasher);
+        assert_eq!(first_hasher.finish(), same_hasher.finish());
+    }
+
+    #[test]
+    fn rejects_non_stable_definition_id_forms() {
+        for invalid in [
+            "",
+            ".leading",
+            "trailing.",
+            "double..dot",
+            "Uppercase",
+            "space value",
+        ] {
+            assert!(
+                AdapterDefinitionId::new(invalid).is_err(),
+                "{invalid:?} must be rejected"
+            );
+        }
     }
 }

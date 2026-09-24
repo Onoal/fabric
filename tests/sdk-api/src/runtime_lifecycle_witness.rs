@@ -99,6 +99,7 @@ fabric::system! {
 // this authoring names neither `resource`/`system` nor a generated interface.
 fabric::adapter! {
     CanonicalResourceAdapter for CanonicalAdapterResource {
+        id: "test.canonical-resource-adapter";
         config {
             events: Arc<Mutex<Vec<String>>>;
         }
@@ -139,6 +140,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     CanonicalConfiguredAdapter for CanonicalConfiguredResource {
+        id: "test.canonical-configured-adapter";
         config {
             prefix: String;
         }
@@ -177,6 +179,7 @@ fabric::resource! {
 
 fabric::adapter! {
     DifferentialDocumentAdapter for DifferentialDocumentStore {
+        id: "test.differential-document-adapter";
         runtime {
             fn write(&self, _key: String, value: String) -> usize { value.len() }
             fn read_bytes(&self, key: String) -> Vec<u8> { key.into_bytes() }
@@ -200,6 +203,7 @@ fabric::system! {
 
 fabric::adapter! {
     DifferentialClockAdapter for DifferentialClock {
+        id: "test.differential-clock-adapter";
         runtime {
             fn label(&self) -> String { "direct".to_owned() }
             fn raw_now(&self) -> u64 { 41 }
@@ -421,6 +425,7 @@ impl Module for CanonicalAdapterConsumerModule {
 
 fabric::adapter! {
     CanonicalSystemAdapter for CanonicalAdapterSystem {
+        id: "test.canonical-system-adapter";
         runtime {
             fn now(&self) -> usize {
                 42
@@ -593,6 +598,7 @@ fn adapter_host_facility() -> HostFacilityId {
 
 fabric::adapter! {
     StatefulFixtureResourceAdapter for AdaptedFixtureResource {
+        id: "test.stateful-fixture-resource-adapter";
 
         config {
             fixture: FixtureConfig;
@@ -643,6 +649,7 @@ fabric::system! {
 
 fabric::adapter! {
     StatefulFixtureSystemAdapter for AdaptedFixtureSystem {
+        id: "test.stateful-fixture-system-adapter";
 
         config {
             fixture: FixtureConfig;
@@ -1153,4 +1160,89 @@ fn stateful_system_adapter_binds_declared_system_dependencies() {
             .iter()
             .any(|event| event == "system-adapter.stop")
     );
+}
+
+fabric::adapter! {
+    RenamedIdentityWitness for CanonicalAdapterResource {
+        id: "test.explicit-name-independent";
+        runtime {
+            fn read(&self) -> usize { 7 }
+        }
+    }
+}
+
+#[test]
+fn adapter_definition_identity_is_explicit_and_config_independent() {
+    let first = CanonicalConfiguredAdapter::new(CanonicalConfiguredAdapterConfig {
+        prefix: "first".to_owned(),
+    });
+    let second = CanonicalConfiguredAdapter::new(CanonicalConfiguredAdapterConfig {
+        prefix: "second".to_owned(),
+    });
+
+    assert_eq!(
+        first.adapter_definition_id(),
+        second.adapter_definition_id(),
+        "Adapter Config must not alter definition identity",
+    );
+    assert_eq!(
+        first.adapter_definition_id().as_str(),
+        "test.canonical-configured-adapter",
+    );
+    assert_eq!(
+        RenamedIdentityWitness::new()
+            .adapter_definition_id()
+            .as_str(),
+        "test.explicit-name-independent",
+        "macro identity must come from id:, not its Rust type name",
+    );
+}
+
+#[test]
+fn one_adapter_definition_reuses_its_identity_across_resource_occurrences() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let primary = CanonicalResourceAdapter::new(CanonicalResourceAdapterConfig {
+        events: Arc::clone(&events),
+    });
+    let archive = CanonicalResourceAdapter::new(CanonicalResourceAdapterConfig { events });
+    assert_eq!(
+        primary.adapter_definition_id(),
+        archive.adapter_definition_id()
+    );
+
+    let composition = Fabric::new("fabric.test.lifecycle.adapter-identity-occurrences")
+        .expect("fabric")
+        .resource(
+            CanonicalAdapterResource::select("primary")
+                .expect("primary selection")
+                .using(primary)
+                .expect("primary Adapter"),
+        )
+        .resource(
+            CanonicalAdapterResource::select("archive")
+                .expect("archive selection")
+                .using(archive)
+                .expect("archive Adapter"),
+        )
+        .build()
+        .expect("composition");
+
+    let module_ids = composition
+        .manifest()
+        .diagnostics()
+        .module_declarations()
+        .iter()
+        .map(|declaration| declaration.module_id().clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        module_ids.len(),
+        2,
+        "each semantic occurrence retains its provider ModuleId"
+    );
+
+    let mut instance = composition
+        .materialize_named_on("adapter-identity-occurrences", &host())
+        .expect("materialize");
+    instance.start().expect("start");
+    instance.stop().expect("stop");
 }

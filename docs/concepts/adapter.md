@@ -12,9 +12,12 @@ Adapter = one concrete realization of one Component, Resource, or System target
 
 ## Target, Config, and semantic API bridge
 
-Every `AdapterDefinition` has one explicit `Target`: the Component, Resource,
-or System definition it realizes. Its public responsibilities are `Target`,
-`Compatibility`, `compatibility()`, `host_requirement()`, declaration
+Every `AdapterDefinition` has one explicit `Target` and one explicit
+`AdapterDefinitionId`: the Component, Resource, or System definition it
+realizes. Canonical `adapter!` authoring requires `id: "...";`; this stable
+definition identity is authored independently of Rust type names and Adapter
+Config. Its public responsibilities are `Target`, `Compatibility`,
+`adapter_definition_id()`, `compatibility()`, `host_requirement()`, declaration
 construction, and optional provider-runtime materialization. `adapter!` is the
 normal ergonomic authoring form for Component, Resource, and System targets;
 handwritten `AdapterDefinition` remains the public advanced path when direct
@@ -23,6 +26,7 @@ macro lowering is insufficient.
 ```rust
 fabric::adapter! {
     pub LocalStoreAdapter for Store {
+        id: "docs.local-store-adapter";
         config { directory: String; }
         runtime {
             fn get(&self, key: String) -> Option<String> { let _ = key; None }
@@ -119,8 +123,9 @@ machinery.
 
 `AdapterProviderModule<A>` is Core-facing typed carrier machinery for the
 Adapter declaration, Host requirement, and optional provider runtime. Its
-derived `ModuleId` is not a universal Adapter identity. Fabric defines no
-`AdapterId`, global Adapter namespace, `all_adapters()`, or Adapter registry.
+derived `ModuleId` is not a universal Adapter identity.
+`AdapterDefinitionId` is a definition key, not a global Adapter namespace:
+Fabric defines no `all_adapters()` or Adapter registry.
 
 Compatibility is also not replacement safety. It establishes that a selected
 realization can bind or materialize in one Composition; it does not establish
@@ -170,6 +175,7 @@ state accidentally.
 ```rust
 fabric::adapter! {
     LocalStoreAdapter for Store {
+        id: "docs.local-store-adapter";
         config { directory: String; }
         state { LocalStoreState = LocalStoreState::new(config.directory.clone()); }
         runtime { /* realization methods can use self.state.get() */ }
@@ -196,11 +202,12 @@ tools, not a new semantic Fabric participant kind.
 
 ## Augmentation boundary
 
-Adapter openness does not require Adapter augmentation. An Adapter is an
-interchangeable realization relation, not a globally identified semantic
-subject: Fabric defines no `AdapterAugmentation`, `AdapterId`, or Adapter
-registry. An external semantic instead augments a selected Resource, System,
-or Component target, and independently authored support can compose around
+Adapter openness does not require Adapter augmentation. `AdapterDefinitionId`
+identifies one concrete realization definition, not a semantic participant
+subject, configured Adapter value, Core provider `ModuleId`, or live runtime
+occurrence. Fabric defines no `AdapterAugmentation`, global Adapter namespace,
+or Adapter registry. An external semantic instead augments a selected Resource,
+System, or Component target, and independently authored support can compose around
 that target's chosen realization when appropriate. Semantic-target
 augmentation is not Adapter-definition augmentation. See
 [Augmentation](augmentation.md).
@@ -214,6 +221,7 @@ selections; they are Resource occurrences, not globally registered Adapters.
 Likewise, separate Compositions can choose different Adapters for one System.
 
 ```text
+AdapterDefinitionId != Adapter Config, provider ModuleId, live runtime, or semantic target
 Adapter != Component/Resource/System: semantics versus implementation
 Adapter != Host: implementation versus environment compatibility
 Adapter != external service or infrastructure account

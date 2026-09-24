@@ -1,1 +1,3 @@
-pub use crate::authoring::{AdapterDefinition, AdapterProviderModule};
+pub use crate::authoring::{
+    AdapterDefinition, AdapterDefinitionId, AdapterDefinitionIdError, AdapterProviderModule,
+};

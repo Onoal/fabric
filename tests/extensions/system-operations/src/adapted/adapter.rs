@@ -6,6 +6,7 @@ use crate::{AdaptedOperations, adapted_operations_system_id};
 
 fabric::adapter! {
     pub FixedOperationsAdapter for crate::adapted::definition::AdaptedOperations {
+        id: "test.fixed-operations-adapter";
 
         config {
             value: u64;
@@ -21,6 +22,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub AlternateOperationsAdapter for crate::adapted::definition::AdaptedOperations {
+        id: "test.alternate-operations-adapter";
 
         config {
             value: u64;
@@ -36,6 +38,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub IncompatibleSchemaOperationsAdapter for crate::adapted::definition::AdaptedOperations {
+        id: "test.incompatible-schema-operations-adapter";
         supports: "^3";
 
         config {
@@ -52,6 +55,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub WrongVersionOperationsAdapter for crate::adapted::definition::AdaptedOperations {
+        id: "test.wrong-version-operations-adapter";
 
         config {
             value: u64;
@@ -81,6 +85,13 @@ impl Default for MissingContractOperationsAdapter {
 }
 
 impl AdapterDefinition for MissingContractOperationsAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new(
+            "test.manual.missing-contract-operations-adapter",
+        )
+        .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = AdaptedOperations;
     type Compatibility = AdapterSystemSchemaSupport;
 

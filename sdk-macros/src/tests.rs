@@ -212,12 +212,15 @@ fn adapter_macro_codegen_exposes_one_type_driven_canonical_path() {
     );
     assert!(
         ast.contains("pub struct AdapterInput")
+            && ast.contains("pub adapter_id: LitStr")
             && !ast.contains("AdapterTargetKind")
             && !ast.contains("realization_interface"),
         "adapter! should retain only the type-resolved target in its canonical AST"
     );
     assert!(
-        parse.contains("was removed in Fabric 0.5")
+        parse.contains("adapter! requires an `id: ...;` declaration")
+            && parse.contains("validate_adapter_definition_id")
+            && parse.contains("was removed in Fabric 0.5")
             && parse.contains("adapter! supports only one `relations { ... }` section")
             && parse.contains("target API is the realization contract"),
         "adapter! should reject removed target/interface ceremony with a direct migration"
@@ -230,7 +233,8 @@ fn adapter_macro_codegen_exposes_one_type_driven_canonical_path() {
         "adapter! validation should reject unsupported runtime syntax clearly"
     );
     assert!(
-        codegen.contains("type Target = #target;")
+        codegen.contains("AdapterDefinitionId::new(#adapter_id)")
+            && codegen.contains("type Target = #target;")
             && codegen.contains(
                 "type Compatibility = #sdk::authoring::CanonicalAdapterSupport<#target>;"
             )

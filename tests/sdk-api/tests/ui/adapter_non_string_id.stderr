@@ -1,0 +1,5 @@
+error: expected string literal
+  --> tests/ui/adapter_non_string_id.rs:12:13
+   |
+12 |         id: 42;
+   |             ^^

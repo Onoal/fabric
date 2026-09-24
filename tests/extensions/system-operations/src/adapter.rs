@@ -27,6 +27,11 @@ impl OperationsDrivenClockAdapter {
 }
 
 impl AdapterDefinition for OperationsDrivenClockAdapter {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.operations-driven-clock-adapter")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 

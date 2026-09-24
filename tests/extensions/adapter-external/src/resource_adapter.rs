@@ -8,6 +8,7 @@ pub fn external_counter_host_facility() -> HostFacilityId {
 
 fabric::adapter! {
     pub ExternalCounterAdapter for ExternalCounter {
+        id: "test.external-counter-adapter";
 
         config {
             value: u64;
@@ -23,6 +24,7 @@ fabric::adapter! {
 
 fabric::adapter! {
     pub HostBoundExternalCounterAdapter for ExternalCounter {
+        id: "test.host-bound-external-counter-adapter";
 
         config {
             value: u64;

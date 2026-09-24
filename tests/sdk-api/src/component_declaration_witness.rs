@@ -107,6 +107,7 @@ component! {
 
 adapter! {
     AdapterRealizedDeclarationMemory for AdapterRealizedDeclaration {
+        id: "test.adapter-realized-declaration-memory";
         config { suffix: String; }
         runtime {
             state { RuntimeState = RuntimeState::default(); }
@@ -136,6 +137,7 @@ component! {
 
 adapter! {
     AdapterParticipationAuditRuntime for AdapterParticipationAudit {
+        id: "test.adapter-participation-audit-runtime";
         config: AdapterParticipationConfig;
         relations {
             requires {
@@ -213,6 +215,7 @@ component! {
 
 adapter! {
     ReplacementAuditAdapter for ReplacementAudit {
+        id: "test.replacement-audit-adapter";
         config: ReplacementAdapterConfig;
         runtime {
             prepare {
@@ -250,12 +253,14 @@ use component_target_facade::ReexportedTarget as ImportedComponentTarget;
 
 adapter! {
     ImportedComponentTargetAdapter for ImportedComponentTarget {
+        id: "test.imported-component-target-adapter";
         runtime { fn source(&self) -> &'static str { "imported" } }
     }
 }
 
 adapter! {
     UnsupportedComponentAdapterSupport for AdapterPreparedAutonomous {
+        id: "test.unsupported-component-adapter-support";
         supports: provisional;
         runtime { prepare { Ok(()) } }
     }
@@ -269,6 +274,7 @@ component! {
 
 adapter! {
     AdapterPreparedAutonomousRuntime for AdapterPreparedAutonomous {
+        id: "test.adapter-prepared-autonomous-runtime";
         config: AdapterPreparationConfig;
         runtime {
             prepare {
@@ -290,6 +296,7 @@ component! {
 
 adapter! {
     DefaultOrAdapterExternal for DefaultOrAdapter {
+        id: "test.default-or-adapter-external";
         runtime { fn source(&self) -> &'static str { "adapter" } }
     }
 }

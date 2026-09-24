@@ -112,6 +112,7 @@ use fabric_test_macro_context::{
 
 adapter! {
     ExternalRootStore for RootVersionedStore {
+        id: "test.external-root-store";
         runtime {
             fn get(&self, key: RootKey) -> ImportedValue {
                 ImportedValue(key.0 + 1)
@@ -122,6 +123,7 @@ adapter! {
 
 adapter! {
     ImportedDifferentialStoreAdapter for ImportedDifferentialStore {
+        id: "test.imported-differential-store-adapter";
         runtime {
             fn write(&self, _key: u64, value: u64) -> u64 { value }
             fn read_raw(&self, key: u64) -> u64 { key }
@@ -131,6 +133,7 @@ adapter! {
 
 adapter! {
     ImportedDifferentialSystemAdapter for ImportedDifferentialSystem {
+        id: "test.imported-differential-system-adapter";
         runtime {
             fn label(&self) -> u64 { 7 }
             fn raw_now(&self) -> u64 { 41 }
@@ -140,6 +143,7 @@ adapter! {
 
 adapter! {
     ImportedStoreAdapter for ImportedStore {
+        id: "test.imported-store-adapter";
         runtime {
             fn get(&self) -> u64 { 17 }
         }
@@ -148,6 +152,7 @@ adapter! {
 
 adapter! {
     FullyQualifiedStoreAdapter for fabric_test_macro_context::ImportedCanonicalStore {
+        id: "test.fully-qualified-store-adapter";
         runtime {
             fn get(&self) -> u64 { 18 }
         }
@@ -156,6 +161,7 @@ adapter! {
 
 adapter! {
     ReexportedStoreAdapter for facade::ImportedCanonicalStore {
+        id: "test.reexported-store-adapter";
         runtime {
             fn get(&self) -> u64 { 19 }
         }
@@ -164,6 +170,7 @@ adapter! {
 
 adapter! {
     ImportedSystemAdapter for ImportedCanonicalSystem {
+        id: "test.imported-system-adapter";
         runtime {
             fn now(&self) -> u64 { 23 }
         }
@@ -176,6 +183,7 @@ mod nested_adapters {
 
     adapter! {
         pub NestedSystemAdapter for NestedSystem {
+            id: "test.nested-system-adapter";
             runtime {
                 fn now(&self) -> u64 { 29 }
             }
@@ -185,6 +193,7 @@ mod nested_adapters {
 
 adapter! {
     ExternalRootSystem for RootVersionedSystem {
+        id: "test.external-root-system";
         runtime {
             fn marker(&self) -> ImportedValue {
                 ImportedValue(7)

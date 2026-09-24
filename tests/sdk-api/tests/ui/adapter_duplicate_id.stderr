@@ -1,0 +1,5 @@
+error: adapter! supports only one `id: ...;` declaration
+  --> tests/ui/adapter_duplicate_id.rs:13:13
+   |
+13 |         id: "test.duplicate-two";
+   |             ^^^^^^^^^^^^^^^^^^^^

@@ -69,6 +69,11 @@ impl ClockRealization for MemoryClock {
 }
 
 impl AdapterDefinition for MemoryClock {
+    fn adapter_definition_id(&self) -> fabric::authoring::AdapterDefinitionId {
+        fabric::authoring::AdapterDefinitionId::new("test.manual.memory-clock")
+            .expect("static test Adapter definition ID is valid")
+    }
+
     type Target = Clock;
     type Compatibility = AdapterResourceSchemaSupport;
 

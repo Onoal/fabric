@@ -3,9 +3,10 @@ error[E0277]: expected a `Fn(&_)` closure, found `ComponentAdapterMissingApiMeth
    |
 10 | / adapter! {
 11 | |     Incomplete for Target {
-12 | |         runtime { prepare { Ok(()) } }
-13 | |     }
-14 | | }
+12 | |         id: "test.incomplete";
+13 | |         runtime { prepare { Ok(()) } }
+14 | |     }
+15 | | }
    | |_^ expected an `Fn(&_)` closure, found `ComponentAdapterMissingApiMethodPing`
    |
 help: the trait `for<'a> Fn(&'a _)` is not implemented for `ComponentAdapterMissingApiMethodPing`

@@ -37,6 +37,7 @@ pub struct SystemInput {
 pub struct AdapterInput {
     pub visibility: Visibility,
     pub name: Ident,
+    pub adapter_id: LitStr,
     pub target: Path,
     /// An explicit, advanced target-schema compatibility override.  When it
     /// is absent, adapter support is derived exactly from the target's schema.

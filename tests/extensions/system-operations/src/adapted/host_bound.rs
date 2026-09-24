@@ -7,6 +7,7 @@ pub fn host_bound_operations_facility() -> HostFacilityId {
 
 fabric::adapter! {
     pub HostBoundOperationsAdapter for crate::adapted::definition::AdaptedOperations {
+        id: "test.host-bound-operations-adapter";
 
         config {
             value: u64;

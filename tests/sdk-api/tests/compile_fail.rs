@@ -41,6 +41,21 @@ fn system_target_adapters_cannot_use_resource_schema_support() {
 }
 
 #[test]
+fn adapter_definition_identity_stays_off_normal_surfaces() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/adapter_definition_id_not_normal_surface.rs");
+}
+
+#[test]
+fn adapter_definition_identity_is_required_and_validated() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/adapter_missing_id.rs");
+    cases.compile_fail("tests/ui/adapter_duplicate_id.rs");
+    cases.compile_fail("tests/ui/adapter_malformed_id.rs");
+    cases.compile_fail("tests/ui/adapter_non_string_id.rs");
+}
+
+#[test]
 fn canonical_component_runtime_contract_errors_are_diagnostic() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/ui/component_runtime_*.rs");

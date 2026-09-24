@@ -1,0 +1,5 @@
+error: adapter! requires an `id: ...;` declaration
+  --> tests/ui/adapter_missing_id.rs:11:5
+   |
+11 |     MissingId for Store {
+   |     ^^^^^^^^^

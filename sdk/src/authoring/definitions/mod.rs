@@ -12,9 +12,9 @@ mod resource_realization;
 mod resource_selection;
 
 pub use adapter_definition::{
-    AdapterBridgeMode, AdapterDefinition, CanonicalAdapterSupport,
-    CanonicalComponentAdapterRuntime, ComponentAdapterCompatibility, ComponentAdapterTarget,
-    ResourceAdapterCompatibility, SystemAdapterCompatibility,
+    AdapterBridgeMode, AdapterDefinition, AdapterDefinitionId, AdapterDefinitionIdError,
+    CanonicalAdapterSupport, CanonicalComponentAdapterRuntime, ComponentAdapterCompatibility,
+    ComponentAdapterTarget, ResourceAdapterCompatibility, SystemAdapterCompatibility,
 };
 pub use adapter_provider_module::AdapterProviderModule;
 pub use component_augmentation::{

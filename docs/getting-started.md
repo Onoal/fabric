@@ -28,6 +28,7 @@ Resource forwarding method to write.
 ```rust
 fabric::adapter! {
     pub MemoryStore for Store {
+        id: "docs.memory-store";
         runtime { fn count(&self) -> usize { 7 } }
     }
 }

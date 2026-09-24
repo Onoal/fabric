@@ -45,6 +45,7 @@ fabric::resource! {
 
 fabric::adapter! {
     pub ExternalCanonicalStoreAdapter for ExternalCanonicalStore {
+        id: "test.external-canonical-store-adapter";
         runtime {
             fn count(&self) -> usize { 7 }
         }
@@ -178,6 +179,7 @@ fabric::resource! {
 
 fabric::adapter! {
     LocalKeyValue for ConfiguredKeyValue {
+        id: "test.local-key-value";
         config: LocalKeyValueConfig;
 
         runtime {
@@ -257,6 +259,7 @@ fabric::system! {
 
 fabric::adapter! {
     ConfiguredSystemAdapter for ConfiguredSystem {
+        id: "test.configured-system-adapter";
         config {
             endpoint: String;
         }
@@ -289,6 +292,7 @@ fabric::system! {
 
 fabric::adapter! {
     UnconfiguredSystemAdapter for UnconfiguredSystem {
+        id: "test.unconfigured-system-adapter";
         runtime {}
     }
 }
@@ -317,6 +321,7 @@ fabric::resource! {
 
 fabric::adapter! {
     CleanMemoryStore for CleanKeyValueStore {
+        id: "test.clean-memory-store";
 
         state {
             CleanMemoryState = CleanMemoryState::default();
@@ -344,6 +349,7 @@ fabric::adapter! {
 // that supports a range rather than only its compiled target version.
 fabric::adapter! {
     ExplicitSupportMemoryStore for CleanKeyValueStore {
+        id: "test.explicit-support-memory-store";
         supports: "^0.1";
 
         runtime {
@@ -421,6 +427,7 @@ fabric::resource! {
 
 fabric::adapter! {
     RelationAwareAdapter for RelationAdapterTarget {
+        id: "test.relation-aware-adapter";
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
         runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }

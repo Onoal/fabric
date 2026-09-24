@@ -52,6 +52,7 @@ where
             X::contract_key().id().clone(),
             X::contract_key().identity().clone(),
             self.system_id().clone(),
+            None,
         );
         let declaration = self.declaration();
         let selection = ContractProviderSelection::new(
@@ -88,6 +89,7 @@ where
             X::contract_key().id().clone(),
             X::contract_key().identity().clone(),
             attachment.system_id().clone(),
+            Some(self.provider_module_id().clone()),
         );
         let attachment_declaration = attachment.declaration();
         let support_declaration = self.declaration();

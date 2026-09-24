@@ -108,6 +108,7 @@ where
                     contract.id().clone(),
                     contract.identity().clone(),
                     component_id,
+                    None,
                 ),
             ],
         }
@@ -235,6 +236,7 @@ where
     pub(crate) component: ComponentRealization<C, A>,
     pub(crate) provider: Box<dyn Module>,
     pub(crate) contract: ContractKey<X::Contract>,
+    pub(crate) support_provider_module_id: ModuleId,
     marker: PhantomData<S>,
 }
 
@@ -249,6 +251,10 @@ where
     }
     pub fn contract_key(&self) -> ContractKey<X::Contract> {
         X::contract_key()
+    }
+
+    pub(crate) fn provider_module_id(&self) -> &ModuleId {
+        &self.provider_module_id
     }
 
     /// Creates a typed requirement that remains bound to this supported
@@ -288,6 +294,7 @@ where
     pub fn into_set(self) -> ComponentAugmentationSet<C> {
         let contract = self.contract_key();
         let component_id = self.component_id();
+        let support_provider_module_id = self.provider_module_id.clone();
         let (component, provider) = self.into_parts();
         ComponentAugmentationSet {
             component,
@@ -297,6 +304,7 @@ where
                     contract.id().clone(),
                     contract.identity().clone(),
                     component_id,
+                    Some(support_provider_module_id),
                 ),
             ],
         }
@@ -399,11 +407,13 @@ where
         A: AdapterDefinition<Target = C, Compatibility = fabric_component::ComponentId>,
     {
         let contract = self.contract_key();
+        let support_provider_module_id = self.provider_module_id.clone();
         let (component, provider) = self.into_parts();
         Ok(ComponentAugmentedAdapterRealization {
             component: component.using(adapter)?,
             provider,
             contract,
+            support_provider_module_id,
             marker: PhantomData,
         })
     }

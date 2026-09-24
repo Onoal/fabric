@@ -194,6 +194,11 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             ))
         })
         .collect::<Vec<_>>();
+    let api_endpoint_names = api
+        .methods
+        .iter()
+        .map(|method| method.signature.ident.to_string())
+        .collect::<Vec<_>>();
     let dependency_bindings = input.relations.iter().map(|requirement| {
         let field = &requirement.field;
         quote! {
@@ -574,6 +579,17 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
 
             fn schema() -> #sdk::resource::ResourceSchemaDescriptor {
                 #schema_expr
+            }
+
+            fn api_metadata() -> #sdk::SemanticApiMetadata {
+                let key = #resource_mod::raw::primary_contract_key();
+                #sdk::SemanticApiMetadata::new(
+                    key.id().clone(),
+                    key.identity().clone(),
+                    ::std::vec![
+                        #(#sdk::SemanticApiEndpoint::new(#api_endpoint_names)),*
+                    ],
+                )
             }
 
             fn declaration(

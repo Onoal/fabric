@@ -75,8 +75,9 @@ pub use control::{
 pub use control_snapshot::{ComponentControlSnapshot, ComponentControlSnapshotEntry};
 #[doc(hidden)]
 pub use declaration::{
-    ComponentDeclaration, ComponentRelationDeclaration, ComponentRelationName,
-    ComponentResourceRequirementDeclaration, ComponentSystemRequirementDeclaration,
+    ComponentApiEndpoint, ComponentApiMetadata, ComponentDeclaration, ComponentRelationDeclaration,
+    ComponentRelationName, ComponentResourceRequirementDeclaration,
+    ComponentSystemRequirementDeclaration,
 };
 pub use error::ComponentError;
 #[doc(hidden)]

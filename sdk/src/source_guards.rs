@@ -589,11 +589,20 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         "sdk authoring surface should export the normal typed authoring owner and built Composition"
     );
     assert!(
-        lib.contains("Composition, Fabric")
+        lib.contains("Composition")
+            && lib.contains("Fabric,")
             && prelude.contains("Composition, CompositionError")
+            && lib.contains("ResourceInspection")
+            && lib.contains("SystemInspection")
+            && lib.contains("ComponentInspection")
+            && lib.contains("SemanticRelationBindingManifestEntry")
+            && prelude.contains("ResourceInspection")
+            && prelude.contains("SystemInspection")
+            && prelude.contains("ComponentInspection")
+            && prelude.contains("SemanticRelationBindingManifestEntry")
             && !lib.contains("BuiltFabric")
             && !prelude.contains("BuiltFabric"),
-        "sdk root and prelude must expose only the canonical SDK Composition"
+        "sdk root and prelude must expose the canonical SDK Composition inspection surface"
     );
     assert!(
         lib.contains("Fabric,") && prelude.contains("Fabric,"),
@@ -916,9 +925,12 @@ fn sdk_docs_describe_the_current_public_contract() {
         "SDK README must separate advanced invocation provenance from nested domain results"
     );
     assert!(
-        readme.contains("`FabricManifest` is immutable semantic Composition inspection")
+        readme.contains("## Composition inspection")
+            && readme.contains("composition.resources()")
+            && readme.contains("composition.relations()")
+            && readme.contains("`FabricManifest` remains the Composition-owned backing truth")
             && readme.contains("composition.manifest().diagnostics()"),
-        "SDK README must separate semantic Manifest inspection from raw diagnostics"
+        "SDK README must separate normal Composition inspection from raw diagnostics"
     );
     assert!(
         readme.contains("use fabric::authoring::FabricBuilder;"),

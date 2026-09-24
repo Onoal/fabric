@@ -4,7 +4,60 @@ use fabric_core::{
     BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
     ContractRequirementDeclaration, ModuleDeclaration, ModuleId,
 };
+use fabric_host::HostRequirement;
 use fabric_resource::{ResourceId, ResourceName, ResourceSchemaDescriptor};
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SemanticApiMetadata {
+    contract_id: Option<ContractId>,
+    contract_identity: Option<ContractIdentity>,
+    endpoints: Vec<SemanticApiEndpoint>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SemanticApiEndpoint {
+    name: String,
+}
+
+impl SemanticApiMetadata {
+    pub fn new(
+        contract_id: ContractId,
+        contract_identity: ContractIdentity,
+        endpoints: Vec<SemanticApiEndpoint>,
+    ) -> Self {
+        Self {
+            contract_id: Some(contract_id),
+            contract_identity: Some(contract_identity),
+            endpoints,
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn contract_id(&self) -> Option<&ContractId> {
+        self.contract_id.as_ref()
+    }
+
+    pub fn contract_identity(&self) -> Option<&ContractIdentity> {
+        self.contract_identity.as_ref()
+    }
+
+    pub fn endpoints(&self) -> &[SemanticApiEndpoint] {
+        &self.endpoints
+    }
+}
+
+impl SemanticApiEndpoint {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
 
 /// Private semantic realization truth retained while SDK authoring still knows
 /// how a participant was lowered. It contains declarative definition and Core
@@ -118,12 +171,109 @@ impl RelationDeclarationProvenance {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SemanticRelationOwner {
+    Resource {
+        resource_id: ResourceId,
+        resource_name: ResourceName,
+    },
+    System {
+        system_id: fabric_system::SystemId,
+    },
+    Component {
+        component_id: ComponentId,
+    },
+    AdapterRealization {
+        adapter_definition_id: AdapterDefinitionId,
+        realized_owner: Option<AdapterRealizedOwner>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AdapterRealizedOwner {
+    Resource {
+        resource_id: ResourceId,
+        resource_name: ResourceName,
+    },
+    System {
+        system_id: fabric_system::SystemId,
+    },
+    Component {
+        component_id: ComponentId,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SemanticRelationTargetDefinition {
+    Resource { resource_id: ResourceId },
+    System { system_id: fabric_system::SystemId },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum SemanticRelationTargetOccurrence {
+    Resource {
+        resource_id: ResourceId,
+        resource_name: ResourceName,
+    },
+    System {
+        system_id: fabric_system::SystemId,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SemanticRelationBindingManifestEntry {
+    owner: SemanticRelationOwner,
+    role: ComponentRelationName,
+    declared_target: SemanticRelationTargetDefinition,
+    resolved_target: SemanticRelationTargetOccurrence,
+    requirement: ContractRequirementDeclaration,
+}
+
+impl SemanticRelationBindingManifestEntry {
+    pub(crate) fn new(
+        owner: SemanticRelationOwner,
+        role: ComponentRelationName,
+        declared_target: SemanticRelationTargetDefinition,
+        resolved_target: SemanticRelationTargetOccurrence,
+        requirement: ContractRequirementDeclaration,
+    ) -> Self {
+        Self {
+            owner,
+            role,
+            declared_target,
+            resolved_target,
+            requirement,
+        }
+    }
+
+    pub fn owner(&self) -> &SemanticRelationOwner {
+        &self.owner
+    }
+
+    pub fn role(&self) -> &ComponentRelationName {
+        &self.role
+    }
+
+    pub fn declared_target(&self) -> &SemanticRelationTargetDefinition {
+        &self.declared_target
+    }
+
+    pub fn resolved_target(&self) -> &SemanticRelationTargetOccurrence {
+        &self.resolved_target
+    }
+
+    pub fn requirement(&self) -> &ContractRequirementDeclaration {
+        &self.requirement
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ResourceManifestEntry {
     resource_id: ResourceId,
     name: ResourceName,
     schema: ResourceSchemaDescriptor,
+    api: SemanticApiMetadata,
     realization: RealizationProvenance,
     semantic_provider_module_id: ModuleId,
 }
@@ -135,6 +285,7 @@ pub struct ResourceAugmentationManifestEntry {
     contract_identity: ContractIdentity,
     resource_id: ResourceId,
     resource_name: ResourceName,
+    support_provider_module_id: Option<ModuleId>,
 }
 
 impl ResourceAugmentationManifestEntry {
@@ -143,12 +294,14 @@ impl ResourceAugmentationManifestEntry {
         contract_identity: ContractIdentity,
         resource_id: ResourceId,
         resource_name: ResourceName,
+        support_provider_module_id: Option<ModuleId>,
     ) -> Self {
         Self {
             contract_id,
             contract_identity,
             resource_id,
             resource_name,
+            support_provider_module_id,
         }
     }
 
@@ -164,6 +317,12 @@ impl ResourceAugmentationManifestEntry {
     pub fn resource_name(&self) -> &ResourceName {
         &self.resource_name
     }
+    pub fn has_support_realization(&self) -> bool {
+        self.support_provider_module_id.is_some()
+    }
+    pub(crate) fn support_provider_module_id(&self) -> Option<&ModuleId> {
+        self.support_provider_module_id.as_ref()
+    }
 }
 
 impl ResourceManifestEntry {
@@ -171,6 +330,7 @@ impl ResourceManifestEntry {
         resource_id: ResourceId,
         name: ResourceName,
         schema: ResourceSchemaDescriptor,
+        api: SemanticApiMetadata,
         realization: RealizationProvenance,
         semantic_provider_module_id: ModuleId,
     ) -> Self {
@@ -178,6 +338,7 @@ impl ResourceManifestEntry {
             resource_id,
             name,
             schema,
+            api,
             realization,
             semantic_provider_module_id,
         }
@@ -193,6 +354,10 @@ impl ResourceManifestEntry {
 
     pub fn schema(&self) -> &ResourceSchemaDescriptor {
         &self.schema
+    }
+
+    pub fn api(&self) -> &SemanticApiMetadata {
+        &self.api
     }
 
     #[allow(dead_code)]
@@ -211,6 +376,7 @@ impl ResourceManifestEntry {
 pub struct SystemManifestEntry {
     system_id: fabric_system::SystemId,
     schema: fabric_system::SystemSchemaDescriptor,
+    api: SemanticApiMetadata,
     realization: RealizationProvenance,
     semantic_provider_module_id: ModuleId,
 }
@@ -221,6 +387,7 @@ pub struct SystemAugmentationManifestEntry {
     contract_id: ContractId,
     contract_identity: ContractIdentity,
     system_id: fabric_system::SystemId,
+    support_provider_module_id: Option<ModuleId>,
 }
 
 #[derive(Clone, Debug)]
@@ -228,17 +395,20 @@ pub struct ComponentAugmentationManifestEntry {
     contract_id: ContractId,
     contract_identity: ContractIdentity,
     component_id: ComponentId,
+    support_provider_module_id: Option<ModuleId>,
 }
 impl ComponentAugmentationManifestEntry {
     pub(crate) fn new(
         contract_id: ContractId,
         contract_identity: ContractIdentity,
         component_id: ComponentId,
+        support_provider_module_id: Option<ModuleId>,
     ) -> Self {
         Self {
             contract_id,
             contract_identity,
             component_id,
+            support_provider_module_id,
         }
     }
     pub fn contract_id(&self) -> &ContractId {
@@ -250,6 +420,12 @@ impl ComponentAugmentationManifestEntry {
     pub fn component_id(&self) -> &ComponentId {
         &self.component_id
     }
+    pub fn has_support_realization(&self) -> bool {
+        self.support_provider_module_id.is_some()
+    }
+    pub(crate) fn support_provider_module_id(&self) -> Option<&ModuleId> {
+        self.support_provider_module_id.as_ref()
+    }
 }
 
 impl SystemAugmentationManifestEntry {
@@ -257,11 +433,13 @@ impl SystemAugmentationManifestEntry {
         contract_id: ContractId,
         contract_identity: ContractIdentity,
         system_id: fabric_system::SystemId,
+        support_provider_module_id: Option<ModuleId>,
     ) -> Self {
         Self {
             contract_id,
             contract_identity,
             system_id,
+            support_provider_module_id,
         }
     }
 
@@ -273,6 +451,12 @@ impl SystemAugmentationManifestEntry {
     }
     pub fn system_id(&self) -> &fabric_system::SystemId {
         &self.system_id
+    }
+    pub fn has_support_realization(&self) -> bool {
+        self.support_provider_module_id.is_some()
+    }
+    pub(crate) fn support_provider_module_id(&self) -> Option<&ModuleId> {
+        self.support_provider_module_id.as_ref()
     }
 }
 
@@ -336,12 +520,14 @@ impl SystemManifestEntry {
     pub(crate) fn new(
         system_id: fabric_system::SystemId,
         schema: fabric_system::SystemSchemaDescriptor,
+        api: SemanticApiMetadata,
         realization: RealizationProvenance,
         semantic_provider_module_id: ModuleId,
     ) -> Self {
         Self {
             system_id,
             schema,
+            api,
             realization,
             semantic_provider_module_id,
         }
@@ -353,6 +539,10 @@ impl SystemManifestEntry {
 
     pub fn schema(&self) -> &fabric_system::SystemSchemaDescriptor {
         &self.schema
+    }
+
+    pub fn api(&self) -> &SemanticApiMetadata {
+        &self.api
     }
 
     #[allow(dead_code)]
@@ -403,6 +593,7 @@ pub struct FabricManifest {
     component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
     component_system_bindings: Vec<ComponentSystemBindingManifestEntry>,
     relation_declarations: Vec<RelationDeclarationProvenance>,
+    relation_bindings: Vec<SemanticRelationBindingManifestEntry>,
     raw_blocks: Vec<BlockId>,
     composition_exports: Vec<CompositionExportDeclaration>,
 }
@@ -422,6 +613,7 @@ impl FabricManifest {
         component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
         component_system_bindings: Vec<ComponentSystemBindingManifestEntry>,
         relation_declarations: Vec<RelationDeclarationProvenance>,
+        relation_bindings: Vec<SemanticRelationBindingManifestEntry>,
         raw_blocks: Vec<BlockId>,
         composition_exports: Vec<CompositionExportDeclaration>,
     ) -> Self {
@@ -438,6 +630,7 @@ impl FabricManifest {
             component_resource_bindings,
             component_system_bindings,
             relation_declarations,
+            relation_bindings,
             raw_blocks,
             composition_exports,
         }
@@ -486,6 +679,10 @@ impl FabricManifest {
         &self.relation_declarations
     }
 
+    pub fn relations(&self) -> &[SemanticRelationBindingManifestEntry] {
+        &self.relation_bindings
+    }
+
     pub fn diagnostics(&self) -> FabricManifestDiagnostics<'_> {
         FabricManifestDiagnostics {
             module_declarations: &self.module_declarations,
@@ -493,6 +690,312 @@ impl FabricManifest {
             raw_blocks: &self.raw_blocks,
             composition_exports: &self.composition_exports,
         }
+    }
+
+    fn host_requirement_for_module(&self, module_id: &ModuleId) -> Option<&HostRequirement> {
+        self.module_declarations
+            .iter()
+            .find(|declaration| declaration.module_id() == module_id)
+            .and_then(|declaration| declaration.host_requirement())
+            .map(|requirement| requirement.requirement())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SemanticRealizationKind {
+    DeclarationOnly,
+    SelfRealization,
+    AdapterDirect,
+    AdapterMediated,
+}
+
+#[derive(Clone, Copy)]
+pub struct RealizationInspection<'a> {
+    provenance: &'a RealizationProvenance,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> RealizationInspection<'a> {
+    pub(crate) fn new(provenance: &'a RealizationProvenance, manifest: &'a FabricManifest) -> Self {
+        Self {
+            provenance,
+            manifest,
+        }
+    }
+
+    pub fn kind(&self) -> SemanticRealizationKind {
+        match self.provenance {
+            RealizationProvenance::DeclarationOnly => SemanticRealizationKind::DeclarationOnly,
+            RealizationProvenance::SelfRealization { .. } => {
+                SemanticRealizationKind::SelfRealization
+            }
+            RealizationProvenance::Adapter(provenance) => match provenance.mode {
+                AdapterRealizationMode::Direct => SemanticRealizationKind::AdapterDirect,
+                AdapterRealizationMode::Mediated => SemanticRealizationKind::AdapterMediated,
+            },
+        }
+    }
+
+    pub fn adapter_definition_id(&self) -> Option<&AdapterDefinitionId> {
+        match self.provenance {
+            RealizationProvenance::Adapter(provenance) => Some(&provenance.definition_id),
+            _ => None,
+        }
+    }
+
+    pub fn host_requirement(&self) -> Option<&HostRequirement> {
+        match self.provenance {
+            RealizationProvenance::DeclarationOnly => None,
+            RealizationProvenance::SelfRealization {
+                runtime_module_id: Some(module_id),
+            } => self.manifest.host_requirement_for_module(module_id),
+            RealizationProvenance::SelfRealization {
+                runtime_module_id: None,
+            } => None,
+            RealizationProvenance::Adapter(provenance) => self
+                .manifest
+                .host_requirement_for_module(&provenance.provider_module_id),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ResourceInspection<'a> {
+    entry: &'a ResourceManifestEntry,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> ResourceInspection<'a> {
+    pub(crate) fn new(entry: &'a ResourceManifestEntry, manifest: &'a FabricManifest) -> Self {
+        Self { entry, manifest }
+    }
+
+    pub fn resource_id(&self) -> &ResourceId {
+        self.entry.resource_id()
+    }
+    pub fn name(&self) -> &ResourceName {
+        self.entry.name()
+    }
+    pub fn schema(&self) -> &ResourceSchemaDescriptor {
+        self.entry.schema()
+    }
+    pub fn api(&self) -> &SemanticApiMetadata {
+        self.entry.api()
+    }
+    pub fn realization(&self) -> RealizationInspection<'a> {
+        RealizationInspection::new(self.entry.realization(), self.manifest)
+    }
+    pub fn relations(&self) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
+        let resource_id = self.entry.resource_id();
+        let resource_name = self.entry.name();
+        self.manifest.relations().iter().filter(move |relation| {
+            matches!(
+                relation.owner(),
+                SemanticRelationOwner::Resource {
+                    resource_id: owner_id,
+                    resource_name: owner_name,
+                } if owner_id == resource_id && owner_name == resource_name
+            )
+        })
+    }
+    pub fn required_by(
+        &self,
+    ) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
+        let target = SemanticRelationTargetOccurrence::Resource {
+            resource_id: self.entry.resource_id().clone(),
+            resource_name: self.entry.name().clone(),
+        };
+        self.manifest
+            .relations()
+            .iter()
+            .filter(move |relation| relation.resolved_target() == &target)
+    }
+    pub fn augmentations(&self) -> impl Iterator<Item = ResourceAugmentationInspection<'a>> + 'a {
+        let resource_id = self.entry.resource_id();
+        let resource_name = self.entry.name();
+        let manifest = self.manifest;
+        self.manifest
+            .resource_augmentations()
+            .iter()
+            .filter(move |augmentation| {
+                augmentation.resource_id() == resource_id
+                    && augmentation.resource_name() == resource_name
+            })
+            .map(move |entry| ResourceAugmentationInspection { entry, manifest })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SystemInspection<'a> {
+    entry: &'a SystemManifestEntry,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> SystemInspection<'a> {
+    pub(crate) fn new(entry: &'a SystemManifestEntry, manifest: &'a FabricManifest) -> Self {
+        Self { entry, manifest }
+    }
+
+    pub fn system_id(&self) -> &fabric_system::SystemId {
+        self.entry.system_id()
+    }
+    pub fn schema(&self) -> &fabric_system::SystemSchemaDescriptor {
+        self.entry.schema()
+    }
+    pub fn api(&self) -> &SemanticApiMetadata {
+        self.entry.api()
+    }
+    pub fn realization(&self) -> RealizationInspection<'a> {
+        RealizationInspection::new(self.entry.realization(), self.manifest)
+    }
+    pub fn relations(&self) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
+        let system_id = self.entry.system_id();
+        self.manifest.relations().iter().filter(move |relation| {
+            matches!(
+                relation.owner(),
+                SemanticRelationOwner::System { system_id: owner_id } if owner_id == system_id
+            )
+        })
+    }
+    pub fn required_by(
+        &self,
+    ) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
+        let target = SemanticRelationTargetOccurrence::System {
+            system_id: self.entry.system_id().clone(),
+        };
+        self.manifest
+            .relations()
+            .iter()
+            .filter(move |relation| relation.resolved_target() == &target)
+    }
+    pub fn augmentations(&self) -> impl Iterator<Item = SystemAugmentationInspection<'a>> + 'a {
+        let system_id = self.entry.system_id();
+        let manifest = self.manifest;
+        self.manifest
+            .system_augmentations()
+            .iter()
+            .filter(move |augmentation| augmentation.system_id() == system_id)
+            .map(move |entry| SystemAugmentationInspection { entry, manifest })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ComponentInspection<'a> {
+    declaration: &'a fabric_component::ComponentDeclaration,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> ComponentInspection<'a> {
+    pub(crate) fn new(
+        declaration: &'a fabric_component::ComponentDeclaration,
+        manifest: &'a FabricManifest,
+    ) -> Self {
+        Self {
+            declaration,
+            manifest,
+        }
+    }
+
+    pub fn component_id(&self) -> &ComponentId {
+        self.declaration.component_id()
+    }
+    pub fn api(&self) -> &fabric_component::ComponentApiMetadata {
+        self.declaration.api()
+    }
+    pub fn declaration(&self) -> &fabric_component::ComponentDeclaration {
+        self.declaration
+    }
+    pub fn realization(&self) -> Option<RealizationInspection<'a>> {
+        self.manifest
+            .component_realization(self.declaration.component_id())
+            .map(|provenance| RealizationInspection::new(provenance, self.manifest))
+    }
+    pub fn relations(&self) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
+        let component_id = self.declaration.component_id();
+        self.manifest.relations().iter().filter(move |relation| {
+            matches!(
+                relation.owner(),
+                SemanticRelationOwner::Component { component_id: owner_id } if owner_id == component_id
+            )
+        })
+    }
+    pub fn augmentations(&self) -> impl Iterator<Item = ComponentAugmentationInspection<'a>> + 'a {
+        let component_id = self.declaration.component_id();
+        let manifest = self.manifest;
+        self.manifest
+            .component_augmentations()
+            .iter()
+            .filter(move |augmentation| augmentation.component_id() == component_id)
+            .map(move |entry| ComponentAugmentationInspection { entry, manifest })
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ResourceAugmentationInspection<'a> {
+    entry: &'a ResourceAugmentationManifestEntry,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> ResourceAugmentationInspection<'a> {
+    pub fn contract_id(&self) -> &ContractId {
+        self.entry.contract_id()
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        self.entry.contract_identity()
+    }
+    pub fn has_support_realization(&self) -> bool {
+        self.entry.has_support_realization()
+    }
+    pub fn host_requirement(&self) -> Option<&HostRequirement> {
+        self.entry
+            .support_provider_module_id()
+            .and_then(|module_id| self.manifest.host_requirement_for_module(module_id))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SystemAugmentationInspection<'a> {
+    entry: &'a SystemAugmentationManifestEntry,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> SystemAugmentationInspection<'a> {
+    pub fn contract_id(&self) -> &ContractId {
+        self.entry.contract_id()
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        self.entry.contract_identity()
+    }
+    pub fn has_support_realization(&self) -> bool {
+        self.entry.has_support_realization()
+    }
+    pub fn host_requirement(&self) -> Option<&HostRequirement> {
+        self.entry
+            .support_provider_module_id()
+            .and_then(|module_id| self.manifest.host_requirement_for_module(module_id))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ComponentAugmentationInspection<'a> {
+    entry: &'a ComponentAugmentationManifestEntry,
+    manifest: &'a FabricManifest,
+}
+
+impl<'a> ComponentAugmentationInspection<'a> {
+    pub fn contract_id(&self) -> &ContractId {
+        self.entry.contract_id()
+    }
+    pub fn contract_identity(&self) -> &ContractIdentity {
+        self.entry.contract_identity()
+    }
+    pub fn has_support_realization(&self) -> bool {
+        self.entry.has_support_realization()
+    }
+    pub fn host_requirement(&self) -> Option<&HostRequirement> {
+        self.entry
+            .support_provider_module_id()
+            .and_then(|module_id| self.manifest.host_requirement_for_module(module_id))
     }
 }
 

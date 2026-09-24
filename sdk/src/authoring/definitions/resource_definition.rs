@@ -5,6 +5,7 @@ use fabric_core::{
 use fabric_resource::{ResourceError, ResourceId, ResourceName, ResourceSchemaDescriptor};
 
 use super::{RelationTargetDescriptor, ResourceSelection};
+use crate::authoring::fabric::SemanticApiMetadata;
 
 pub trait ResourceDefinition: Sized + Send + Sync + 'static {
     /// Declarative input for one Resource selection.
@@ -17,6 +18,10 @@ pub trait ResourceDefinition: Sized + Send + Sync + 'static {
     fn resource_id() -> ResourceId;
 
     fn schema() -> ResourceSchemaDescriptor;
+
+    fn api_metadata() -> SemanticApiMetadata {
+        SemanticApiMetadata::empty()
+    }
 
     fn select(
         name: impl IntoResourceName,

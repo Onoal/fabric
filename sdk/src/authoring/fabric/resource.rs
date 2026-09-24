@@ -102,6 +102,7 @@ where
             R::resource_id(),
             self.name().clone(),
             R::schema(),
+            R::api_metadata(),
             realization,
             self.module_id().clone(),
         );
@@ -171,6 +172,7 @@ where
             R::resource_id(),
             resource.name().clone(),
             R::schema(),
+            R::api_metadata(),
             realization,
             semantic_provider_module_id,
         );

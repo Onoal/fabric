@@ -5,6 +5,38 @@ use fabric_system::SystemId;
 pub use crate::ComponentId;
 use crate::OperationDefinition;
 
+/// Authored semantic endpoint name for a Component API.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComponentApiEndpoint {
+    name: String,
+}
+
+impl ComponentApiEndpoint {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+/// Runtime-free semantic API metadata declared by a Component.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ComponentApiMetadata {
+    endpoints: Vec<ComponentApiEndpoint>,
+}
+
+impl ComponentApiMetadata {
+    pub fn new(endpoints: Vec<ComponentApiEndpoint>) -> Self {
+        Self { endpoints }
+    }
+
+    pub fn endpoints(&self) -> &[ComponentApiEndpoint] {
+        &self.endpoints
+    }
+}
+
 /// A stable local role for one capability relation owned by a Component.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComponentRelationName(String);
@@ -124,6 +156,7 @@ impl ComponentResourceRequirementDeclaration {
 pub struct ComponentDeclaration {
     component_id: ComponentId,
     operations: Vec<OperationDefinition>,
+    api: ComponentApiMetadata,
     relations: Vec<ComponentRelationDeclaration>,
     resource_requirements: Vec<ComponentResourceRequirementDeclaration>,
     system_requirements: Vec<ComponentSystemRequirementDeclaration>,
@@ -134,6 +167,7 @@ impl ComponentDeclaration {
         Self {
             component_id,
             operations,
+            api: ComponentApiMetadata::default(),
             relations: Vec::new(),
             resource_requirements: Vec::new(),
             system_requirements: Vec::new(),
@@ -146,6 +180,15 @@ impl ComponentDeclaration {
 
     pub fn operations(&self) -> &[OperationDefinition] {
         &self.operations
+    }
+
+    pub fn with_api_metadata(mut self, api: ComponentApiMetadata) -> Self {
+        self.api = api;
+        self
+    }
+
+    pub fn api(&self) -> &ComponentApiMetadata {
+        &self.api
     }
 
     pub fn with_relations(mut self, relations: Vec<ComponentRelationDeclaration>) -> Self {

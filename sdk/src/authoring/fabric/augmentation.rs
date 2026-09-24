@@ -54,6 +54,7 @@ where
             X::contract_key().identity().clone(),
             self.resource_id().clone(),
             self.resource_name().clone(),
+            None,
         );
         let declaration = self.declaration();
         let selection = ContractProviderSelection::new(
@@ -91,6 +92,7 @@ where
             X::contract_key().identity().clone(),
             attachment.resource_id().clone(),
             attachment.resource_name().clone(),
+            Some(self.provider_module_id().clone()),
         );
         let attachment_declaration = attachment.declaration();
         let support_declaration = self.declaration();

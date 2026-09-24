@@ -101,6 +101,7 @@ where
         let entry = SystemManifestEntry::new(
             S::system_id(),
             S::schema(),
+            S::api_metadata(),
             realization,
             self.module_id().clone(),
         );
@@ -167,6 +168,7 @@ where
         let entry = SystemManifestEntry::new(
             S::system_id(),
             S::schema(),
+            S::api_metadata(),
             realization,
             semantic_provider_module_id,
         );

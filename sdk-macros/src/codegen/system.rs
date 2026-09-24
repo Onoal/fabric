@@ -175,6 +175,11 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             ))
         })
         .collect::<Vec<_>>();
+    let api_endpoint_names = api
+        .methods
+        .iter()
+        .map(|method| method.signature.ident.to_string())
+        .collect::<Vec<_>>();
     let dependency_bindings = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         quote! {
@@ -546,6 +551,17 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
             fn schema() -> #sdk::system::SystemSchemaDescriptor {
                 #schema_expr
+            }
+
+            fn api_metadata() -> #sdk::SemanticApiMetadata {
+                let key = #system_mod::raw::primary_contract_key();
+                #sdk::SemanticApiMetadata::new(
+                    key.id().clone(),
+                    key.identity().clone(),
+                    ::std::vec![
+                        #(#sdk::SemanticApiEndpoint::new(#api_endpoint_names)),*
+                    ],
+                )
             }
 
             fn declaration(

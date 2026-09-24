@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.0" }
+fabric = { package = "onoal-fabric", version = "0.6.3" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -158,20 +158,36 @@ An API endpoint has one typed output. Domain failure belongs in that output;
 an `api` method returning `Result<Document, DocumentError>` is invoked as
 `Result<Result<Document, DocumentError>, ComponentError>`.
 
-## Inspection
+## Composition inspection
 
-`FabricManifest` is immutable semantic Composition inspection. It exposes
-Resources, Systems, Components, Component Resource bindings, and Component
-System bindings. A Resource binding directly identifies the selected
-`ResourceId + ResourceName`; normal inspection need not use ModuleId.
+`Composition` is immutable semantic declarative truth. Normal inspection reads
+it directly before materialization: Resources, Systems, Components, realization
+mode, Adapter definition identity, declared Host requirements, semantic API
+endpoint names, augmentation support, and resolved semantic Relations are all
+available without decoding Core ModuleIds.
 
 ```rust
-for binding in composition.manifest().component_resource_bindings() {
-    println!("{} -> {} {:?}", binding.requirement_name(), binding.resource_id(), binding.resource_name());
+for resource in composition.resources() {
+    let realization = resource.realization();
+    let host = realization.host_requirement();
+    let required_by = resource.required_by().count();
+    let endpoints = resource.api().endpoints();
+    let _ = (host, required_by, endpoints);
+}
+
+for relation in composition.relations() {
+    let _owner = relation.owner();
+    let _role = relation.role();
+    let _target = relation.resolved_target();
 }
 ```
 
-Raw backing diagnostics remain intentionally available, but outside normal
+`FabricManifest` remains the Composition-owned backing truth and advanced
+manifest view. Legacy authored Component selection entries remain available
+for compatibility, but canonical resolved semantic relation truth is
+`Composition::relations()`.
+
+Raw Core diagnostics remain intentionally available, but outside normal
 semantic inspection:
 
 ```rust

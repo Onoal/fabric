@@ -5,12 +5,16 @@
 //! [`crate::authoring`], and raw orchestration only through [`crate::core`].
 
 pub use crate::{
-    ComponentError, ComponentId, Composition, CompositionError, CompositionId, Fabric,
-    FabricBuildError, FabricComponents, FabricInstance, Health, HostArchitecture,
-    HostCompatibilityError, HostDescriptor, HostFacilityId, HostOperatingSystem, HostRequirement,
-    InstanceError, InstanceGeneration, InstanceId, IntoFabricResource,
-    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation, LifecycleState,
-    ResourceCompatibilityError, ResourceId, ResourceName, ResourceSelection, RuntimeCleanupError,
-    SdkAuthoringError, SystemCompatibilityError, SystemId, SystemSelection, adapter, component,
-    resource, system,
+    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentError, ComponentId,
+    ComponentInspection, Composition, CompositionError, CompositionId, Fabric, FabricBuildError,
+    FabricComponents, FabricInstance, Health, HostArchitecture, HostCompatibilityError,
+    HostDescriptor, HostFacilityId, HostOperatingSystem, HostRequirement, InstanceError,
+    InstanceGeneration, InstanceId, IntoFabricResource, IntoFabricResourceAugmentation,
+    IntoFabricSystem, IntoFabricSystemAugmentation, LifecycleState, RealizationInspection,
+    ResourceAugmentationInspection, ResourceCompatibilityError, ResourceId, ResourceInspection,
+    ResourceName, ResourceSelection, RuntimeCleanupError, SdkAuthoringError, SemanticApiEndpoint,
+    SemanticApiMetadata, SemanticRealizationKind, SemanticRelationBindingManifestEntry,
+    SemanticRelationOwner, SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationInspection, SystemCompatibilityError, SystemId, SystemInspection,
+    SystemSelection, adapter, component, resource, system,
 };

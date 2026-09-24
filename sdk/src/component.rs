@@ -8,7 +8,8 @@
 /// Runtime-free semantic Component declaration metadata.
 pub mod declaration {
     pub use fabric_component::{
-        ComponentDeclaration, ComponentId, ComponentRelationDeclaration, ComponentRelationName,
+        ComponentApiEndpoint, ComponentApiMetadata, ComponentDeclaration, ComponentId,
+        ComponentRelationDeclaration, ComponentRelationName,
     };
 }
 
@@ -54,8 +55,8 @@ pub mod advanced {
 // families above and by the umbrella crate root.
 #[doc(hidden)]
 pub use fabric_component::{
-    ComponentAggregateBlocker, ComponentAggregateReadiness,
-    ComponentAugmentationParticipationPreparation, ComponentCommunication,
+    ComponentAggregateBlocker, ComponentAggregateReadiness, ComponentApiEndpoint,
+    ComponentApiMetadata, ComponentAugmentationParticipationPreparation, ComponentCommunication,
     ComponentCommunicationService, ComponentContract, ComponentControl, ComponentControlRail,
     ComponentControlService, ComponentControlSnapshot, ComponentControlSnapshotEntry,
     ComponentDeclaration, ComponentDependencyAvailabilityBlocker, ComponentDependencyHealthBlocker,

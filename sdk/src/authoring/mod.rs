@@ -30,11 +30,16 @@ pub use definitions::{
     ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
-    ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
+    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
+    ComponentInspection, ComponentResourceBindingManifestEntry,
     ComponentSystemBindingManifestEntry, Composition, Fabric, FabricBuildError, FabricManifest,
     FabricManifestDiagnostics, IntoFabricResource, IntoFabricResourceAugmentation,
-    IntoFabricSystem, IntoFabricSystemAugmentation, ResourceAugmentationManifestEntry,
-    ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
+    IntoFabricSystem, IntoFabricSystemAugmentation, RealizationInspection,
+    ResourceAugmentationInspection, ResourceAugmentationManifestEntry, ResourceInspection,
+    ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata, SemanticRealizationKind,
+    SemanticRelationBindingManifestEntry, SemanticRelationOwner, SemanticRelationTargetDefinition,
+    SemanticRelationTargetOccurrence, SystemAugmentationInspection,
+    SystemAugmentationManifestEntry, SystemInspection, SystemManifestEntry,
 };
 pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;

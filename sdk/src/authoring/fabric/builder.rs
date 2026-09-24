@@ -34,14 +34,17 @@ impl Module for StoredTypedModule {
 
 use super::augmentation::IntoFabricResourceAugmentation;
 use super::manifest::{
-    AdapterRealizationMode, AdapterRealizationProvenance, ComponentAugmentationManifestEntry,
-    FabricManifest, RealizationProvenance, RelationDeclarationProvenance,
-    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
-    SystemManifestEntry,
+    AdapterRealizationMode, AdapterRealizationProvenance, AdapterRealizedOwner,
+    ComponentAugmentationManifestEntry, ComponentInspection, FabricManifest, RealizationProvenance,
+    RelationDeclarationOwner, RelationDeclarationProvenance, ResourceAugmentationManifestEntry,
+    ResourceInspection, ResourceManifestEntry, SemanticRelationBindingManifestEntry,
+    SemanticRelationOwner, SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationManifestEntry, SystemInspection, SystemManifestEntry,
 };
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
 use super::system_augmentation::IntoFabricSystemAugmentation;
+use crate::authoring::RelationTargetDescriptor;
 use crate::authoring::definitions::ComponentSpecParts;
 use crate::authoring::{
     AdaptableComponentDefinition, AdapterDefinition, BlockAuthor, ComponentAugmentation,
@@ -145,6 +148,7 @@ where
                 contract.id().clone(),
                 contract.identity().clone(),
                 component_id,
+                None,
             )],
             realization,
         )
@@ -160,6 +164,7 @@ where
     fn into_fabric_component(self) -> FabricComponentContribution {
         let contract = self.contract_key();
         let component_id = self.component_id();
+        let support_provider_module_id = self.provider_module_id().clone();
         let (component, provider) = self.into_parts();
         let realization = component_spec_provenance(&component);
         (
@@ -170,6 +175,7 @@ where
                 contract.id().clone(),
                 contract.identity().clone(),
                 component_id,
+                Some(support_provider_module_id),
             )],
             realization,
         )
@@ -222,6 +228,7 @@ where
                 contract.id().clone(),
                 contract.identity().clone(),
                 component_id,
+                Some(self.support_provider_module_id.clone()),
             )],
             realization,
         )
@@ -257,6 +264,25 @@ const COMPONENT_RUNTIME_EXPORT_ID: &str = "fabric.sdk.export.component-runtime";
 pub enum FabricBuildError {
     ComponentInstanceBinding(fabric_component::ComponentError),
     Composition(CompositionError),
+    MissingSemanticRelationBinding {
+        consumer: fabric_core::ModuleId,
+        contract_id: ContractId,
+    },
+    SemanticRelationRequirementMismatch {
+        consumer: fabric_core::ModuleId,
+        contract_id: ContractId,
+    },
+    UnmappedSemanticRelationProvider {
+        provider: fabric_core::ModuleId,
+        contract_id: ContractId,
+    },
+    InconsistentSemanticRelationTarget {
+        provider: fabric_core::ModuleId,
+        contract_id: ContractId,
+    },
+    DuplicateSemanticProviderModule {
+        module_id: fabric_core::ModuleId,
+    },
 }
 
 impl fmt::Display for FabricBuildError {
@@ -264,6 +290,38 @@ impl fmt::Display for FabricBuildError {
         match self {
             Self::ComponentInstanceBinding(error) => error.fmt(f),
             Self::Composition(error) => error.fmt(f),
+            Self::MissingSemanticRelationBinding {
+                consumer,
+                contract_id,
+            } => write!(
+                f,
+                "missing resolved Core binding for semantic relation {consumer}/{contract_id}"
+            ),
+            Self::SemanticRelationRequirementMismatch {
+                consumer,
+                contract_id,
+            } => write!(
+                f,
+                "resolved Core requirement differs from retained semantic relation {consumer}/{contract_id}"
+            ),
+            Self::UnmappedSemanticRelationProvider {
+                provider,
+                contract_id,
+            } => write!(
+                f,
+                "resolved provider {provider} for semantic relation contract {contract_id} has no semantic target provenance"
+            ),
+            Self::InconsistentSemanticRelationTarget {
+                provider,
+                contract_id,
+            } => write!(
+                f,
+                "resolved provider {provider} for semantic relation contract {contract_id} does not match the declared semantic target"
+            ),
+            Self::DuplicateSemanticProviderModule { module_id } => write!(
+                f,
+                "semantic provider module {module_id} maps to more than one semantic occurrence"
+            ),
         }
     }
 }
@@ -273,6 +331,11 @@ impl Error for FabricBuildError {
         match self {
             Self::ComponentInstanceBinding(error) => Some(error),
             Self::Composition(error) => Some(error),
+            Self::MissingSemanticRelationBinding { .. }
+            | Self::SemanticRelationRequirementMismatch { .. }
+            | Self::UnmappedSemanticRelationProvider { .. }
+            | Self::InconsistentSemanticRelationTarget { .. }
+            | Self::DuplicateSemanticProviderModule { .. } => None,
         }
     }
 }
@@ -317,6 +380,31 @@ impl Composition {
         &self.manifest
     }
 
+    pub fn resources(&self) -> impl Iterator<Item = ResourceInspection<'_>> + '_ {
+        self.manifest
+            .resources()
+            .iter()
+            .map(|entry| ResourceInspection::new(entry, &self.manifest))
+    }
+
+    pub fn systems(&self) -> impl Iterator<Item = SystemInspection<'_>> + '_ {
+        self.manifest
+            .systems()
+            .iter()
+            .map(|entry| SystemInspection::new(entry, &self.manifest))
+    }
+
+    pub fn components(&self) -> impl Iterator<Item = ComponentInspection<'_>> + '_ {
+        self.manifest
+            .components()
+            .iter()
+            .map(|declaration| ComponentInspection::new(declaration, &self.manifest))
+    }
+
+    pub fn relations(&self) -> &[SemanticRelationBindingManifestEntry] {
+        self.manifest.relations()
+    }
+
     pub fn into_core(self) -> CoreComposition {
         self.core
     }
@@ -348,6 +436,182 @@ pub struct Fabric {
     component_self_realizations: Vec<ComponentParticipationRealization>,
     component_augmentation_preparations:
         Vec<fabric_component::ComponentAugmentationParticipationRealization>,
+}
+
+fn resolved_semantic_relation_bindings(
+    composition: &CoreComposition,
+    resources: &[ResourceManifestEntry],
+    systems: &[SystemManifestEntry],
+    components: &[ComponentDeclaration],
+    component_realizations: &BTreeMap<ComponentId, RealizationProvenance>,
+    relation_declarations: &[RelationDeclarationProvenance],
+) -> Result<Vec<SemanticRelationBindingManifestEntry>, FabricBuildError> {
+    let mut resource_providers = BTreeMap::new();
+    for resource in resources {
+        let occurrence = SemanticRelationTargetOccurrence::Resource {
+            resource_id: resource.resource_id().clone(),
+            resource_name: resource.name().clone(),
+        };
+        if resource_providers
+            .insert(resource.semantic_provider_module_id().clone(), occurrence)
+            .is_some()
+        {
+            return Err(FabricBuildError::DuplicateSemanticProviderModule {
+                module_id: resource.semantic_provider_module_id().clone(),
+            });
+        }
+    }
+    let mut system_providers = BTreeMap::new();
+    for system in systems {
+        let occurrence = SemanticRelationTargetOccurrence::System {
+            system_id: system.system_id().clone(),
+        };
+        if system_providers
+            .insert(system.semantic_provider_module_id().clone(), occurrence)
+            .is_some()
+        {
+            return Err(FabricBuildError::DuplicateSemanticProviderModule {
+                module_id: system.semantic_provider_module_id().clone(),
+            });
+        }
+    }
+    let mut adapter_owners = BTreeMap::new();
+    for resource in resources {
+        if let RealizationProvenance::Adapter(provenance) = resource.realization() {
+            adapter_owners.insert(
+                provenance.provider_module_id.clone(),
+                AdapterRealizedOwner::Resource {
+                    resource_id: resource.resource_id().clone(),
+                    resource_name: resource.name().clone(),
+                },
+            );
+        }
+    }
+    for system in systems {
+        if let RealizationProvenance::Adapter(provenance) = system.realization() {
+            adapter_owners.insert(
+                provenance.provider_module_id.clone(),
+                AdapterRealizedOwner::System {
+                    system_id: system.system_id().clone(),
+                },
+            );
+        }
+    }
+    for component in components {
+        if let Some(RealizationProvenance::Adapter(provenance)) =
+            component_realizations.get(component.component_id())
+        {
+            adapter_owners.insert(
+                provenance.provider_module_id.clone(),
+                AdapterRealizedOwner::Component {
+                    component_id: component.component_id().clone(),
+                },
+            );
+        }
+    }
+
+    relation_declarations
+        .iter()
+        .map(|declaration| {
+            let binding = composition
+                .resolved_binding(
+                    declaration.consumer_module_id(),
+                    declaration.requirement().id(),
+                )
+                .ok_or_else(|| FabricBuildError::MissingSemanticRelationBinding {
+                    consumer: declaration.consumer_module_id().clone(),
+                    contract_id: declaration.requirement().id().clone(),
+                })?;
+            if binding.requirement() != declaration.requirement() {
+                return Err(FabricBuildError::SemanticRelationRequirementMismatch {
+                    consumer: declaration.consumer_module_id().clone(),
+                    contract_id: declaration.requirement().id().clone(),
+                });
+            }
+            let (declared_target, resolved_target) = match declaration.target() {
+                RelationTargetDescriptor::Resource(resource_id) => {
+                    let resolved = resource_providers.get(binding.provider()).ok_or_else(|| {
+                        FabricBuildError::UnmappedSemanticRelationProvider {
+                            provider: binding.provider().clone(),
+                            contract_id: declaration.requirement().id().clone(),
+                        }
+                    })?;
+                    match resolved {
+                        SemanticRelationTargetOccurrence::Resource {
+                            resource_id: resolved_id,
+                            ..
+                        } if resolved_id == resource_id => (
+                            SemanticRelationTargetDefinition::Resource {
+                                resource_id: resource_id.clone(),
+                            },
+                            resolved.clone(),
+                        ),
+                        _ => {
+                            return Err(FabricBuildError::InconsistentSemanticRelationTarget {
+                                provider: binding.provider().clone(),
+                                contract_id: declaration.requirement().id().clone(),
+                            });
+                        }
+                    }
+                }
+                RelationTargetDescriptor::System(system_id) => {
+                    let resolved = system_providers.get(binding.provider()).ok_or_else(|| {
+                        FabricBuildError::UnmappedSemanticRelationProvider {
+                            provider: binding.provider().clone(),
+                            contract_id: declaration.requirement().id().clone(),
+                        }
+                    })?;
+                    match resolved {
+                        SemanticRelationTargetOccurrence::System {
+                            system_id: resolved_id,
+                        } if resolved_id == system_id => (
+                            SemanticRelationTargetDefinition::System {
+                                system_id: system_id.clone(),
+                            },
+                            resolved.clone(),
+                        ),
+                        _ => {
+                            return Err(FabricBuildError::InconsistentSemanticRelationTarget {
+                                provider: binding.provider().clone(),
+                                contract_id: declaration.requirement().id().clone(),
+                            });
+                        }
+                    }
+                }
+            };
+            let owner = match declaration.owner() {
+                RelationDeclarationOwner::Resource {
+                    resource_id,
+                    resource_name,
+                } => SemanticRelationOwner::Resource {
+                    resource_id: resource_id.clone(),
+                    resource_name: resource_name.clone(),
+                },
+                RelationDeclarationOwner::System { system_id } => SemanticRelationOwner::System {
+                    system_id: system_id.clone(),
+                },
+                RelationDeclarationOwner::Component { component_id } => {
+                    SemanticRelationOwner::Component {
+                        component_id: component_id.clone(),
+                    }
+                }
+                RelationDeclarationOwner::AdapterRealizationUse {
+                    adapter_definition_id,
+                    provider_module_id,
+                } => SemanticRelationOwner::AdapterRealization {
+                    adapter_definition_id: adapter_definition_id.clone(),
+                    realized_owner: adapter_owners.get(provider_module_id).cloned(),
+                },
+            };
+            Ok(SemanticRelationBindingManifestEntry::new(
+                owner,
+                declaration.role().clone(),
+                declared_target,
+                resolved_target,
+                declaration.requirement().clone(),
+            ))
+        })
+        .collect()
 }
 
 impl Fabric {
@@ -543,6 +807,14 @@ impl Fabric {
             builder = builder.export(export.clone());
         }
         let composition = builder.build()?;
+        let relation_bindings = resolved_semantic_relation_bindings(
+            &composition,
+            &resources,
+            &systems,
+            &components,
+            &component_realizations,
+            &relation_declarations,
+        )?;
 
         let manifest = FabricManifest::new(
             resources,
@@ -557,6 +829,7 @@ impl Fabric {
             component_resource_provider_selections,
             component_system_provider_selections,
             relation_declarations,
+            relation_bindings,
             raw_block_ids,
             composition.exports().to_vec(),
         );

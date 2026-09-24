@@ -37,9 +37,14 @@ pub use fabric_sdk_macros::{adapter, component, resource, system};
 // definitions, provider machinery, runtime state, and contract internals live
 // under `authoring`; raw orchestration remains under `core`.
 pub use authoring::{
-    Composition, Fabric, FabricBuildError, FabricComponents, FabricInstance, IntoFabricResource,
+    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentInspection, Composition,
+    Fabric, FabricBuildError, FabricComponents, FabricInstance, IntoFabricResource,
     IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
-    ResourceSelection, SystemSelection,
+    RealizationInspection, ResourceAugmentationInspection, ResourceInspection, ResourceSelection,
+    SemanticApiEndpoint, SemanticApiMetadata, SemanticRealizationKind,
+    SemanticRelationBindingManifestEntry, SemanticRelationOwner, SemanticRelationTargetDefinition,
+    SemanticRelationTargetOccurrence, SystemAugmentationInspection, SystemInspection,
+    SystemSelection,
 };
 pub use component::{ComponentError, ComponentId};
 pub use core::{

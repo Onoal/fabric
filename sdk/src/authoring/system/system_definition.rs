@@ -4,6 +4,7 @@ use fabric_system::{SystemCompatibilityError, SystemId, SystemSchemaDescriptor};
 
 use super::SystemSelection;
 use crate::authoring::RelationTargetDescriptor;
+use crate::authoring::fabric::SemanticApiMetadata;
 
 pub trait SystemDefinition: Sized + Send + Sync + 'static {
     /// Declarative input for one System selection.
@@ -16,6 +17,10 @@ pub trait SystemDefinition: Sized + Send + Sync + 'static {
     fn system_id() -> SystemId;
 
     fn schema() -> SystemSchemaDescriptor;
+
+    fn api_metadata() -> SemanticApiMetadata {
+        SemanticApiMetadata::empty()
+    }
 
     fn select(config: Self::Config) -> Result<SystemSelection<Self>, SystemCompatibilityError> {
         SystemSelection::new(config)

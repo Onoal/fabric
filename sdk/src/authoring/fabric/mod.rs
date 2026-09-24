@@ -9,9 +9,14 @@ mod system_augmentation;
 pub use augmentation::IntoFabricResourceAugmentation;
 pub use builder::{Composition, Fabric, FabricBuildError};
 pub use manifest::{
-    ComponentAugmentationManifestEntry, ComponentResourceBindingManifestEntry,
+    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
+    ComponentInspection, ComponentResourceBindingManifestEntry,
     ComponentSystemBindingManifestEntry, FabricManifest, FabricManifestDiagnostics,
-    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
+    RealizationInspection, ResourceAugmentationInspection, ResourceAugmentationManifestEntry,
+    ResourceInspection, ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata,
+    SemanticRealizationKind, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
+    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationInspection, SystemAugmentationManifestEntry, SystemInspection,
     SystemManifestEntry,
 };
 pub(crate) use manifest::{RelationDeclarationOwner, RelationDeclarationProvenance};

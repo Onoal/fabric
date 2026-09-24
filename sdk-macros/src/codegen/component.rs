@@ -34,6 +34,10 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
         .iter()
         .map(|method| method.signature.ident.clone())
         .collect::<Vec<_>>();
+    let api_endpoint_names = canonical_operations
+        .iter()
+        .map(|method| method.signature.ident.to_string())
+        .collect::<Vec<_>>();
     let relation_declarations = input.relations.iter().map(|relation| {
         let field = &relation.field;
         let requirement = relation_requirement_tokens(&sdk, relation);
@@ -291,7 +295,11 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
                     ::std::vec![
                         #(#component_mod::#endpoint_module::#operation_names().definition().clone()),*
                     ],
-                ) #declaration_relations
+                )
+                .with_api_metadata(#sdk::component::ComponentApiMetadata::new(::std::vec![
+                    #(#sdk::component::ComponentApiEndpoint::new(#api_endpoint_names)),*
+                ]))
+                #declaration_relations
             }
 
         }

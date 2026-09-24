@@ -704,6 +704,10 @@ where
         &self.declaration
     }
 
+    pub(crate) fn has_self_realization(&self) -> bool {
+        self.self_realization.is_some()
+    }
+
     pub fn into_self_realization(self) -> Option<ComponentParticipationRealization> {
         self.self_realization
     }

@@ -77,6 +77,10 @@ impl ResourceDefinition for Clock {
             .with_required_contracts(vec![Self::realization_requirement().declaration().clone()])
     }
 
+    fn has_self_realization() -> bool {
+        true
+    }
+
     fn materialize(
         selection: &ResourceSelection<Self>,
     ) -> Option<Box<dyn fabric_core::ModuleRuntime>> {

@@ -52,6 +52,10 @@ impl SystemDefinition for SystemEcho {
             .with_provided_contracts(vec![Self::primary_contract_key().declaration()])
     }
 
+    fn has_self_realization() -> bool {
+        true
+    }
+
     fn materialize(
         selection: &SystemSelection<Self>,
     ) -> Option<Box<dyn fabric_core::ModuleRuntime>> {

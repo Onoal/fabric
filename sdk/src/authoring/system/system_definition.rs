@@ -21,6 +21,15 @@ pub trait SystemDefinition: Sized + Send + Sync + 'static {
 
     fn declaration(selection: &SystemSelection<Self>) -> ModuleDeclaration;
 
+    /// Whether this definition supplies its own static realization.
+    ///
+    /// This is declarative metadata only; Core must not construct a runtime
+    /// merely to classify a built Composition.
+    #[doc(hidden)]
+    fn has_self_realization() -> bool {
+        false
+    }
+
     fn materialize(selection: &SystemSelection<Self>) -> Option<Box<dyn ModuleRuntime>> {
         let _ = selection;
         None

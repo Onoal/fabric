@@ -24,6 +24,15 @@ pub trait ResourceDefinition: Sized + Send + Sync + 'static {
 
     fn declaration(selection: &ResourceSelection<Self>) -> ModuleDeclaration;
 
+    /// Whether this definition supplies its own static realization.
+    ///
+    /// This is declarative metadata only; Core must not construct a runtime
+    /// merely to classify a built Composition.
+    #[doc(hidden)]
+    fn has_self_realization() -> bool {
+        false
+    }
+
     fn materialize(selection: &ResourceSelection<Self>) -> Option<Box<dyn ModuleRuntime>> {
         let _ = selection;
         None

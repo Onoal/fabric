@@ -302,6 +302,8 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         .as_ref()
         .map(|expr| quote!(#expr))
         .unwrap_or_else(|| quote!(#sdk::core::Health::Healthy));
+    let has_self_realization = input.runtime_methods.is_some();
+
     let materialize_self_runtime = if input.runtime_methods.is_some() {
         quote! {
             ::std::option::Option::Some(::std::boxed::Box::new(
@@ -537,6 +539,10 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 selection: &#sdk::authoring::SystemSelection<Self>,
             ) -> ::std::option::Option<::std::boxed::Box<dyn #sdk::core::ModuleRuntime>> {
                 #materialize_self_runtime
+            }
+
+            fn has_self_realization() -> bool {
+                #has_self_realization
             }
         }
 

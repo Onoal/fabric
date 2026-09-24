@@ -1,15 +1,64 @@
+use crate::authoring::AdapterDefinitionId;
 use fabric_component::{ComponentId, ComponentRelationName};
 use fabric_core::{
     BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
-    ModuleDeclaration,
+    ModuleDeclaration, ModuleId,
 };
 use fabric_resource::{ResourceId, ResourceName, ResourceSchemaDescriptor};
 
+/// Private semantic realization truth retained while SDK authoring still knows
+/// how a participant was lowered. It contains declarative definition and Core
+/// module provenance only; live runtime state remains in an Instance.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum RealizationProvenance {
+    DeclarationOnly,
+    SelfRealization { runtime_module_id: Option<ModuleId> },
+    Adapter(AdapterRealizationProvenance),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AdapterRealizationMode {
+    Direct,
+    Mediated,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AdapterRealizationProvenance {
+    pub(crate) definition_id: AdapterDefinitionId,
+    pub(crate) mode: AdapterRealizationMode,
+    pub(crate) provider_module_id: ModuleId,
+    pub(crate) semantic_owner_module_id: Option<ModuleId>,
+}
+
+pub(crate) fn adapter_realization_provenance(
+    bridge_mode: crate::authoring::AdapterBridgeMode,
+    definition_id: AdapterDefinitionId,
+    provider_module_id: ModuleId,
+    semantic_owner_module_id: ModuleId,
+) -> RealizationProvenance {
+    let (mode, semantic_owner_module_id) = match bridge_mode {
+        crate::authoring::AdapterBridgeMode::SemanticApi => (AdapterRealizationMode::Direct, None),
+        crate::authoring::AdapterBridgeMode::ExplicitContract
+        | crate::authoring::AdapterBridgeMode::DifferentialSemanticApi => (
+            AdapterRealizationMode::Mediated,
+            Some(semantic_owner_module_id),
+        ),
+    };
+    RealizationProvenance::Adapter(AdapterRealizationProvenance {
+        definition_id,
+        mode,
+        provider_module_id,
+        semantic_owner_module_id,
+    })
+}
+
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ResourceManifestEntry {
     resource_id: ResourceId,
     name: ResourceName,
     schema: ResourceSchemaDescriptor,
+    realization: RealizationProvenance,
 }
 
 /// Bounded semantic inspection truth for an external Resource attachment.
@@ -55,11 +104,13 @@ impl ResourceManifestEntry {
         resource_id: ResourceId,
         name: ResourceName,
         schema: ResourceSchemaDescriptor,
+        realization: RealizationProvenance,
     ) -> Self {
         Self {
             resource_id,
             name,
             schema,
+            realization,
         }
     }
 
@@ -74,12 +125,19 @@ impl ResourceManifestEntry {
     pub fn schema(&self) -> &ResourceSchemaDescriptor {
         &self.schema
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn realization(&self) -> &RealizationProvenance {
+        &self.realization
+    }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SystemManifestEntry {
     system_id: fabric_system::SystemId,
     schema: fabric_system::SystemSchemaDescriptor,
+    realization: RealizationProvenance,
 }
 
 /// Bounded semantic inspection truth for an external System attachment.
@@ -203,8 +261,13 @@ impl SystemManifestEntry {
     pub(crate) fn new(
         system_id: fabric_system::SystemId,
         schema: fabric_system::SystemSchemaDescriptor,
+        realization: RealizationProvenance,
     ) -> Self {
-        Self { system_id, schema }
+        Self {
+            system_id,
+            schema,
+            realization,
+        }
     }
 
     pub fn system_id(&self) -> &fabric_system::SystemId {
@@ -213,6 +276,11 @@ impl SystemManifestEntry {
 
     pub fn schema(&self) -> &fabric_system::SystemSchemaDescriptor {
         &self.schema
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn realization(&self) -> &RealizationProvenance {
+        &self.realization
     }
 }
 
@@ -238,6 +306,7 @@ impl<'a> FabricManifestDiagnostics<'a> {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct FabricManifest {
     resources: Vec<ResourceManifestEntry>,
@@ -246,6 +315,7 @@ pub struct FabricManifest {
     system_augmentations: Vec<SystemAugmentationManifestEntry>,
     component_augmentations: Vec<ComponentAugmentationManifestEntry>,
     components: Vec<fabric_component::ComponentDeclaration>,
+    component_realizations: std::collections::BTreeMap<ComponentId, RealizationProvenance>,
     module_declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
     component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
@@ -263,6 +333,7 @@ impl FabricManifest {
         system_augmentations: Vec<SystemAugmentationManifestEntry>,
         component_augmentations: Vec<ComponentAugmentationManifestEntry>,
         components: Vec<fabric_component::ComponentDeclaration>,
+        component_realizations: std::collections::BTreeMap<ComponentId, RealizationProvenance>,
         module_declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
         component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
@@ -278,6 +349,7 @@ impl FabricManifest {
             component_augmentations,
             components,
             module_declarations,
+            component_realizations,
             provider_selections,
             component_resource_bindings,
             component_system_bindings,
@@ -309,6 +381,14 @@ impl FabricManifest {
         &self.components
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn component_realization(
+        &self,
+        component_id: &ComponentId,
+    ) -> Option<&RealizationProvenance> {
+        self.component_realizations.get(component_id)
+    }
+
     pub fn component_resource_bindings(&self) -> &[ComponentResourceBindingManifestEntry] {
         &self.component_resource_bindings
     }
@@ -322,6 +402,56 @@ impl FabricManifest {
             provider_selections: &self.provider_selections,
             raw_blocks: &self.raw_blocks,
             composition_exports: &self.composition_exports,
+        }
+    }
+}
+
+#[cfg(test)]
+mod realization_provenance_tests {
+    use super::*;
+
+    #[test]
+    fn bridge_lowering_maps_only_semantic_direct_and_mediated_modes() {
+        let definition_id =
+            AdapterDefinitionId::new("test.provenance.adapter").expect("definition identity");
+        let provider =
+            ModuleId::new("fabric.test.provenance.provider").expect("provider module id");
+        let owner =
+            ModuleId::new("fabric.test.provenance.owner").expect("semantic owner module id");
+
+        let direct = adapter_realization_provenance(
+            crate::authoring::AdapterBridgeMode::SemanticApi,
+            definition_id.clone(),
+            provider.clone(),
+            owner.clone(),
+        );
+        assert!(matches!(
+            direct,
+            RealizationProvenance::Adapter(AdapterRealizationProvenance {
+                mode: AdapterRealizationMode::Direct,
+                semantic_owner_module_id: None,
+                ..
+            })
+        ));
+
+        for bridge_mode in [
+            crate::authoring::AdapterBridgeMode::ExplicitContract,
+            crate::authoring::AdapterBridgeMode::DifferentialSemanticApi,
+        ] {
+            match adapter_realization_provenance(
+                bridge_mode,
+                definition_id.clone(),
+                provider.clone(),
+                owner.clone(),
+            ) {
+                RealizationProvenance::Adapter(provenance) => {
+                    assert_eq!(provenance.mode, AdapterRealizationMode::Mediated);
+                    assert_eq!(provenance.definition_id, definition_id);
+                    assert_eq!(provenance.provider_module_id, provider);
+                    assert_eq!(provenance.semantic_owner_module_id, Some(owner.clone()));
+                }
+                other => panic!("expected mediated Adapter provenance, got {other:?}"),
+            }
         }
     }
 }

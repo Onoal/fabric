@@ -1,3 +1,5 @@
+#![allow(private_interfaces)]
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
@@ -32,7 +34,8 @@ impl Module for StoredTypedModule {
 
 use super::augmentation::IntoFabricResourceAugmentation;
 use super::manifest::{
-    ComponentAugmentationManifestEntry, FabricManifest, ResourceAugmentationManifestEntry,
+    AdapterRealizationMode, AdapterRealizationProvenance, ComponentAugmentationManifestEntry,
+    FabricManifest, RealizationProvenance, ResourceAugmentationManifestEntry,
     ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
 };
 use super::resource::IntoFabricResource;
@@ -52,6 +55,7 @@ type FabricComponentContribution = (
     Vec<Box<dyn Module>>,
     Vec<ContractProviderSelection>,
     Vec<ComponentAugmentationManifestEntry>,
+    RealizationProvenance,
 );
 
 #[doc(hidden)]
@@ -59,19 +63,48 @@ pub trait IntoFabricComponent {
     fn into_fabric_component(self) -> FabricComponentContribution;
 }
 
+fn component_spec_provenance<C>(component: &ComponentSpec<C>) -> RealizationProvenance
+where
+    C: ComponentDefinition,
+{
+    if component.has_self_realization() {
+        RealizationProvenance::SelfRealization {
+            runtime_module_id: None,
+        }
+    } else {
+        RealizationProvenance::DeclarationOnly
+    }
+}
+
+fn component_adapter_provenance<C, A>(
+    component: &ComponentRealization<C, A>,
+) -> RealizationProvenance
+where
+    C: AdaptableComponentDefinition,
+    A: AdapterDefinition<Target = C>,
+    A::Compatibility: crate::authoring::ComponentAdapterCompatibility<C>,
+{
+    RealizationProvenance::Adapter(AdapterRealizationProvenance {
+        definition_id: component.adapter().adapter().adapter_definition_id(),
+        mode: AdapterRealizationMode::Direct,
+        provider_module_id: component.adapter().provider_module_id().clone(),
+        semantic_owner_module_id: None,
+    })
+}
+
 impl<C> IntoFabricComponent for ComponentSpec<C>
 where
     C: ComponentDefinition,
 {
-    fn into_fabric_component(
-        self,
-    ) -> (
-        ComponentSpecParts,
-        Vec<Box<dyn Module>>,
-        Vec<ContractProviderSelection>,
-        Vec<ComponentAugmentationManifestEntry>,
-    ) {
-        (self.into_parts(), Vec::new(), Vec::new(), Vec::new())
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        let realization = component_spec_provenance(&self);
+        (
+            self.into_parts(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            realization,
+        )
     }
 }
 
@@ -81,20 +114,15 @@ where
     A: AdapterDefinition<Target = C>,
     A::Compatibility: crate::authoring::ComponentAdapterCompatibility<C>,
 {
-    fn into_fabric_component(
-        self,
-    ) -> (
-        ComponentSpecParts,
-        Vec<Box<dyn Module>>,
-        Vec<ContractProviderSelection>,
-        Vec<ComponentAugmentationManifestEntry>,
-    ) {
+    fn into_fabric_component(self) -> FabricComponentContribution {
+        let realization = component_adapter_provenance(&self);
         let (component, adapter, bridge, selection) = self.into_parts();
         (
             component.into_parts(),
             vec![Box::new(adapter), Box::new(bridge)],
             vec![selection],
             Vec::new(),
+            realization,
         )
     }
 }
@@ -107,6 +135,7 @@ where
     fn into_fabric_component(self) -> FabricComponentContribution {
         let contract = X::contract_key();
         let component_id = self.component_id();
+        let realization = component_spec_provenance(&self.component);
         (
             self.component.into_parts(),
             Vec::new(),
@@ -116,6 +145,7 @@ where
                 contract.identity().clone(),
                 component_id,
             )],
+            realization,
         )
     }
 }
@@ -126,17 +156,11 @@ where
     X: ComponentAugmentationDefinition<C>,
     S: ComponentAugmentationSupportDefinition<C, X>,
 {
-    fn into_fabric_component(
-        self,
-    ) -> (
-        ComponentSpecParts,
-        Vec<Box<dyn Module>>,
-        Vec<ContractProviderSelection>,
-        Vec<ComponentAugmentationManifestEntry>,
-    ) {
+    fn into_fabric_component(self) -> FabricComponentContribution {
         let contract = self.contract_key();
         let component_id = self.component_id();
         let (component, provider) = self.into_parts();
+        let realization = component_spec_provenance(&component);
         (
             component.into_parts(),
             vec![provider],
@@ -146,6 +170,7 @@ where
                 contract.identity().clone(),
                 component_id,
             )],
+            realization,
         )
     }
 }
@@ -155,11 +180,13 @@ where
     C: ComponentDefinition,
 {
     fn into_fabric_component(self) -> FabricComponentContribution {
+        let realization = component_spec_provenance(&self.component);
         (
             self.component.into_parts(),
             self.providers,
             Vec::new(),
             self.manifest,
+            realization,
         )
     }
 }
@@ -181,16 +208,10 @@ where
     S: ComponentAugmentationSupportDefinition<C, X>,
     A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
 {
-    fn into_fabric_component(
-        self,
-    ) -> (
-        ComponentSpecParts,
-        Vec<Box<dyn Module>>,
-        Vec<ContractProviderSelection>,
-        Vec<ComponentAugmentationManifestEntry>,
-    ) {
+    fn into_fabric_component(self) -> FabricComponentContribution {
         let component_id = C::component_id();
         let contract = self.contract;
+        let realization = component_adapter_provenance(&self.component);
         let (component, adapter, bridge, selection) = self.component.into_parts();
         (
             component.into_parts(),
@@ -201,6 +222,7 @@ where
                 contract.identity().clone(),
                 component_id,
             )],
+            realization,
         )
     }
 }
@@ -211,6 +233,7 @@ where
     A: AdapterDefinition<Target = C, Compatibility = ComponentId>,
 {
     fn into_fabric_component(self) -> FabricComponentContribution {
+        let realization = component_adapter_provenance(&self.component);
         let (component, adapter, bridge, selection) = self.component.into_parts();
         let mut modules: Vec<Box<dyn Module>> = vec![Box::new(adapter), Box::new(bridge)];
         modules.extend(self.providers);
@@ -219,9 +242,11 @@ where
             modules,
             vec![selection],
             self.manifest,
+            realization,
         )
     }
 }
+
 use crate::ids::{IntoBlockId, IntoCompositionId};
 
 const DEFAULT_BLOCK_ID: &str = "fabric.sdk.default";
@@ -314,6 +339,7 @@ pub struct Fabric {
     system_augmentations: Vec<SystemAugmentationManifestEntry>,
     component_augmentations: Vec<ComponentAugmentationManifestEntry>,
     components: Vec<ComponentDeclaration>,
+    component_realizations: BTreeMap<ComponentId, RealizationProvenance>,
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
     component_declarations: Vec<ComponentDeclaration>,
@@ -341,6 +367,7 @@ impl Fabric {
             system_augmentations: Vec::new(),
             component_augmentations: Vec::new(),
             components: Vec::new(),
+            component_realizations: BTreeMap::new(),
             module_declarations: Vec::new(),
             typed_modules: Vec::new(),
             component_declarations: Vec::new(),
@@ -398,9 +425,12 @@ impl Fabric {
     }
 
     pub fn component(mut self, component: impl IntoFabricComponent) -> Self {
-        let (parts, modules, selections, augmentations) = component.into_fabric_component();
+        let (parts, modules, selections, augmentations, realization) =
+            component.into_fabric_component();
         self.component_augmentations.extend(augmentations);
         self.components.push(parts.declaration.clone());
+        self.component_realizations
+            .insert(parts.declaration.component_id().clone(), realization);
         self.component_declarations.push(parts.declaration);
         self.component_augmentation_preparations
             .extend(parts.augmentation_preparations);
@@ -453,6 +483,7 @@ impl Fabric {
             component_augmentations,
             components,
             mut module_declarations,
+            component_realizations,
             typed_modules,
             component_declarations,
             component_self_realizations,
@@ -510,6 +541,7 @@ impl Fabric {
             system_augmentations,
             component_augmentations,
             components,
+            component_realizations,
             module_declarations,
             provider_selections,
             component_resource_provider_selections,
@@ -527,4 +559,88 @@ impl Fabric {
 
 pub(crate) fn default_block_id() -> fabric_core::BlockId {
     fabric_core::BlockId::new(DEFAULT_BLOCK_ID).expect("static high-level fabric default block id")
+}
+
+#[cfg(test)]
+mod realization_provenance_tests {
+    use super::*;
+
+    crate::component! {
+        ProvenanceComponent {
+            id: "fabric.test.provenance.component";
+        }
+    }
+
+    crate::component! {
+        ProvenanceSelfComponent {
+            id: "fabric.test.provenance.self-component";
+            runtime { prepare { Ok(()) } }
+        }
+    }
+
+    crate::component! {
+        ProvenanceAdapterComponent {
+            id: "fabric.test.provenance.adapter-component";
+            api { fn read(&self) -> u64; }
+        }
+    }
+
+    crate::adapter! {
+        ProvenanceComponentAdapter for ProvenanceAdapterComponent {
+            id: "test.provenance.component-adapter";
+            runtime { fn read(&self) -> u64 { 1 } }
+        }
+    }
+
+    #[test]
+    fn component_lowering_retains_declaration_self_and_adapter_truth() {
+        let declaration = Fabric::new("fabric.test.provenance.component-declaration")
+            .expect("fabric")
+            .component(ProvenanceComponent::define())
+            .build()
+            .expect("build");
+        assert!(matches!(
+            declaration
+                .manifest()
+                .component_realization(&ProvenanceComponent::component_id()),
+            Some(RealizationProvenance::DeclarationOnly)
+        ));
+
+        let self_realized = Fabric::new("fabric.test.provenance.component-self")
+            .expect("fabric")
+            .component(ProvenanceSelfComponent::define())
+            .build()
+            .expect("build");
+        assert!(matches!(
+            self_realized
+                .manifest()
+                .component_realization(&ProvenanceSelfComponent::component_id()),
+            Some(RealizationProvenance::SelfRealization {
+                runtime_module_id: None
+            })
+        ));
+
+        let adapter = ProvenanceComponentAdapter::new();
+        let adapter_id = adapter.adapter_definition_id();
+        let adapted = Fabric::new("fabric.test.provenance.component-adapter")
+            .expect("fabric")
+            .component(
+                ProvenanceAdapterComponent::define()
+                    .using(adapter)
+                    .expect("adapter compatibility"),
+            )
+            .build()
+            .expect("build");
+        match adapted
+            .manifest()
+            .component_realization(&ProvenanceAdapterComponent::component_id())
+        {
+            Some(RealizationProvenance::Adapter(provenance)) => {
+                assert_eq!(provenance.definition_id, adapter_id);
+                assert_eq!(provenance.mode, AdapterRealizationMode::Direct);
+                assert!(provenance.semantic_owner_module_id.is_none());
+            }
+            other => panic!("expected Component Adapter provenance, got {other:?}"),
+        }
+    }
 }

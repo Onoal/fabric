@@ -179,6 +179,21 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             quote!(#requirement.declaration().clone())
         })
         .collect::<Vec<_>>();
+    let relation_metadata = input
+        .relations
+        .iter()
+        .map(|relation| {
+            let name = relation.field.to_string();
+            let target = &relation.target;
+            let requirement = resource_requirement_expr(&sdk, relation);
+            quote!((
+                #sdk::component::ComponentRelationName::new(#name)
+                    .expect("resource! generated a non-empty relation role"),
+                <#target as #sdk::authoring::RelationTarget>::relation_target_descriptor(),
+                #requirement.declaration().clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
     let dependency_bindings = input.relations.iter().map(|requirement| {
         let field = &requirement.field;
         quote! {
@@ -480,6 +495,12 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
         impl #sdk::authoring::RelationTarget for #resource_name {
             type Contract = #resource_mod::raw::#contract_name;
 
+            fn relation_target_descriptor() -> #sdk::authoring::RelationTargetDescriptor {
+                #sdk::authoring::RelationTargetDescriptor::Resource(
+                    <Self as #sdk::authoring::ResourceDefinition>::resource_id(),
+                )
+            }
+
             fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
                 let key = <Self as #sdk::authoring::PrimaryResourceContract>::primary_contract_key();
                 match key.identity() {
@@ -563,6 +584,16 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
                 #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
                     .with_provided_contracts(::std::vec![#resource_mod::raw::primary_contract_key().declaration()])
                     .with_required_contracts(required)
+            }
+
+            fn relation_declarations(
+                _consumer_module_id: #sdk::core::ModuleId,
+            ) -> ::std::vec::Vec<(
+                #sdk::component::ComponentRelationName,
+                #sdk::authoring::RelationTargetDescriptor,
+                #sdk::core::ContractRequirementDeclaration,
+            )> {
+                ::std::vec![#(#relation_metadata),*]
             }
 
             fn materialize(

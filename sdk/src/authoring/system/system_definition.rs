@@ -1,7 +1,9 @@
-use fabric_core::{ModuleDeclaration, ModuleRuntime};
+use fabric_component::ComponentRelationName;
+use fabric_core::{ContractRequirementDeclaration, ModuleDeclaration, ModuleId, ModuleRuntime};
 use fabric_system::{SystemCompatibilityError, SystemId, SystemSchemaDescriptor};
 
 use super::SystemSelection;
+use crate::authoring::RelationTargetDescriptor;
 
 pub trait SystemDefinition: Sized + Send + Sync + 'static {
     /// Declarative input for one System selection.
@@ -20,6 +22,18 @@ pub trait SystemDefinition: Sized + Send + Sync + 'static {
     }
 
     fn declaration(selection: &SystemSelection<Self>) -> ModuleDeclaration;
+
+    #[doc(hidden)]
+    fn relation_declarations(
+        consumer_module_id: ModuleId,
+    ) -> Vec<(
+        ComponentRelationName,
+        RelationTargetDescriptor,
+        ContractRequirementDeclaration,
+    )> {
+        let _ = consumer_module_id;
+        Vec::new()
+    }
 
     /// Whether this definition supplies its own static realization.
     ///

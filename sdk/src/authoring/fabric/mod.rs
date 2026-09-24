@@ -14,6 +14,7 @@ pub use manifest::{
     ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
     SystemManifestEntry,
 };
+pub(crate) use manifest::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use resource::IntoFabricResource;
 pub use system::IntoFabricSystem;
 pub use system_augmentation::IntoFabricSystemAugmentation;

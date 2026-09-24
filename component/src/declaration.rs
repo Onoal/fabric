@@ -56,15 +56,24 @@ pub struct ComponentResourceRequirementDeclaration {
 #[doc(hidden)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ComponentSystemRequirementDeclaration {
+    name: ComponentRelationName,
     system_id: SystemId,
     requirement: ContractRequirementDeclaration,
 }
 impl ComponentSystemRequirementDeclaration {
-    pub fn new(system_id: SystemId, requirement: ContractRequirementDeclaration) -> Self {
+    pub fn new(
+        name: ComponentRelationName,
+        system_id: SystemId,
+        requirement: ContractRequirementDeclaration,
+    ) -> Self {
         Self {
+            name,
             system_id,
             requirement,
         }
+    }
+    pub fn name(&self) -> &ComponentRelationName {
+        &self.name
     }
     pub fn system_id(&self) -> &SystemId {
         &self.system_id

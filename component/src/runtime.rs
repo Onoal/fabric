@@ -227,6 +227,28 @@ pub fn component_system_dependency_contract_key(
     )
 }
 
+pub fn component_named_system_dependency_contract_key(
+    component_id: &ComponentId,
+    name: &ComponentRelationName,
+    requirement: &ContractRequirementDeclaration,
+) -> ContractKey<ComponentResourceDependency> {
+    let encoded = format!(
+        "{}:{}:{}:{}",
+        component_id.as_str(),
+        name.as_str(),
+        requirement.id().as_str(),
+        requirement.compatibility()
+    )
+    .as_bytes()
+    .iter()
+    .flat_map(|byte| [nibble(byte >> 4), nibble(byte & 15)])
+    .collect::<String>();
+    ContractKey::provisional(
+        ContractId::new(format!("fabric.component.system-dependency.{encoded}"))
+            .expect("encoded component named system dependency contract id"),
+    )
+}
+
 pub fn component_materializer_contract_id() -> ContractId {
     ContractId::new(COMPONENT_MATERIALIZER_CONTRACT_ID)
         .expect("static component materializer contract id")
@@ -500,6 +522,26 @@ impl ComponentParticipationScope {
     {
         let key = component_system_dependency_contract_key(
             self.component().component_id(),
+            requirement.declaration(),
+        );
+        let dependency = self
+            .resource_dependencies
+            .get(key.id())
+            .ok_or(ComponentError::Unavailable)?;
+        dependency.resolve(requirement)
+    }
+
+    pub fn named_system_dependency<T>(
+        &self,
+        name: &ComponentRelationName,
+        requirement: &ContractRequirement<T>,
+    ) -> Result<Arc<T>, ComponentError>
+    where
+        T: Send + Sync + 'static,
+    {
+        let key = component_named_system_dependency_contract_key(
+            self.component().component_id(),
+            name,
             requirement.declaration(),
         );
         let dependency = self

@@ -1,4 +1,7 @@
-use super::manifest::{RealizationProvenance, SystemManifestEntry, adapter_realization_provenance};
+use super::manifest::{
+    RealizationProvenance, RelationDeclarationOwner, RelationDeclarationProvenance,
+    SystemManifestEntry, adapter_realization_provenance,
+};
 use super::sealed::Sealed;
 use crate::authoring::definitions::{
     AdapterBridgeMode, AdapterDefinition, SystemAdapterCompatibility,
@@ -18,6 +21,7 @@ pub struct FabricSystemContribution {
     modules: Vec<Box<dyn Module>>,
     declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
+    relation_declarations: Vec<RelationDeclarationProvenance>,
 }
 
 impl FabricSystemContribution {
@@ -37,19 +41,47 @@ impl FabricSystemContribution {
         &self.provider_selections
     }
 
+    pub(crate) fn relation_declarations(&self) -> &[RelationDeclarationProvenance] {
+        &self.relation_declarations
+    }
+
     fn new(
         entry: SystemManifestEntry,
         modules: Vec<Box<dyn Module>>,
         declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
+        relation_declarations: Vec<RelationDeclarationProvenance>,
     ) -> Self {
         Self {
             entry,
             modules,
             declarations,
             provider_selections,
+            relation_declarations,
         }
     }
+}
+
+fn system_relation_declarations<S>(
+    consumer_module_id: fabric_core::ModuleId,
+) -> Vec<RelationDeclarationProvenance>
+where
+    S: SystemDefinition,
+{
+    S::relation_declarations(consumer_module_id.clone())
+        .into_iter()
+        .map(|(role, target, requirement)| {
+            RelationDeclarationProvenance::new(
+                RelationDeclarationOwner::System {
+                    system_id: S::system_id(),
+                },
+                role,
+                target,
+                consumer_module_id.clone(),
+                requirement,
+            )
+        })
+        .collect()
 }
 
 impl<S> Sealed for SystemSelection<S> where S: SystemDefinition {}
@@ -66,9 +98,21 @@ where
         } else {
             RealizationProvenance::DeclarationOnly
         };
-        let entry = SystemManifestEntry::new(S::system_id(), S::schema(), realization);
+        let entry = SystemManifestEntry::new(
+            S::system_id(),
+            S::schema(),
+            realization,
+            self.module_id().clone(),
+        );
+        let relation_declarations = system_relation_declarations::<S>(self.module_id().clone());
         let declarations = vec![self.declaration()];
-        FabricSystemContribution::new(entry, vec![Box::new(self)], declarations, Vec::new())
+        FabricSystemContribution::new(
+            entry,
+            vec![Box::new(self)],
+            declarations,
+            Vec::new(),
+            relation_declarations,
+        )
     }
 }
 
@@ -88,13 +132,44 @@ where
 {
     fn into_fabric_system(self) -> FabricSystemContribution {
         let (system, adapter, selection, bridge_mode) = self.into_bridge_parts();
+        let semantic_provider_module_id = system.module_id().clone();
+        let consumer_module_id = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            adapter.provider_module_id().clone()
+        } else {
+            system.module_id().clone()
+        };
+        let mut relation_declarations = system_relation_declarations::<S>(consumer_module_id);
+        let adapter_definition_id = adapter.adapter().adapter_definition_id();
+        relation_declarations.extend(
+            adapter
+                .adapter()
+                .relation_declarations(adapter.provider_module_id().clone())
+                .into_iter()
+                .map(|(role, target, requirement)| {
+                    RelationDeclarationProvenance::new(
+                        RelationDeclarationOwner::AdapterRealizationUse {
+                            adapter_definition_id: adapter_definition_id.clone(),
+                            provider_module_id: adapter.provider_module_id().clone(),
+                        },
+                        role,
+                        target,
+                        adapter.provider_module_id().clone(),
+                        requirement,
+                    )
+                }),
+        );
         let realization = adapter_realization_provenance(
             bridge_mode,
-            adapter.adapter().adapter_definition_id(),
+            adapter_definition_id,
             adapter.provider_module_id().clone(),
             system.module_id().clone(),
         );
-        let entry = SystemManifestEntry::new(S::system_id(), S::schema(), realization);
+        let entry = SystemManifestEntry::new(
+            S::system_id(),
+            S::schema(),
+            realization,
+            semantic_provider_module_id,
+        );
         if bridge_mode == AdapterBridgeMode::SemanticApi {
             // See the Resource equivalent: semantic Relations constrain the
             // Adapter-owned live participant without reviving a System proxy.
@@ -104,6 +179,7 @@ where
                 vec![Box::new(adapter)],
                 vec![declaration],
                 Vec::new(),
+                relation_declarations,
             )
         } else {
             let declarations = vec![system.declaration(), adapter.declaration()];
@@ -112,6 +188,7 @@ where
                 vec![Box::new(system), Box::new(adapter)],
                 declarations,
                 vec![selection.expect("legacy adapter realization selects its provider")],
+                relation_declarations,
             )
         }
     }

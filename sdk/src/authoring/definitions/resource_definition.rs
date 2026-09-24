@@ -1,7 +1,10 @@
-use fabric_core::{ContractRequirement, ModuleDeclaration, ModuleRuntime};
+use fabric_component::ComponentRelationName;
+use fabric_core::{
+    ContractRequirement, ContractRequirementDeclaration, ModuleDeclaration, ModuleId, ModuleRuntime,
+};
 use fabric_resource::{ResourceError, ResourceId, ResourceName, ResourceSchemaDescriptor};
 
-use super::ResourceSelection;
+use super::{RelationTargetDescriptor, ResourceSelection};
 
 pub trait ResourceDefinition: Sized + Send + Sync + 'static {
     /// Declarative input for one Resource selection.
@@ -23,6 +26,18 @@ pub trait ResourceDefinition: Sized + Send + Sync + 'static {
     }
 
     fn declaration(selection: &ResourceSelection<Self>) -> ModuleDeclaration;
+
+    #[doc(hidden)]
+    fn relation_declarations(
+        consumer_module_id: ModuleId,
+    ) -> Vec<(
+        ComponentRelationName,
+        RelationTargetDescriptor,
+        ContractRequirementDeclaration,
+    )> {
+        let _ = consumer_module_id;
+        Vec::new()
+    }
 
     /// Whether this definition supplies its own static realization.
     ///

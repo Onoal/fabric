@@ -160,6 +160,21 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
             quote!(#requirement.declaration().clone())
         })
         .collect::<Vec<_>>();
+    let relation_metadata = input
+        .relations
+        .iter()
+        .map(|relation| {
+            let name = relation.field.to_string();
+            let target = &relation.target;
+            let requirement = system_requirement_expr(&sdk, relation);
+            quote!((
+                #sdk::component::ComponentRelationName::new(#name)
+                    .expect("system! generated a non-empty relation role"),
+                <#target as #sdk::authoring::RelationTarget>::relation_target_descriptor(),
+                #requirement.declaration().clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
     let dependency_bindings = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         quote! {
@@ -461,6 +476,11 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
 
         impl #sdk::authoring::RelationTarget for #system_name {
             type Contract = #system_mod::raw::#contract_name;
+            fn relation_target_descriptor() -> #sdk::authoring::RelationTargetDescriptor {
+                #sdk::authoring::RelationTargetDescriptor::System(
+                    <Self as #sdk::authoring::SystemDefinition>::system_id(),
+                )
+            }
             fn relation_requirement() -> #sdk::core::ContractRequirement<Self::Contract> {
                 let key = <Self as #sdk::authoring::PrimarySystemContract>::primary_contract_key();
                 match key.identity() {
@@ -490,7 +510,7 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
         impl #sdk::authoring::ComponentRelationTarget for #system_name {
             fn add_component_relation<C>(
                 spec: #sdk::authoring::ComponentSpec<C>,
-                _name: #sdk::component::ComponentRelationName,
+                name: #sdk::component::ComponentRelationName,
                 compatibility: #sdk::authoring::ComponentRelationCompatibility,
             ) -> #sdk::authoring::ComponentSpec<C>
             where C: #sdk::authoring::ComponentDefinition {
@@ -498,19 +518,22 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                     #sdk::authoring::ComponentRelationCompatibility::Provisional => #sdk::authoring::SystemRequires::<Self>::provisional(),
                     #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => #sdk::authoring::SystemRequires::<Self>::versioned(requirement),
                 };
-                spec.requires_system(requirement)
+                spec.requires_named_system(#sdk::authoring::ComponentSystemRequirement::new(
+                    name,
+                    requirement,
+                ))
             }
 
             fn resolve_component_relation(
                 scope: &#sdk::component::ComponentParticipationScope,
-                _name: &#sdk::component::ComponentRelationName,
+                name: &#sdk::component::ComponentRelationName,
                 compatibility: &#sdk::authoring::ComponentRelationCompatibility,
             ) -> ::std::result::Result<::std::sync::Arc<Self::Contract>, #sdk::component::ComponentError> {
                 let requirement = match compatibility {
                     #sdk::authoring::ComponentRelationCompatibility::Provisional => <Self as #sdk::authoring::RelationTarget>::relation_requirement(),
                     #sdk::authoring::ComponentRelationCompatibility::Versioned(requirement) => <Self as #sdk::authoring::RelationTarget>::relation_requirement_versioned(requirement.clone()),
                 };
-                scope.system_dependency(&requirement)
+                scope.named_system_dependency(name, &requirement)
             }
         }
 
@@ -533,6 +556,16 @@ pub fn expand_system(input: &SystemInput) -> TokenStream {
                 #sdk::core::ModuleDeclaration::new(selection.module_id().clone())
                     .with_provided_contracts(::std::vec![#system_mod::raw::primary_contract_key().declaration()])
                     .with_required_contracts(required)
+            }
+
+            fn relation_declarations(
+                _consumer_module_id: #sdk::core::ModuleId,
+            ) -> ::std::vec::Vec<(
+                #sdk::component::ComponentRelationName,
+                #sdk::authoring::RelationTargetDescriptor,
+                #sdk::core::ContractRequirementDeclaration,
+            )> {
+                ::std::vec![#(#relation_metadata),*]
             }
 
             fn materialize(

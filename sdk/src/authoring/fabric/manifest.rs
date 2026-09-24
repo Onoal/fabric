@@ -1,8 +1,8 @@
-use crate::authoring::AdapterDefinitionId;
+use crate::authoring::{AdapterDefinitionId, RelationTargetDescriptor};
 use fabric_component::{ComponentId, ComponentRelationName};
 use fabric_core::{
     BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
-    ModuleDeclaration, ModuleId,
+    ContractRequirementDeclaration, ModuleDeclaration, ModuleId,
 };
 use fabric_resource::{ResourceId, ResourceName, ResourceSchemaDescriptor};
 
@@ -52,6 +52,72 @@ pub(crate) fn adapter_realization_provenance(
     })
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum RelationDeclarationOwner {
+    Resource {
+        resource_id: ResourceId,
+        resource_name: ResourceName,
+    },
+    System {
+        system_id: fabric_system::SystemId,
+    },
+    Component {
+        component_id: ComponentId,
+    },
+    AdapterRealizationUse {
+        adapter_definition_id: AdapterDefinitionId,
+        provider_module_id: ModuleId,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RelationDeclarationProvenance {
+    owner: RelationDeclarationOwner,
+    role: ComponentRelationName,
+    target: RelationTargetDescriptor,
+    consumer_module_id: ModuleId,
+    requirement: ContractRequirementDeclaration,
+}
+
+#[allow(dead_code)]
+impl RelationDeclarationProvenance {
+    pub(crate) fn new(
+        owner: RelationDeclarationOwner,
+        role: ComponentRelationName,
+        target: RelationTargetDescriptor,
+        consumer_module_id: ModuleId,
+        requirement: ContractRequirementDeclaration,
+    ) -> Self {
+        Self {
+            owner,
+            role,
+            target,
+            consumer_module_id,
+            requirement,
+        }
+    }
+
+    pub(crate) fn owner(&self) -> &RelationDeclarationOwner {
+        &self.owner
+    }
+
+    pub(crate) fn role(&self) -> &ComponentRelationName {
+        &self.role
+    }
+
+    pub(crate) fn target(&self) -> &RelationTargetDescriptor {
+        &self.target
+    }
+
+    pub(crate) fn consumer_module_id(&self) -> &ModuleId {
+        &self.consumer_module_id
+    }
+
+    pub(crate) fn requirement(&self) -> &ContractRequirementDeclaration {
+        &self.requirement
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ResourceManifestEntry {
@@ -59,6 +125,7 @@ pub struct ResourceManifestEntry {
     name: ResourceName,
     schema: ResourceSchemaDescriptor,
     realization: RealizationProvenance,
+    semantic_provider_module_id: ModuleId,
 }
 
 /// Bounded semantic inspection truth for an external Resource attachment.
@@ -105,12 +172,14 @@ impl ResourceManifestEntry {
         name: ResourceName,
         schema: ResourceSchemaDescriptor,
         realization: RealizationProvenance,
+        semantic_provider_module_id: ModuleId,
     ) -> Self {
         Self {
             resource_id,
             name,
             schema,
             realization,
+            semantic_provider_module_id,
         }
     }
 
@@ -130,6 +199,11 @@ impl ResourceManifestEntry {
     pub(crate) fn realization(&self) -> &RealizationProvenance {
         &self.realization
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn semantic_provider_module_id(&self) -> &ModuleId {
+        &self.semantic_provider_module_id
+    }
 }
 
 #[allow(dead_code)]
@@ -138,6 +212,7 @@ pub struct SystemManifestEntry {
     system_id: fabric_system::SystemId,
     schema: fabric_system::SystemSchemaDescriptor,
     realization: RealizationProvenance,
+    semantic_provider_module_id: ModuleId,
 }
 
 /// Bounded semantic inspection truth for an external System attachment.
@@ -262,11 +337,13 @@ impl SystemManifestEntry {
         system_id: fabric_system::SystemId,
         schema: fabric_system::SystemSchemaDescriptor,
         realization: RealizationProvenance,
+        semantic_provider_module_id: ModuleId,
     ) -> Self {
         Self {
             system_id,
             schema,
             realization,
+            semantic_provider_module_id,
         }
     }
 
@@ -281,6 +358,11 @@ impl SystemManifestEntry {
     #[allow(dead_code)]
     pub(crate) fn realization(&self) -> &RealizationProvenance {
         &self.realization
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn semantic_provider_module_id(&self) -> &ModuleId {
+        &self.semantic_provider_module_id
     }
 }
 
@@ -320,6 +402,7 @@ pub struct FabricManifest {
     provider_selections: Vec<ContractProviderSelection>,
     component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
     component_system_bindings: Vec<ComponentSystemBindingManifestEntry>,
+    relation_declarations: Vec<RelationDeclarationProvenance>,
     raw_blocks: Vec<BlockId>,
     composition_exports: Vec<CompositionExportDeclaration>,
 }
@@ -338,6 +421,7 @@ impl FabricManifest {
         provider_selections: Vec<ContractProviderSelection>,
         component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
         component_system_bindings: Vec<ComponentSystemBindingManifestEntry>,
+        relation_declarations: Vec<RelationDeclarationProvenance>,
         raw_blocks: Vec<BlockId>,
         composition_exports: Vec<CompositionExportDeclaration>,
     ) -> Self {
@@ -353,6 +437,7 @@ impl FabricManifest {
             provider_selections,
             component_resource_bindings,
             component_system_bindings,
+            relation_declarations,
             raw_blocks,
             composition_exports,
         }
@@ -394,6 +479,11 @@ impl FabricManifest {
     }
     pub fn component_system_bindings(&self) -> &[ComponentSystemBindingManifestEntry] {
         &self.component_system_bindings
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn relation_declarations(&self) -> &[RelationDeclarationProvenance] {
+        &self.relation_declarations
     }
 
     pub fn diagnostics(&self) -> FabricManifestDiagnostics<'_> {

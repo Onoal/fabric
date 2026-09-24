@@ -21,8 +21,9 @@ pub use definitions::{
     ComponentAugmentationSetRealization, ComponentAugmentationSupportDefinition,
     ComponentAugmentedAdapterRealization, ComponentDefinition, ComponentRealization,
     ComponentRealizationContract, ComponentRelationCompatibility, ComponentRelationTarget,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    ContractDependency, IntoResourceName, PrimaryResourceContract, RelationTarget, Requires,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
+    ComponentSystemRequirement, ComponentSystemScope, ContractDependency, IntoResourceName,
+    PrimaryResourceContract, RelationTarget, RelationTargetDescriptor, Requires,
     ResourceAdapterCompatibility, ResourceAugmentation, ResourceAugmentationDefinition,
     ResourceAugmentationError, ResourceAugmentationRealization, ResourceAugmentationRequirement,
     ResourceAugmentationSupportDefinition, ResourceDefinition, ResourceRealization,
@@ -35,6 +36,7 @@ pub use fabric::{
     IntoFabricSystem, IntoFabricSystemAugmentation, ResourceAugmentationManifestEntry,
     ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
 };
+pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;
 pub use fabric_instance::{FabricComponents, FabricInstance};
 pub use runtime_authoring::{

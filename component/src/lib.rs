@@ -144,7 +144,8 @@ pub use runtime::{
     ComponentParticipationContribution, ComponentParticipationPreparation,
     ComponentParticipationRealization, ComponentParticipationScope, ComponentResourceDependency,
     component_materializer_contract_id, component_materializer_contract_key,
-    component_named_resource_dependency_contract_key, component_resource_dependency_contract_id,
+    component_named_resource_dependency_contract_key,
+    component_named_system_dependency_contract_key, component_resource_dependency_contract_id,
     component_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 #[doc(hidden)]

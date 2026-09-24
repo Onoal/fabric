@@ -4,14 +4,15 @@ use super::{AdapterDefinition, AdapterProviderModule, ComponentAdapterCompatibil
 use super::{PrimaryResourceContract, RelationTarget, Requires, ResourceSelection};
 use crate::authoring::{
     ComponentResourceBindingManifestEntry, ComponentSystemBindingManifestEntry,
-    PrimarySystemContract, SystemRequires, SystemSelection,
+    PrimarySystemContract, RelationDeclarationOwner, RelationDeclarationProvenance, SystemRequires,
+    SystemSelection,
 };
 use fabric_component::{
     ComponentAugmentationParticipationRealization, ComponentDeclaration, ComponentError,
     ComponentId, ComponentParticipationPreparation, ComponentParticipationRealization,
     ComponentRelationName, ComponentResourceDependency, ComponentResourceRequirementDeclaration,
     ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
-    component_system_dependency_contract_key,
+    component_named_system_dependency_contract_key,
 };
 use fabric_core::{
     ContractProviderSelection, ContractRequirement, ContractVersionRequirement, Health, Module,
@@ -95,6 +96,29 @@ pub trait ComponentSystemScope {
     where
         S: PrimarySystemContract;
 }
+
+pub struct ComponentSystemRequirement<S: PrimarySystemContract> {
+    name: ComponentRelationName,
+    requirement: SystemRequires<S>,
+}
+
+impl<S: PrimarySystemContract> Clone for ComponentSystemRequirement<S> {
+    fn clone(&self) -> Self {
+        Self::new(self.name.clone(), self.requirement.clone())
+    }
+}
+
+impl<S: PrimarySystemContract> ComponentSystemRequirement<S> {
+    pub fn new(name: ComponentRelationName, requirement: SystemRequires<S>) -> Self {
+        Self { name, requirement }
+    }
+    pub fn name(&self) -> &ComponentRelationName {
+        &self.name
+    }
+    pub fn requirement(&self) -> &SystemRequires<S> {
+        &self.requirement
+    }
+}
 impl ComponentSystemScope for fabric_component::ComponentParticipationScope {
     fn system<S>(
         &self,
@@ -131,13 +155,14 @@ trait ComponentSystemContribution: Send + Sync {
     ) -> ContractProviderSelection;
 }
 struct TypedComponentSystemContribution<S: PrimarySystemContract> {
-    requirement: SystemRequires<S>,
+    requirement: ComponentSystemRequirement<S>,
 }
 impl<S: PrimarySystemContract> ComponentSystemContribution for TypedComponentSystemContribution<S> {
     fn declaration(&self) -> ComponentSystemRequirementDeclaration {
         ComponentSystemRequirementDeclaration::new(
+            self.requirement.name().clone(),
             S::system_id(),
-            self.requirement.declaration().clone(),
+            self.requirement.requirement().declaration().clone(),
         )
     }
     fn carrier(&self, component_id: &ComponentId) -> Box<dyn Module> {
@@ -152,46 +177,53 @@ impl<S: PrimarySystemContract> ComponentSystemContribution for TypedComponentSys
         provider: ModuleId,
     ) -> ContractProviderSelection {
         ContractProviderSelection::new(
-            component_system_carrier_module_id(component_id, self.requirement.declaration()),
-            self.requirement.declaration().id().clone(),
+            component_system_carrier_module_id(
+                component_id,
+                self.requirement.name(),
+                self.requirement.requirement().declaration(),
+            ),
+            self.requirement.requirement().declaration().id().clone(),
             provider,
         )
     }
 }
 struct ComponentSystemCarrier<S: PrimarySystemContract> {
     component_id: ComponentId,
-    requirement: SystemRequires<S>,
+    requirement: ComponentSystemRequirement<S>,
 }
 struct ComponentSystemCarrierRuntime<S: PrimarySystemContract> {
     module_id: ModuleId,
     component_id: ComponentId,
-    requirement: SystemRequires<S>,
+    requirement: ComponentSystemRequirement<S>,
     handoff: Arc<ComponentResourceDependency>,
 }
 impl<S: PrimarySystemContract> Module for ComponentSystemCarrier<S> {
     fn declaration(&self) -> ModuleDeclaration {
-        let h = component_system_dependency_contract_key(
+        let h = component_named_system_dependency_contract_key(
             &self.component_id,
-            self.requirement.declaration(),
+            self.requirement.name(),
+            self.requirement.requirement().declaration(),
         );
         ModuleDeclaration::new(component_system_carrier_module_id(
             &self.component_id,
-            self.requirement.declaration(),
+            self.requirement.name(),
+            self.requirement.requirement().declaration(),
         ))
-        .with_required_contracts(vec![self.requirement.declaration().clone()])
+        .with_required_contracts(vec![self.requirement.requirement().declaration().clone()])
         .with_provided_contracts(vec![h.declaration()])
     }
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
         Some(Box::new(ComponentSystemCarrierRuntime::<S> {
             module_id: component_system_carrier_module_id(
                 &self.component_id,
-                self.requirement.declaration(),
+                self.requirement.name(),
+                self.requirement.requirement().declaration(),
             ),
             component_id: self.component_id.clone(),
             requirement: self.requirement.clone(),
             handoff: Arc::new(ComponentResourceDependency::new::<S::Contract>(
                 self.component_id.clone(),
-                self.requirement.declaration().clone(),
+                self.requirement.requirement().declaration().clone(),
             )),
         }))
     }
@@ -202,21 +234,23 @@ impl<S: PrimarySystemContract> ModuleRuntime for ComponentSystemCarrierRuntime<S
     }
     fn provided_contract_declarations(&self) -> Vec<fabric_core::ProvidedContractDeclaration> {
         vec![
-            component_system_dependency_contract_key(
+            component_named_system_dependency_contract_key(
                 &self.component_id,
-                self.requirement.declaration(),
+                self.requirement.name(),
+                self.requirement.requirement().declaration(),
             )
             .declaration(),
         ]
     }
     fn required_contract_declarations(&self) -> Vec<fabric_core::ContractRequirementDeclaration> {
-        vec![self.requirement.declaration().clone()]
+        vec![self.requirement.requirement().declaration().clone()]
     }
     fn export_contracts(&self) -> Result<Vec<ModuleContract>, ModuleError> {
         Ok(vec![ModuleContract::new(
-            &component_system_dependency_contract_key(
+            &component_named_system_dependency_contract_key(
                 &self.component_id,
-                self.requirement.declaration(),
+                self.requirement.name(),
+                self.requirement.requirement().declaration(),
             ),
             self.handoff.clone(),
         )])
@@ -224,6 +258,7 @@ impl<S: PrimarySystemContract> ModuleRuntime for ComponentSystemCarrierRuntime<S
     fn bind(&mut self, b: &ModuleBindings) -> Result<(), ModuleError> {
         self.handoff.bind(
             self.requirement
+                .requirement()
                 .resolve(b)
                 .map_err(|e| ModuleError::new(e.to_string()))?,
         );
@@ -244,11 +279,13 @@ impl<S: PrimarySystemContract> ModuleRuntime for ComponentSystemCarrierRuntime<S
 }
 fn component_system_carrier_module_id(
     component_id: &ComponentId,
+    name: &ComponentRelationName,
     requirement: &fabric_core::ContractRequirementDeclaration,
 ) -> ModuleId {
     let encoded = format!(
-        "{}:{}:{}",
+        "{}:{}:{}:{}",
         component_id.as_str(),
+        name.as_str(),
         requirement.id().as_str(),
         requirement.compatibility()
     )
@@ -435,6 +472,7 @@ pub struct ComponentSpecParts {
     pub(crate) provider_selections: Vec<ContractProviderSelection>,
     pub(crate) semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     pub(crate) semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
+    pub(crate) relation_declarations: Vec<RelationDeclarationProvenance>,
     pub(crate) augmentation_preparations: Vec<ComponentAugmentationParticipationRealization>,
 }
 
@@ -744,6 +782,16 @@ where
     where
         S: PrimarySystemContract,
     {
+        let name = ComponentRelationName::new(requirement.declaration().id().as_str())
+            .expect("contract ids are valid default Component relation names");
+        self = self.requires_named_system(ComponentSystemRequirement::new(name, requirement));
+        self
+    }
+
+    pub fn requires_named_system<S>(mut self, requirement: ComponentSystemRequirement<S>) -> Self
+    where
+        S: PrimarySystemContract,
+    {
         let contribution: Box<dyn ComponentSystemContribution> =
             Box::new(TypedComponentSystemContribution::<S> { requirement });
         self.declaration = self.declaration.clone().with_system_requirements({
@@ -851,6 +899,41 @@ where
                 .iter()
                 .map(|contribution| contribution.carrier(&component_id)),
         );
+        let mut relation_declarations = Vec::new();
+        relation_declarations.extend(self.declaration.resource_requirements().iter().map(
+            |declaration| {
+                RelationDeclarationProvenance::new(
+                    RelationDeclarationOwner::Component {
+                        component_id: component_id.clone(),
+                    },
+                    declaration.name().clone(),
+                    super::RelationTargetDescriptor::Resource(declaration.resource_id().clone()),
+                    component_resource_carrier_module_id(
+                        &component_id,
+                        declaration.name(),
+                        declaration.requirement(),
+                    ),
+                    declaration.requirement().clone(),
+                )
+            },
+        ));
+        relation_declarations.extend(self.declaration.system_requirements().iter().map(
+            |declaration| {
+                RelationDeclarationProvenance::new(
+                    RelationDeclarationOwner::Component {
+                        component_id: component_id.clone(),
+                    },
+                    declaration.name().clone(),
+                    super::RelationTargetDescriptor::System(declaration.system_id().clone()),
+                    component_system_carrier_module_id(
+                        &component_id,
+                        declaration.name(),
+                        declaration.requirement(),
+                    ),
+                    declaration.requirement().clone(),
+                )
+            },
+        ));
         ComponentSpecParts {
             declaration: self.declaration,
             self_realization: self.self_realization,
@@ -858,6 +941,7 @@ where
             provider_selections: self.provider_selections,
             semantic_provider_selections: self.semantic_provider_selections,
             semantic_system_provider_selections: self.semantic_system_provider_selections,
+            relation_declarations,
             augmentation_preparations: self.augmentation_preparations,
         }
     }

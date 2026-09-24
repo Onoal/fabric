@@ -35,8 +35,9 @@ impl Module for StoredTypedModule {
 use super::augmentation::IntoFabricResourceAugmentation;
 use super::manifest::{
     AdapterRealizationMode, AdapterRealizationProvenance, ComponentAugmentationManifestEntry,
-    FabricManifest, RealizationProvenance, ResourceAugmentationManifestEntry,
-    ResourceManifestEntry, SystemAugmentationManifestEntry, SystemManifestEntry,
+    FabricManifest, RealizationProvenance, RelationDeclarationProvenance,
+    ResourceAugmentationManifestEntry, ResourceManifestEntry, SystemAugmentationManifestEntry,
+    SystemManifestEntry,
 };
 use super::resource::IntoFabricResource;
 use super::system::IntoFabricSystem;
@@ -338,6 +339,7 @@ pub struct Fabric {
     systems: Vec<SystemManifestEntry>,
     system_augmentations: Vec<SystemAugmentationManifestEntry>,
     component_augmentations: Vec<ComponentAugmentationManifestEntry>,
+    relation_declarations: Vec<RelationDeclarationProvenance>,
     components: Vec<ComponentDeclaration>,
     component_realizations: BTreeMap<ComponentId, RealizationProvenance>,
     module_declarations: Vec<ModuleDeclaration>,
@@ -366,6 +368,7 @@ impl Fabric {
             systems: Vec::new(),
             system_augmentations: Vec::new(),
             component_augmentations: Vec::new(),
+            relation_declarations: Vec::new(),
             components: Vec::new(),
             component_realizations: BTreeMap::new(),
             module_declarations: Vec::new(),
@@ -383,6 +386,8 @@ impl Fabric {
             .extend(contribution.declarations().iter().cloned());
         self.provider_selections
             .extend(contribution.provider_selections().iter().cloned());
+        self.relation_declarations
+            .extend(contribution.relation_declarations().iter().cloned());
         self.typed_modules.extend(contribution.modules());
         self
     }
@@ -409,6 +414,8 @@ impl Fabric {
             .extend(contribution.declarations().iter().cloned());
         self.provider_selections
             .extend(contribution.provider_selections().iter().cloned());
+        self.relation_declarations
+            .extend(contribution.relation_declarations().iter().cloned());
         self.typed_modules.extend(contribution.modules());
         self
     }
@@ -442,6 +449,8 @@ impl Fabric {
             .extend(parts.semantic_provider_selections);
         self.component_system_provider_selections
             .extend(parts.semantic_system_provider_selections);
+        self.relation_declarations
+            .extend(parts.relation_declarations);
         if let Some(self_realization) = parts.self_realization {
             self.component_self_realizations.push(self_realization);
         }
@@ -481,6 +490,7 @@ impl Fabric {
             systems,
             system_augmentations,
             component_augmentations,
+            relation_declarations,
             components,
             mut module_declarations,
             component_realizations,
@@ -546,6 +556,7 @@ impl Fabric {
             provider_selections,
             component_resource_provider_selections,
             component_system_provider_selections,
+            relation_declarations,
             raw_block_ids,
             composition.exports().to_vec(),
         );
@@ -564,6 +575,11 @@ pub(crate) fn default_block_id() -> fabric_core::BlockId {
 #[cfg(test)]
 mod realization_provenance_tests {
     use super::*;
+    use crate::authoring::fabric::manifest::RelationDeclarationOwner;
+    use crate::authoring::{
+        RelationTarget, RelationTargetDescriptor, ResourceDefinition, SystemDefinition,
+    };
+    use fabric_component::ComponentRelationName;
 
     crate::component! {
         ProvenanceComponent {
@@ -642,5 +658,291 @@ mod realization_provenance_tests {
             }
             other => panic!("expected Component Adapter provenance, got {other:?}"),
         }
+    }
+
+    crate::resource! {
+        ProvenanceTargetStore {
+            id: "fabric.test.relation-provenance.target-store";
+            api { fn get(&self) -> u64; }
+        }
+    }
+
+    crate::system! {
+        ProvenanceTargetSignal {
+            id: "fabric.test.relation-provenance.target-signal";
+            api { fn now(&self) -> u64; }
+        }
+    }
+
+    crate::system! {
+        ProvenanceAdapterSignal {
+            id: "fabric.test.relation-provenance.adapter-signal";
+            api { fn now(&self) -> u64; }
+        }
+    }
+
+    crate::resource! {
+        ProvenanceOwnerResource {
+            id: "fabric.test.relation-provenance.owner-resource";
+            relations {
+                requires {
+                    store: ProvenanceTargetStore;
+                    signal: ProvenanceTargetSignal;
+                }
+            }
+            api { fn read(&self) -> u64; }
+            runtime { fn read(&self) -> u64 { self.store.get() + self.signal.now() } }
+        }
+    }
+
+    crate::resource! {
+        ProvenanceMediatedResource {
+            id: "fabric.test.relation-provenance.mediated-resource";
+            relations { requires { signal: ProvenanceTargetSignal; } }
+            api { fn read(&self) -> u64; }
+            realization {
+                mediate read;
+                fn raw_read(&self) -> u64;
+            }
+            runtime { fn read(&self) -> u64 { self.realization.raw_read() + self.signal.now() } }
+        }
+    }
+
+    crate::system! {
+        ProvenanceOwnerSystem {
+            id: "fabric.test.relation-provenance.owner-system";
+            relations {
+                requires {
+                    store: ProvenanceTargetStore;
+                    signal: ProvenanceTargetSignal;
+                }
+            }
+            api { fn read(&self) -> u64; }
+            runtime { fn read(&self) -> u64 { self.store.get() + self.signal.now() } }
+        }
+    }
+
+    crate::adapter! {
+        ProvenanceResourceAdapter for ProvenanceOwnerResource {
+            id: "test.relation-provenance.resource-adapter";
+            relations { requires { adapter_signal: ProvenanceAdapterSignal; } }
+            runtime { fn read(&self) -> u64 { self.adapter_signal.now() } }
+        }
+    }
+
+    crate::adapter! {
+        ProvenanceMediatedResourceAdapter for ProvenanceMediatedResource {
+            id: "test.relation-provenance.mediated-resource-adapter";
+            runtime { fn raw_read(&self) -> u64 { 1 } }
+        }
+    }
+
+    crate::component! {
+        ProvenanceRelationComponent {
+            id: "fabric.test.relation-provenance.component";
+            relations {
+                requires {
+                    primary_store: ProvenanceTargetStore;
+                    primary_signal: ProvenanceTargetSignal;
+                    fallback_signal: ProvenanceTargetSignal;
+                }
+            }
+        }
+    }
+
+    fn relation<'a>(
+        manifest: &'a FabricManifest,
+        role: &str,
+        owner: impl Fn(&RelationDeclarationOwner) -> bool,
+    ) -> &'a RelationDeclarationProvenance {
+        let role = ComponentRelationName::new(role).expect("role");
+        manifest
+            .relation_declarations()
+            .iter()
+            .find(|relation| relation.role() == &role && owner(relation.owner()))
+            .expect("relation provenance")
+    }
+
+    #[test]
+    fn semantic_relation_declaration_provenance_is_retained_without_materialization() {
+        struct PanicSelfResource;
+        impl crate::authoring::ResourceDefinition for PanicSelfResource {
+            type Config = ();
+
+            fn resource_id() -> crate::resource::ResourceId {
+                crate::resource::ResourceId::new("fabric.test.relation-provenance.panic")
+                    .expect("id")
+            }
+
+            fn schema() -> crate::resource::ResourceSchemaDescriptor {
+                crate::resource::ResourceSchemaDescriptor::provisional(Self::resource_id())
+            }
+
+            fn declaration(
+                selection: &crate::authoring::ResourceSelection<Self>,
+            ) -> fabric_core::ModuleDeclaration {
+                fabric_core::ModuleDeclaration::new(selection.module_id().clone())
+            }
+
+            fn has_self_realization() -> bool {
+                true
+            }
+
+            fn materialize(
+                _selection: &crate::authoring::ResourceSelection<Self>,
+            ) -> Option<Box<dyn fabric_core::ModuleRuntime>> {
+                panic!("composition build must not materialize relation provenance")
+            }
+        }
+
+        let target_store = ProvenanceTargetStore::select("primary").expect("store");
+        let target_signal = ProvenanceTargetSignal::select().expect("signal");
+        let adapter_signal_target = ProvenanceAdapterSignal::select().expect("adapter signal");
+        let self_resource = ProvenanceOwnerResource::select("self").expect("self resource");
+        let self_resource_module = self_resource.module_id().clone();
+        let direct_resource = ProvenanceOwnerResource::select("direct")
+            .expect("direct resource")
+            .using(ProvenanceResourceAdapter::new())
+            .expect("direct adapter");
+        let direct_provider = direct_resource.adapter().provider_module_id().clone();
+        let mediated_resource = ProvenanceMediatedResource::select("mediated")
+            .expect("mediated resource")
+            .using(ProvenanceMediatedResourceAdapter::new())
+            .expect("mediated adapter");
+        let mediated_owner = mediated_resource.resource().module_id().clone();
+        let owner_system = ProvenanceOwnerSystem::select().expect("system");
+        let owner_system_module = owner_system.module_id().clone();
+        let component = ProvenanceRelationComponent::define();
+        let panic_resource =
+            <PanicSelfResource as crate::authoring::ResourceDefinition>::select("panic", ())
+                .expect("panic resource");
+
+        let composition = Fabric::new("fabric.test.relation-provenance")
+            .expect("fabric")
+            .resource(target_store.clone())
+            .system(target_signal.clone())
+            .system(adapter_signal_target)
+            .resource(self_resource)
+            .resource(direct_resource)
+            .resource(mediated_resource)
+            .system(owner_system)
+            .resource(panic_resource)
+            .component(component)
+            .build()
+            .expect("build");
+        let manifest = composition.manifest();
+
+        let self_store = relation(manifest, "store", |owner| {
+            matches!(
+                owner,
+                RelationDeclarationOwner::Resource { resource_name, .. }
+                    if resource_name.as_str() == "self"
+            )
+        });
+        assert_eq!(self_store.consumer_module_id(), &self_resource_module);
+        assert_eq!(
+            self_store.target(),
+            &RelationTargetDescriptor::Resource(ProvenanceTargetStore::resource_id())
+        );
+        assert_eq!(
+            self_store.requirement().id(),
+            ProvenanceTargetStore::relation_requirement().id()
+        );
+
+        let self_signal = relation(manifest, "signal", |owner| {
+            matches!(
+                owner,
+                RelationDeclarationOwner::Resource { resource_name, .. }
+                    if resource_name.as_str() == "self"
+            )
+        });
+        assert_eq!(
+            self_signal.target(),
+            &RelationTargetDescriptor::System(ProvenanceTargetSignal::system_id())
+        );
+
+        let direct_store = relation(manifest, "store", |owner| {
+            matches!(
+                owner,
+                RelationDeclarationOwner::Resource { resource_name, .. }
+                    if resource_name.as_str() == "direct"
+            )
+        });
+        assert_eq!(direct_store.consumer_module_id(), &direct_provider);
+
+        let mediated_signal = relation(manifest, "signal", |owner| {
+            matches!(
+                owner,
+                RelationDeclarationOwner::Resource { resource_name, .. }
+                    if resource_name.as_str() == "mediated"
+            )
+        });
+        assert_eq!(mediated_signal.consumer_module_id(), &mediated_owner);
+
+        let system_store = relation(manifest, "store", |owner| {
+            matches!(owner, RelationDeclarationOwner::System { system_id }
+                if system_id == &ProvenanceOwnerSystem::system_id())
+        });
+        assert_eq!(system_store.consumer_module_id(), &owner_system_module);
+        assert_eq!(
+            system_store.target(),
+            &RelationTargetDescriptor::Resource(ProvenanceTargetStore::resource_id())
+        );
+
+        let adapter_signal = relation(manifest, "adapter_signal", |owner| {
+            matches!(
+                owner,
+                RelationDeclarationOwner::AdapterRealizationUse {
+                    adapter_definition_id,
+                    provider_module_id,
+                } if adapter_definition_id.as_str() == "test.relation-provenance.resource-adapter"
+                    && provider_module_id == &direct_provider
+            )
+        });
+        assert_eq!(adapter_signal.consumer_module_id(), &direct_provider);
+        assert_eq!(
+            adapter_signal.target(),
+            &RelationTargetDescriptor::System(ProvenanceAdapterSignal::system_id())
+        );
+
+        let component_store = relation(manifest, "primary_store", |owner| {
+            matches!(owner, RelationDeclarationOwner::Component { component_id }
+                if component_id == &ProvenanceRelationComponent::component_id())
+        });
+        assert_eq!(
+            component_store.target(),
+            &RelationTargetDescriptor::Resource(ProvenanceTargetStore::resource_id())
+        );
+
+        let primary_signal = relation(manifest, "primary_signal", |owner| {
+            matches!(owner, RelationDeclarationOwner::Component { component_id }
+                if component_id == &ProvenanceRelationComponent::component_id())
+        });
+        let fallback_signal = relation(manifest, "fallback_signal", |owner| {
+            matches!(owner, RelationDeclarationOwner::Component { component_id }
+                if component_id == &ProvenanceRelationComponent::component_id())
+        });
+        assert_eq!(
+            primary_signal.target(),
+            &RelationTargetDescriptor::System(ProvenanceTargetSignal::system_id())
+        );
+        assert_eq!(
+            fallback_signal.target(),
+            &RelationTargetDescriptor::System(ProvenanceTargetSignal::system_id())
+        );
+        assert_ne!(
+            primary_signal.consumer_module_id(),
+            fallback_signal.consumer_module_id()
+        );
+
+        assert!(manifest.resources().iter().any(|entry| {
+            entry.resource_id() == &ProvenanceTargetStore::resource_id()
+                && entry.name() == target_store.name()
+                && entry.semantic_provider_module_id() == target_store.module_id()
+        }));
+        assert!(manifest.systems().iter().any(|entry| {
+            entry.system_id() == &ProvenanceTargetSignal::system_id()
+                && entry.semantic_provider_module_id() == target_signal.module_id()
+        }));
     }
 }

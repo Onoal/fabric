@@ -51,7 +51,8 @@ use crate::runtime::{
     ComponentMaterializerService, ComponentParticipationCleanup,
     ComponentParticipationContribution, ComponentParticipationRealization,
     ComponentParticipationScope, ComponentResourceDependency, component_materializer_contract_key,
-    component_named_resource_dependency_contract_key, component_system_dependency_contract_key,
+    component_named_resource_dependency_contract_key,
+    component_named_system_dependency_contract_key, component_system_dependency_contract_key,
 };
 use crate::surface::{
     Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
@@ -492,8 +493,9 @@ impl ModuleRuntime for ComponentHostModule {
                             .iter()
                             .map(move |requirement| {
                                 ContractRequirement::<ComponentResourceDependency>::provisional(
-                                    component_system_dependency_contract_key(
+                                    component_named_system_dependency_contract_key(
                                         declaration.component_id(),
+                                        requirement.name(),
                                         requirement.requirement(),
                                     )
                                     .id()
@@ -538,18 +540,26 @@ impl ModuleRuntime for ComponentHostModule {
                 dependencies.insert(key.id().clone(), resolved);
             }
             for requirement in declaration.system_requirements() {
-                let key = component_system_dependency_contract_key(
+                let named_key = component_named_system_dependency_contract_key(
                     declaration.component_id(),
+                    requirement.name(),
                     requirement.requirement(),
                 );
                 let resolved = bindings
                     .resolve(
                         &ContractRequirement::<ComponentResourceDependency>::provisional(
-                            key.id().clone(),
+                            named_key.id().clone(),
                         ),
                     )
                     .map_err(|error| ModuleError::new(error.to_string()))?;
-                dependencies.insert(key.id().clone(), resolved);
+                if requirement.name().as_str() == requirement.requirement().id().as_str() {
+                    let legacy_key = component_system_dependency_contract_key(
+                        declaration.component_id(),
+                        requirement.requirement(),
+                    );
+                    dependencies.insert(legacy_key.id().clone(), Arc::clone(&resolved));
+                }
+                dependencies.insert(named_key.id().clone(), resolved);
             }
         }
         self.shared

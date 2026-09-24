@@ -1,5 +1,6 @@
 use super::manifest::{
-    RealizationProvenance, ResourceManifestEntry, adapter_realization_provenance,
+    RealizationProvenance, RelationDeclarationOwner, RelationDeclarationProvenance,
+    ResourceManifestEntry, adapter_realization_provenance,
 };
 use super::sealed::Sealed;
 use crate::authoring::definitions::{
@@ -18,6 +19,7 @@ pub struct FabricResourceContribution {
     modules: Vec<Box<dyn Module>>,
     declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
+    relation_declarations: Vec<RelationDeclarationProvenance>,
 }
 
 impl FabricResourceContribution {
@@ -37,19 +39,49 @@ impl FabricResourceContribution {
         &self.provider_selections
     }
 
+    pub(crate) fn relation_declarations(&self) -> &[RelationDeclarationProvenance] {
+        &self.relation_declarations
+    }
+
     fn new(
         entry: ResourceManifestEntry,
         modules: Vec<Box<dyn Module>>,
         declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
+        relation_declarations: Vec<RelationDeclarationProvenance>,
     ) -> Self {
         Self {
             entry,
             modules,
             declarations,
             provider_selections,
+            relation_declarations,
         }
     }
+}
+
+fn resource_relation_declarations<R>(
+    name: &fabric_resource::ResourceName,
+    consumer_module_id: fabric_core::ModuleId,
+) -> Vec<RelationDeclarationProvenance>
+where
+    R: ResourceDefinition,
+{
+    R::relation_declarations(consumer_module_id.clone())
+        .into_iter()
+        .map(|(role, target, requirement)| {
+            RelationDeclarationProvenance::new(
+                RelationDeclarationOwner::Resource {
+                    resource_id: R::resource_id(),
+                    resource_name: name.clone(),
+                },
+                role,
+                target,
+                consumer_module_id.clone(),
+                requirement,
+            )
+        })
+        .collect()
 }
 
 impl<R> Sealed for ResourceSelection<R> where R: ResourceDefinition {}
@@ -71,9 +103,18 @@ where
             self.name().clone(),
             R::schema(),
             realization,
+            self.module_id().clone(),
         );
+        let relation_declarations =
+            resource_relation_declarations::<R>(self.name(), self.module_id().clone());
         let declarations = vec![self.declaration()];
-        FabricResourceContribution::new(entry, vec![Box::new(self)], declarations, Vec::new())
+        FabricResourceContribution::new(
+            entry,
+            vec![Box::new(self)],
+            declarations,
+            Vec::new(),
+            relation_declarations,
+        )
     }
 }
 
@@ -93,9 +134,36 @@ where
 {
     fn into_fabric_resource(self) -> FabricResourceContribution {
         let (resource, adapter, selection, bridge_mode) = self.into_bridge_parts();
+        let semantic_provider_module_id = resource.module_id().clone();
+        let consumer_module_id = if bridge_mode == AdapterBridgeMode::SemanticApi {
+            adapter.provider_module_id().clone()
+        } else {
+            resource.module_id().clone()
+        };
+        let mut relation_declarations =
+            resource_relation_declarations::<R>(resource.name(), consumer_module_id);
+        let adapter_definition_id = adapter.adapter().adapter_definition_id();
+        relation_declarations.extend(
+            adapter
+                .adapter()
+                .relation_declarations(adapter.provider_module_id().clone())
+                .into_iter()
+                .map(|(role, target, requirement)| {
+                    RelationDeclarationProvenance::new(
+                        RelationDeclarationOwner::AdapterRealizationUse {
+                            adapter_definition_id: adapter_definition_id.clone(),
+                            provider_module_id: adapter.provider_module_id().clone(),
+                        },
+                        role,
+                        target,
+                        adapter.provider_module_id().clone(),
+                        requirement,
+                    )
+                }),
+        );
         let realization = adapter_realization_provenance(
             bridge_mode,
-            adapter.adapter().adapter_definition_id(),
+            adapter_definition_id,
             adapter.provider_module_id().clone(),
             resource.module_id().clone(),
         );
@@ -104,6 +172,7 @@ where
             resource.name().clone(),
             R::schema(),
             realization,
+            semantic_provider_module_id,
         );
         if bridge_mode == AdapterBridgeMode::SemanticApi {
             // The semantic subject remains declaration-only, but its declared
@@ -116,6 +185,7 @@ where
                 vec![Box::new(adapter)],
                 vec![declaration],
                 Vec::new(),
+                relation_declarations,
             )
         } else {
             let declarations = vec![resource.declaration(), adapter.declaration()];
@@ -124,6 +194,7 @@ where
                 vec![Box::new(resource), Box::new(adapter)],
                 declarations,
                 vec![selection.expect("legacy adapter realization selects its provider")],
+                relation_declarations,
             )
         }
     }

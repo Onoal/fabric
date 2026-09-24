@@ -28,12 +28,12 @@ pub(crate) use component_definition::ComponentSpecParts;
 pub use component_definition::{
     AdaptableComponentDefinition, ComponentDefinition, ComponentRealization,
     ComponentRealizationContract, ComponentRelationCompatibility, ComponentRelationTarget,
-    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec, ComponentSystemScope,
-    SelfRealizingComponentDefinition,
+    ComponentResourceRequirement, ComponentResourceScope, ComponentSpec,
+    ComponentSystemRequirement, ComponentSystemScope, SelfRealizingComponentDefinition,
 };
 pub use contract_dependency::ContractDependency;
 pub use primary_resource_contract::PrimaryResourceContract;
-pub use relation_target::RelationTarget;
+pub use relation_target::{RelationTarget, RelationTargetDescriptor};
 pub use requires::Requires;
 pub use resource_augmentation::{
     ResourceAugmentation, ResourceAugmentationDefinition, ResourceAugmentationError,

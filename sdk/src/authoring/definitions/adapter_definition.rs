@@ -1,7 +1,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use fabric_core::{ModuleDeclaration, ModuleId, ModuleRuntime};
+use fabric_core::{ContractRequirementDeclaration, ModuleDeclaration, ModuleId, ModuleRuntime};
 use fabric_host::HostRequirement;
 use fabric_resource::{
     AdapterResourceSchemaSupport, ResourceCompatibilityError, ResourceSchemaDescriptor,
@@ -12,8 +12,8 @@ use fabric_system::{
     SystemSchemaRequirement,
 };
 
-use crate::authoring::ComponentDefinition;
-use fabric_component::{ComponentError, ComponentParticipationScope};
+use crate::authoring::{ComponentDefinition, RelationTargetDescriptor};
+use fabric_component::{ComponentError, ComponentParticipationScope, ComponentRelationName};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AdapterDefinitionIdError;
@@ -342,6 +342,19 @@ pub trait AdapterDefinition: Clone + Send + Sync + 'static {
     }
 
     fn declaration(&self, provider_module_id: ModuleId) -> ModuleDeclaration;
+
+    #[doc(hidden)]
+    fn relation_declarations(
+        &self,
+        provider_module_id: ModuleId,
+    ) -> Vec<(
+        ComponentRelationName,
+        RelationTargetDescriptor,
+        ContractRequirementDeclaration,
+    )> {
+        let _ = provider_module_id;
+        Vec::new()
+    }
 
     fn materialize_provider(&self, provider_module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         let _ = provider_module_id;

@@ -81,6 +81,21 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         let requirement = system_requirement_expr(&sdk, dependency);
         quote!(#requirement.declaration().clone())
     });
+    let relation_metadata = input
+        .relations
+        .iter()
+        .map(|relation| {
+            let name = relation.field.to_string();
+            let target = &relation.target;
+            let requirement = system_requirement_expr(&sdk, relation);
+            quote!((
+                #sdk::component::ComponentRelationName::new(#name)
+                    .expect("adapter! generated a non-empty relation role"),
+                <#target as #sdk::authoring::RelationTarget>::relation_target_descriptor(),
+                #requirement.declaration().clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
     let dependency_bindings = input.relations.iter().map(|dependency| {
         let field = &dependency.field;
         quote! {
@@ -226,6 +241,17 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
                 #sdk::core::ModuleDeclaration::new(provider_module_id)
                     .with_provided_contracts(::std::vec![key.declaration()])
                     .with_required_contracts(::std::vec![#(#declaration_requirements),*])
+            }
+
+            fn relation_declarations(
+                &self,
+                _provider_module_id: #sdk::core::ModuleId,
+            ) -> ::std::vec::Vec<(
+                #sdk::component::ComponentRelationName,
+                #sdk::authoring::RelationTargetDescriptor,
+                #sdk::core::ContractRequirementDeclaration,
+            )> {
+                ::std::vec![#(#relation_metadata),*]
             }
 
             fn materialize_provider(

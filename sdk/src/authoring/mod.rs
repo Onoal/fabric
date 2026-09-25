@@ -23,8 +23,9 @@ pub use crate::instance::{
     BoundComponent, ComponentLiveObservation, ComponentObservedParticipation,
     ComponentReconciliationObservation, ComponentReconciliationOutcome,
     ComponentReconciliationResult, Instance, InstanceComponents, InstanceObservation,
-    LocalRealizationObservation, LocalRealizationRole, ResourceLiveObservation,
-    SemanticRealizationObservation, SystemLiveObservation,
+    LocalRealizationObservation, LocalRealizationRole, MaterializationProfile,
+    MaterializationProfileName, ResourceLiveObservation, SemanticRealizationObservation,
+    SystemLiveObservation,
 };
 pub(crate) use augmentation_requirement::requirement_for_key;
 pub use block_author::BlockAuthor;

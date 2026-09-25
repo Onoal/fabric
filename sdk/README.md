@@ -84,6 +84,34 @@ generation-bearing live materialization of that truth. `InstanceId` is the
 logical authored instance identity; `InstanceGeneration` is the fresh runtime
 incarnation minted on each materialization.
 
+`MaterializationProfile` is occurrence-specific materialization intent. It is
+separate from both Composition and Host:
+
+```text
+Composition + MaterializationProfile + Host -> Instance
+```
+
+The default path remains simple:
+
+```rust
+let instance = composition.materialize("example.local")?;
+assert_eq!(instance.materialization_profile().name().as_str(), "default");
+```
+
+When occurrence intent matters, pass an explicit profile:
+
+```rust
+let profile = MaterializationProfile::new("diagnostic")?;
+let instance = composition.materialize_with_profile_on(
+    "example.local.diagnostic",
+    &profile,
+    &HostDescriptor::native(),
+)?;
+```
+
+In v1 the profile is immutable Instance provenance. It does not perform
+Profile-driven Adapter reselection or general realization planning.
+
 `materialize` does not start runtime modules. It creates a Ready Instance and
 seeds initial Component desired controls from Composition intent. Only
 `instance.start()` moves the generation to Running, and Running still does not

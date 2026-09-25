@@ -55,6 +55,22 @@ typed requirement -> selected provider -> bind typed Contract -> consumer
 Composition        -> materialize       -> Instance generation
 ```
 
+Materialization also carries bounded occurrence intent:
+
+```text
+Composition
+    + MaterializationProfile
+    + Host
+        ↓
+Instance
+```
+
+In v1, `MaterializationProfile` is immutable Instance provenance with stable
+local identity. It is not Composition truth, not Host environmental truth, and
+not a general realization planner. Full Profile-driven realization policy and
+the semantic-resolution / realization-planning split are deliberately reserved
+for Fabric v2.
+
 The same resolved graph supplies dependency ordering, startup, and reverse
 cleanup. It is not a service locator or a second resolver.
 

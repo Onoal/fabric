@@ -31,6 +31,21 @@ Definitions and declarations
          Instance
 ```
 
+Materialization also accepts occurrence-specific intent:
+
+```text
+Composition
+    + MaterializationProfile
+    + Host
+        ↓
+    Instance
+```
+
+`MaterializationProfile` is not Composition truth. It is supplied when creating
+an Instance and retained as Instance provenance. A Composition can therefore
+produce a `default` Instance and a `diagnostic` Instance without changing its
+declared participants, relations, manifest, or semantic inspection.
+
 ## Why Composition exists
 
 Without a declaration boundary, behavior tends to couple directly to concrete
@@ -112,6 +127,7 @@ needed.
 | Which provider satisfies a requirement? | Which Instance generation is running? |
 | Which compatibility requirements apply? | Which operations are executing? |
 | What initial Component participation was declared? | What Component participation is currently desired and observed? |
+| No occurrence Profile is stored here. | Which MaterializationProfile produced this Instance? |
 
 The right column is deliberately not Composition state.
 

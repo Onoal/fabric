@@ -64,6 +64,44 @@ Composition
 Both Instances originate from the same declaration. A change in one live
 Instance is not a change to the Composition.
 
+## Materialization profile
+
+Materialization also has occurrence-specific intent:
+
+```text
+Composition != MaterializationProfile != Host != Instance
+```
+
+`MaterializationProfile` is frozen provenance for one materialized occurrence.
+It names intent such as `default`, `diagnostic`, or `production` without
+changing the Composition or describing Host facts. In v1 it is intentionally
+bounded to identity/provenance; it does not select Adapters, schedule
+deployment, or run a realization planner.
+
+The simple materialization path uses the canonical default profile:
+
+```rust
+let instance = composition.materialize("example.instance.local")?;
+assert_eq!(instance.materialization_profile().name().as_str(), "default");
+```
+
+An explicit profile can be supplied when occurrence intent should be visible on
+the resulting Instance:
+
+```rust
+let profile = MaterializationProfile::new("diagnostic")?;
+let instance = composition.materialize_with_profile(
+    "example.instance.diagnostic",
+    &profile,
+)?;
+assert_eq!(instance.observe().materialization_profile(), &profile);
+```
+
+Profile is not Host. Host describes environmental facts and compatibility
+inputs. Profile describes occurrence intent. The same Composition may be
+materialized with different Profiles and different Hosts without mutating
+Composition inspection.
+
 ## Materialize a Composition
 
 The normal high-level path begins with `Fabric`, builds a `Composition`, and
@@ -94,6 +132,17 @@ let instance = composition.materialize_on("example.instance.local", &host)?;
 The Composition declares compatibility requirements; the `HostDescriptor` is
 provided for validation while materializing. The Host does not become Instance
 identity or a service discovered from the Instance.
+
+An explicit profile can also be combined with a Host:
+
+```rust
+let profile = MaterializationProfile::new("diagnostic")?;
+let instance = composition.materialize_with_profile_on(
+    "example.instance.diagnostic",
+    &profile,
+    &host,
+)?;
+```
 
 ### Materialize is not start
 
@@ -195,11 +244,12 @@ These identifiers refer to different things:
 | Identifier | Meaning |
 | --- | --- |
 | `CompositionId` | Which declaration this Instance came from. |
+| `MaterializationProfile` | Which occurrence-specific intent produced it. |
 | `InstanceId` | The named live Instance. |
 | `InstanceGeneration` | This specific materialized runtime incarnation. |
 
 ```text
-CompositionId != InstanceId != InstanceGeneration
+CompositionId != MaterializationProfile != InstanceId != InstanceGeneration
 ```
 
 Core mints a fresh `InstanceGeneration` for every materialization. The

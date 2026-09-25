@@ -22,6 +22,76 @@ use crate::composition::{
 };
 use crate::ids::IntoInstanceId;
 
+const DEFAULT_MATERIALIZATION_PROFILE: &str = "default";
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MaterializationProfileName(String);
+
+impl MaterializationProfileName {
+    pub fn new(value: impl Into<String>) -> Result<Self, CompositionError> {
+        validate_profile_name(value.into()).map(Self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for MaterializationProfileName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MaterializationProfile {
+    name: MaterializationProfileName,
+}
+
+impl MaterializationProfile {
+    pub fn new(name: impl Into<String>) -> Result<Self, CompositionError> {
+        Ok(Self {
+            name: MaterializationProfileName::new(name)?,
+        })
+    }
+
+    pub fn default_profile() -> Self {
+        Self {
+            name: MaterializationProfileName(DEFAULT_MATERIALIZATION_PROFILE.to_owned()),
+        }
+    }
+
+    pub fn name(&self) -> &MaterializationProfileName {
+        &self.name
+    }
+}
+
+impl Default for MaterializationProfile {
+    fn default() -> Self {
+        Self::default_profile()
+    }
+}
+
+fn validate_profile_name(value: String) -> Result<String, CompositionError> {
+    if value.trim() != value || value.is_empty() {
+        return Err(CompositionError::InvalidIdentifier {
+            kind: "MaterializationProfileName",
+            value,
+        });
+    }
+    if value
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    {
+        Ok(value)
+    } else {
+        Err(CompositionError::InvalidIdentifier {
+            kind: "MaterializationProfileName",
+            value,
+        })
+    }
+}
+
 /// One high-level live materialization of a semantic Fabric [`Composition`].
 ///
 /// `Instance` owns generation-scoped live Core runtime state while retaining
@@ -29,6 +99,7 @@ use crate::ids::IntoInstanceId;
 pub struct Instance {
     core: CoreInstance,
     semantic_context: Arc<FabricManifest>,
+    materialization_profile: MaterializationProfile,
     components: Option<InstanceComponents>,
 }
 
@@ -37,6 +108,7 @@ impl std::fmt::Debug for Instance {
         f.debug_struct("Instance")
             .field("composition_id", self.composition_id())
             .field("instance_id", self.instance_id())
+            .field("materialization_profile", self.materialization_profile())
             .field("generation", &self.generation())
             .field("lifecycle", &self.lifecycle())
             .finish()
@@ -57,6 +129,7 @@ pub struct InstanceComponents {
 pub struct InstanceObservation {
     composition_id: CompositionId,
     instance_id: InstanceId,
+    materialization_profile: MaterializationProfile,
     generation: InstanceGeneration,
     lifecycle: LifecycleState,
     health: Health,
@@ -160,7 +233,11 @@ impl Composition {
     where
         I: IntoInstanceId,
     {
-        self.materialize_with_host(instance_id, None)
+        self.materialize_with_profile_and_host(
+            instance_id,
+            &MaterializationProfile::default_profile(),
+            None,
+        )
     }
 
     pub fn materialize_on<I>(
@@ -171,12 +248,40 @@ impl Composition {
     where
         I: IntoInstanceId,
     {
-        self.materialize_with_host(instance_id, Some(host))
+        self.materialize_with_profile_and_host(
+            instance_id,
+            &MaterializationProfile::default_profile(),
+            Some(host),
+        )
     }
 
-    fn materialize_with_host<I>(
+    pub fn materialize_with_profile<I>(
         &self,
         instance_id: I,
+        profile: &MaterializationProfile,
+    ) -> Result<Instance, CompositionError>
+    where
+        I: IntoInstanceId,
+    {
+        self.materialize_with_profile_and_host(instance_id, profile, None)
+    }
+
+    pub fn materialize_with_profile_on<I>(
+        &self,
+        instance_id: I,
+        profile: &MaterializationProfile,
+        host: &HostDescriptor,
+    ) -> Result<Instance, CompositionError>
+    where
+        I: IntoInstanceId,
+    {
+        self.materialize_with_profile_and_host(instance_id, profile, Some(host))
+    }
+
+    fn materialize_with_profile_and_host<I>(
+        &self,
+        instance_id: I,
+        profile: &MaterializationProfile,
         host: Option<&HostDescriptor>,
     ) -> Result<Instance, CompositionError>
     where
@@ -198,6 +303,7 @@ impl Composition {
         Ok(Instance {
             core,
             semantic_context: self.semantic_context(),
+            materialization_profile: profile.clone(),
             components,
         })
     }
@@ -216,6 +322,10 @@ impl Instance {
 
     pub fn instance_id(&self) -> &InstanceId {
         self.core.instance_id()
+    }
+
+    pub fn materialization_profile(&self) -> &MaterializationProfile {
+        &self.materialization_profile
     }
 
     pub fn generation(&self) -> InstanceGeneration {
@@ -291,6 +401,7 @@ impl Instance {
         InstanceObservation {
             composition_id: report.composition_id,
             instance_id: report.instance_id,
+            materialization_profile: self.materialization_profile.clone(),
             generation: report.generation,
             lifecycle: report.lifecycle,
             health: report.health,
@@ -532,6 +643,9 @@ impl InstanceObservation {
     }
     pub fn instance_id(&self) -> &InstanceId {
         &self.instance_id
+    }
+    pub fn materialization_profile(&self) -> &MaterializationProfile {
+        &self.materialization_profile
     }
     pub fn generation(&self) -> InstanceGeneration {
         self.generation

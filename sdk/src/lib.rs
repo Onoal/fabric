@@ -45,10 +45,11 @@ pub use authoring::{
     FabricBuildError, FabricContribution, Instance, InstanceObservation, IntoFabricContribution,
     IntoFabricResource, IntoFabricResourceAugmentation, IntoFabricSystem,
     IntoFabricSystemAugmentation, LocalRealizationObservation, LocalRealizationRole,
-    RealizationInspection, ResourceAugmentationInspection, ResourceInspection,
-    ResourceLiveObservation, ResourceSelection, SemanticApiEndpoint, SemanticApiMetadata,
-    SemanticRealizationKind, SemanticRealizationObservation, SemanticRelationBindingManifestEntry,
-    SemanticRelationOwner, SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    MaterializationProfile, MaterializationProfileName, RealizationInspection,
+    ResourceAugmentationInspection, ResourceInspection, ResourceLiveObservation, ResourceSelection,
+    SemanticApiEndpoint, SemanticApiMetadata, SemanticRealizationKind,
+    SemanticRealizationObservation, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
+    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
     SystemAugmentationInspection, SystemInspection, SystemLiveObservation, SystemSelection,
 };
 pub use component::{ComponentDesiredState, ComponentError, ComponentId};

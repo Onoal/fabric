@@ -1025,9 +1025,9 @@ fn generic_fabric_crates_do_not_depend_back_on_sdk() {
     for manifest in [
         repo_root.join("core/Cargo.toml"),
         repo_root.join("host/Cargo.toml"),
-        repo_root.join("resource/Cargo.toml"),
+        repo_root.join("participants/resource/Cargo.toml"),
         repo_root.join("experimental/binding/Cargo.toml"),
-        repo_root.join("component/Cargo.toml"),
+        repo_root.join("participants/component/Cargo.toml"),
     ] {
         let source = fs::read_to_string(&manifest).expect("read manifest");
         assert!(

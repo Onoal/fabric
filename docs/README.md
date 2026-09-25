@@ -50,6 +50,29 @@ not required to understand the current architecture.
 research crates. They are not part of the normal public authoring path or the
 published package family.
 
+## Repository topology
+
+Fabric's repository folders communicate ownership; they are not the same thing
+as Cargo package names, Rust module paths, or public API namespaces.
+
+```text
+core/          generic structural construction machinery
+host/          environmental compatibility for materialization
+participants/ Fabric's semantic participant crates
+sdk/           the normal developer SDK and its implementation support
+experimental/ maturity boundary for research crates
+tests/         workspace-integrated regression fixtures
+verification/ external/ecosystem verification workspaces
+docs/          architecture and usage documentation
+```
+
+`participants/resource`, `participants/system`, and
+`participants/component` remain the published packages `onoal-fabric-resource`,
+`onoal-fabric-system`, and `onoal-fabric-component`. `sdk/macros` remains the
+distinct proc-macro package `onoal-fabric-sdk-macros`; it lives under `sdk/`
+because it supports the Rust SDK rather than defining a separate architectural
+family.
+
 ## Maintaining this manual
 
 [Documentation maintenance](documentation.md) assigns source ownership and

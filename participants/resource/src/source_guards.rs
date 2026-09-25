@@ -4,7 +4,7 @@ use std::path::Path;
 #[test]
 fn resource_schema_types_stay_distinct_from_contract_versions() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
+        .join("../..")
         .canonicalize()
         .expect("repo root");
     let core_contract =
@@ -62,7 +62,7 @@ fn resource_identity_does_not_encode_schema_versions() {
 #[test]
 fn core_stays_free_of_concrete_candidate_resource_knowledge() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
+        .join("../..")
         .canonicalize()
         .expect("repo root");
     let module_runtime = fs::read_to_string(repo_root.join("core/src/module_runtime.rs"))

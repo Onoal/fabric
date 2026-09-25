@@ -40,10 +40,10 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     for manifest in [
         "host/Cargo.toml",
         "core/Cargo.toml",
-        "resource/Cargo.toml",
-        "system/Cargo.toml",
-        "component/Cargo.toml",
-        "sdk-macros/Cargo.toml",
+        "participants/resource/Cargo.toml",
+        "participants/system/Cargo.toml",
+        "participants/component/Cargo.toml",
+        "sdk/macros/Cargo.toml",
         "sdk/Cargo.toml",
     ] {
         let manifest_path = repository.join(manifest);
@@ -67,12 +67,12 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
 
     for (manifest, dependencies) in [
         ("host/Cargo.toml", &[][..]),
-        ("resource/Cargo.toml", &[]),
-        ("system/Cargo.toml", &[]),
-        ("sdk-macros/Cargo.toml", &[]),
+        ("participants/resource/Cargo.toml", &[]),
+        ("participants/system/Cargo.toml", &[]),
+        ("sdk/macros/Cargo.toml", &[]),
         ("core/Cargo.toml", &["fabric-host.workspace = true"][..]),
         (
-            "component/Cargo.toml",
+            "participants/component/Cargo.toml",
             &[
                 "fabric-core.workspace = true",
                 "fabric-resource.workspace = true",
@@ -103,10 +103,10 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     for dependency in [
         "fabric-host = { package = \"onoal-fabric-host\", version = \"0.7.0\", path = \"host\" }",
         "fabric-core = { package = \"onoal-fabric-core\", version = \"0.7.0\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.7.0\", path = \"resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.7.0\", path = \"system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.7.0\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.7.0\", path = \"sdk-macros\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.7.0\", path = \"participants/resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.7.0\", path = \"participants/system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.7.0\", path = \"participants/component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.7.0\", path = \"sdk/macros\" }",
         "fabric = { package = \"onoal-fabric\", version = \"0.7.0\", path = \"sdk\" }",
     ] {
         assert!(
@@ -137,7 +137,9 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     ] {
         let source = fs::read_to_string(repository.join(document)).expect("read public document");
         assert!(
-            !source.contains("fabric_sdk") && !source.contains("fabric-sdk"),
+            !source.contains("fabric_sdk")
+                && !source.contains("fabric-sdk =")
+                && !source.contains("package = \"fabric-sdk\""),
             "public primary-crate documentation must use fabric: {document}"
         );
     }
@@ -149,10 +151,10 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     for manifest in [
         "host/Cargo.toml",
         "core/Cargo.toml",
-        "resource/Cargo.toml",
-        "system/Cargo.toml",
-        "component/Cargo.toml",
-        "sdk-macros/Cargo.toml",
+        "participants/resource/Cargo.toml",
+        "participants/system/Cargo.toml",
+        "participants/component/Cargo.toml",
+        "sdk/macros/Cargo.toml",
         "sdk/Cargo.toml",
     ] {
         let source = fs::read_to_string(repository.join(manifest)).expect("read public manifest");
@@ -352,7 +354,7 @@ fn public_tree_uses_neutral_documentation_and_macro_diagnostics() {
         }
     }
 
-    let validation = fs::read_to_string(repository.join("sdk-macros/src/validate.rs"))
+    let validation = fs::read_to_string(repository.join("sdk/macros/src/validate.rs"))
         .expect("read macro validation");
     for forbidden in ["DX2", "DX3", "DX4", "DX5"] {
         assert!(

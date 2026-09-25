@@ -204,7 +204,7 @@ fn component_resolution_api_stays_sealed_against_public_synthetic_bypasses() {
 #[test]
 fn core_and_component_keep_the_canonical_resolved_contract_path() {
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
+        .join("../..")
         .canonicalize()
         .expect("repo root");
     let bindings = fs::read_to_string(repo_root.join("core/src/composition/bindings.rs"))

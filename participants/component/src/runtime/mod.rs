@@ -8,12 +8,20 @@ use fabric_core::{
 };
 
 use crate::ComponentRelationName;
-use crate::component_scope::ComponentScopeService;
+use crate::participation::ComponentScopeService;
 use crate::{
     ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation, ComponentScope,
     ComponentStatus, InvocationContext, OperationKey, OperationRailService, OperationRegistrar,
     OperationRegistrarService,
 };
+
+mod contract;
+mod native;
+
+pub use contract::{
+    ComponentHost, ComponentHostService, component_host_contract_id, component_host_contract_key,
+};
+pub use native::ComponentHostModule;
 
 /// Identifies one preparation contribution that belongs to a ComponentInstanceBinding
 /// participation. This is runtime machinery, not a second ComponentInstanceBinding identity.

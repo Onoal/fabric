@@ -2,7 +2,12 @@ use std::fmt;
 
 use fabric_core::InstanceGeneration;
 
-use crate::ComponentInstanceBinding;
+mod binding;
+mod scope;
+
+pub use binding::ComponentInstanceBinding;
+pub(crate) use scope::ComponentScopeService;
+pub use scope::{ComponentInvocation, ComponentScope};
 
 /// Runtime-local identity for one active component participation incarnation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

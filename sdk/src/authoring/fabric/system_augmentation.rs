@@ -1,11 +1,11 @@
 use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration};
 
-use super::manifest::SystemAugmentationManifestEntry;
 use super::sealed::Sealed;
 use crate::authoring::{
     PrimarySystemContract, SystemAugmentation, SystemAugmentationDefinition,
     SystemAugmentationRealization, SystemAugmentationSupportDefinition,
 };
+use crate::composition::SystemAugmentationManifestEntry;
 
 /// A sealed normal-authoring contribution created by `SystemAugmentation`.
 pub trait IntoFabricSystemAugmentation: Sealed {

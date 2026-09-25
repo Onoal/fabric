@@ -2,8 +2,11 @@ use fabric_core::ContractRequirementDeclaration;
 use fabric_resource::ResourceId;
 use fabric_system::SystemId;
 
-pub use crate::ComponentId;
 use crate::OperationDefinition;
+
+mod component;
+
+pub use component::ComponentId;
 
 /// Authored semantic endpoint name for a Component API.
 #[derive(Clone, Debug, PartialEq, Eq)]

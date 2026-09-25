@@ -15,10 +15,11 @@ use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::fabric::{
-    AdapterRealizationMode, FabricManifest, RealizationProvenance, SemanticRealizationKind,
+use crate::authoring::{AdapterDefinitionId, ComponentDefinition};
+use crate::composition::{
+    AdapterRealizationMode, Composition, FabricManifest, RealizationProvenance,
+    SemanticRealizationKind,
 };
-use super::{AdapterDefinitionId, ComponentDefinition, Composition};
 use crate::ids::IntoInstanceId;
 
 /// One high-level live materialization of a semantic Fabric [`Composition`].

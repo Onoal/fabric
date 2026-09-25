@@ -16,25 +16,27 @@ use fabric_core::{
     ModuleError, ModuleId, ModuleRuntime,
 };
 
-use crate::communication::{
-    ComponentCommunication, ComponentCommunicationService, component_communication_contract_key,
-};
-use crate::component_scope::ComponentScopeService;
-use crate::contract::{ComponentHost, ComponentHostService, component_host_contract_key};
-use crate::control_snapshot::ComponentControlSnapshot;
-use crate::lifecycle::{ComponentHostLifecycle, ComponentHostStatus};
-use crate::operations::{
-    OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
-    OperationRegistrarService, operation_rail_contract_key, operation_registrar_contract_key,
-};
-use crate::readiness::{
-    ComponentAggregateBlocker, ComponentAggregateReadiness, ComponentReadinessPolicy,
-    ComponentReadinessRail, ComponentReadinessService, component_readiness_contract_key,
-};
-use crate::reconstruction::{
+use crate::control::ComponentControlSnapshot;
+use crate::control::{
     ComponentReconstructionOutcome, ComponentReconstructionRail, ComponentReconstructionReport,
     ComponentReconstructionResult, ComponentReconstructionRuntimeState,
     ComponentReconstructionService, component_reconstruction_contract_key,
+};
+use crate::invocation::{
+    ComponentCommunication, ComponentCommunicationService, component_communication_contract_key,
+};
+use crate::invocation::{
+    OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
+    OperationRegistrarService, operation_rail_contract_key, operation_registrar_contract_key,
+};
+use crate::invocation::{
+    Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
+};
+use crate::lifecycle::{ComponentHostLifecycle, ComponentHostStatus};
+use crate::participation::ComponentScopeService;
+use crate::readiness::{
+    ComponentAggregateBlocker, ComponentAggregateReadiness, ComponentReadinessPolicy,
+    ComponentReadinessRail, ComponentReadinessService, component_readiness_contract_key,
 };
 use crate::registry::{
     ComponentRegistry, ComponentRegistryService, ComponentStatus, ParticipationState,
@@ -54,9 +56,7 @@ use crate::runtime::{
     component_named_resource_dependency_contract_key,
     component_named_system_dependency_contract_key, component_system_dependency_contract_key,
 };
-use crate::surface::{
-    Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_key,
-};
+use crate::runtime::{ComponentHost, ComponentHostService, component_host_contract_key};
 use crate::{
     ComponentControl, ComponentControlRail, ComponentControlService, ComponentDesiredState,
     component_control_contract_key,

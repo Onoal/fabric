@@ -5,9 +5,26 @@ use fabric_core::{ContractId, ContractKey, InstanceGeneration, InstanceId};
 
 use crate::{ComponentError, ComponentInstanceBinding, ComponentParticipation};
 
+mod communication;
+mod operations;
+mod surface;
+
 pub use crate::{
-    OperationDefinition, OperationDescriptor, OperationFuture, OperationId, OperationKey,
-    OperationRail, OperationRailService, OperationTypeId,
+    OperationDefinition, OperationDescriptor, OperationId, OperationKey, OperationTypeId,
+};
+pub use communication::{
+    ComponentCommunication, ComponentCommunicationService, ComponentContract,
+    ProvidedComponentContract, component_communication_contract_id,
+    component_communication_contract_key,
+};
+pub use operations::{
+    OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
+    OperationRegistrarService, operation_rail_contract_id, operation_rail_contract_key,
+    operation_registrar_contract_id, operation_registrar_contract_key,
+};
+pub use surface::{
+    Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_id,
+    surface_contract_key,
 };
 
 const COMPONENT_INVOCATION_CONTRACT_ID: &str = "fabric.component.invocation";

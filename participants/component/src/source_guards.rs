@@ -45,8 +45,11 @@ fn component_public_families_distinguish_declaration_participation_and_operator_
             "component crate must expose {family}"
         );
     }
-    let binding = fs::read_to_string(format!("{}/src/component.rs", env!("CARGO_MANIFEST_DIR")))
-        .expect("component binding");
+    let binding = fs::read_to_string(format!(
+        "{}/src/participation/binding.rs",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("component binding");
     assert!(
         binding.contains("pub struct ComponentInstanceBinding")
             && !binding.contains("pub struct Component\n"),
@@ -58,18 +61,20 @@ fn component_public_families_distinguish_declaration_participation_and_operator_
 fn component_host_renames_preserve_established_graph_identity_strings() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let sources = [
-        fs::read_to_string(format!("{manifest_dir}/src/contract.rs")).expect("host contract"),
+        fs::read_to_string(format!("{manifest_dir}/src/runtime/contract.rs"))
+            .expect("host contract"),
         fs::read_to_string(format!("{manifest_dir}/src/operational.rs"))
             .expect("host handle contract"),
-        fs::read_to_string(format!("{manifest_dir}/src/runtime.rs")).expect("materializer"),
+        fs::read_to_string(format!("{manifest_dir}/src/runtime/mod.rs")).expect("materializer"),
         fs::read_to_string(format!("{manifest_dir}/src/registry.rs")).expect("registry"),
-        fs::read_to_string(format!("{manifest_dir}/src/operations.rs")).expect("operations"),
-        fs::read_to_string(format!("{manifest_dir}/src/invocation.rs")).expect("invocation"),
+        fs::read_to_string(format!("{manifest_dir}/src/invocation/operations.rs"))
+            .expect("operations"),
+        fs::read_to_string(format!("{manifest_dir}/src/invocation/mod.rs")).expect("invocation"),
         fs::read_to_string(format!("{manifest_dir}/src/readiness.rs")).expect("readiness"),
-        fs::read_to_string(format!("{manifest_dir}/src/control.rs")).expect("control"),
-        fs::read_to_string(format!("{manifest_dir}/src/reconstruction.rs"))
+        fs::read_to_string(format!("{manifest_dir}/src/control/mod.rs")).expect("control"),
+        fs::read_to_string(format!("{manifest_dir}/src/control/reconstruction.rs"))
             .expect("reconstruction"),
-        fs::read_to_string(format!("{manifest_dir}/src/native/module.rs"))
+        fs::read_to_string(format!("{manifest_dir}/src/runtime/native/module.rs"))
             .expect("native host module"),
     ]
     .join("\n");
@@ -98,22 +103,22 @@ fn component_host_renames_preserve_established_graph_identity_strings() {
 #[test]
 fn component_source_stays_headless_and_foundational() {
     for file in [
-        "/src/component.rs",
-        "/src/communication.rs",
-        "/src/control.rs",
-        "/src/contract.rs",
+        "/src/declaration/component.rs",
+        "/src/invocation/communication.rs",
+        "/src/control/mod.rs",
+        "/src/runtime/contract.rs",
         "/src/error.rs",
-        "/src/invocation.rs",
+        "/src/invocation/mod.rs",
         "/src/lifecycle.rs",
-        "/src/native/module.rs",
+        "/src/runtime/native/module.rs",
         "/src/operation/definition.rs",
         "/src/operation/id.rs",
         "/src/operation/key.rs",
         "/src/operation/mod.rs",
         "/src/operation/type_id.rs",
-        "/src/operations.rs",
+        "/src/invocation/operations.rs",
         "/src/registry.rs",
-        "/src/surface.rs",
+        "/src/invocation/surface.rs",
     ] {
         let source =
             fs::read_to_string(format!("{}{}", env!("CARGO_MANIFEST_DIR"), file)).expect("source");
@@ -171,7 +176,7 @@ fn component_host_lifecycle_keeps_health_out_of_its_state_vocabulary() {
 #[test]
 fn component_resolution_api_stays_sealed_against_public_synthetic_bypasses() {
     let communication = fs::read_to_string(format!(
-        "{}/src/communication.rs",
+        "{}/src/invocation/communication.rs",
         env!("CARGO_MANIFEST_DIR")
     ))
     .expect("communication source");
@@ -218,17 +223,18 @@ fn core_and_component_keep_the_canonical_resolved_contract_path() {
 #[test]
 fn native_host_catalog_stays_declaration_driven() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let module = fs::read_to_string(format!("{manifest_dir}/src/native/module.rs"))
+    let module = fs::read_to_string(format!("{manifest_dir}/src/runtime/native/module.rs"))
         .expect("native module source");
-    let state = fs::read_to_string(format!("{manifest_dir}/src/native/module/state.rs"))
+    let state = fs::read_to_string(format!("{manifest_dir}/src/runtime/native/module/state.rs"))
         .expect("native state source");
     let operation_runtime = fs::read_to_string(format!(
-        "{manifest_dir}/src/native/module/operation_runtime.rs"
+        "{manifest_dir}/src/runtime/native/module/operation_runtime.rs"
     ))
     .expect("operation runtime source");
     let error = fs::read_to_string(format!("{manifest_dir}/src/error.rs")).expect("error source");
-    let reconstruction = fs::read_to_string(format!("{manifest_dir}/src/reconstruction.rs"))
-        .expect("reconstruction source");
+    let reconstruction =
+        fs::read_to_string(format!("{manifest_dir}/src/control/reconstruction.rs"))
+            .expect("reconstruction source");
 
     assert!(
         module.contains("component_declarations")

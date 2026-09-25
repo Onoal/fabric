@@ -4,10 +4,28 @@ mod composition_ext;
 mod definitions;
 mod fabric;
 mod fabric_builder;
-mod instance;
 mod runtime_authoring;
 mod system;
 
+pub use crate::composition::{
+    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
+    ComponentInspection, ComponentResourceBindingManifestEntry,
+    ComponentSystemBindingManifestEntry, Composition, FabricManifest, FabricManifestDiagnostics,
+    RealizationInspection, ResourceAugmentationInspection, ResourceAugmentationManifestEntry,
+    ResourceInspection, ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata,
+    SemanticRealizationKind, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
+    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationInspection, SystemAugmentationManifestEntry, SystemInspection,
+    SystemManifestEntry,
+};
+pub(crate) use crate::composition::{RelationDeclarationOwner, RelationDeclarationProvenance};
+pub use crate::instance::{
+    BoundComponent, ComponentLiveObservation, ComponentObservedParticipation,
+    ComponentReconciliationObservation, ComponentReconciliationOutcome,
+    ComponentReconciliationResult, Instance, InstanceComponents, InstanceObservation,
+    LocalRealizationObservation, LocalRealizationRole, ResourceLiveObservation,
+    SemanticRealizationObservation, SystemLiveObservation,
+};
 pub(crate) use augmentation_requirement::requirement_for_key;
 pub use block_author::BlockAuthor;
 pub use composition_ext::CompositionExt;
@@ -30,27 +48,10 @@ pub use definitions::{
     ResourceSelection, SelfRealizingComponentDefinition,
 };
 pub use fabric::{
-    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
-    ComponentInspection, ComponentResourceBindingManifestEntry,
-    ComponentSystemBindingManifestEntry, Composition, Fabric, FabricBuildError, FabricContribution,
-    FabricManifest, FabricManifestDiagnostics, IntoFabricContribution, IntoFabricResource,
+    Fabric, FabricBuildError, FabricContribution, IntoFabricContribution, IntoFabricResource,
     IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
-    RealizationInspection, ResourceAugmentationInspection, ResourceAugmentationManifestEntry,
-    ResourceInspection, ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata,
-    SemanticRealizationKind, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
-    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
-    SystemAugmentationInspection, SystemAugmentationManifestEntry, SystemInspection,
-    SystemManifestEntry,
 };
-pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;
-pub use instance::{
-    BoundComponent, ComponentLiveObservation, ComponentObservedParticipation,
-    ComponentReconciliationObservation, ComponentReconciliationOutcome,
-    ComponentReconciliationResult, Instance, InstanceComponents, InstanceObservation,
-    LocalRealizationObservation, LocalRealizationRole, ResourceLiveObservation,
-    SemanticRealizationObservation, SystemLiveObservation,
-};
 pub use runtime_authoring::{
     AdapterRuntimeState, RuntimeContext, RuntimeState, StatefulAdapterDefinition,
     StatefulRuntimeAuthoring,

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey, Health, ModuleId};
 
-use crate::communication::ProvidedComponentContract;
+use crate::invocation::ProvidedComponentContract;
 use crate::{
     ComponentError, ComponentId, ComponentInstanceBinding, ComponentParticipation,
     ParticipationState,

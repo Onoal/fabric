@@ -1,13 +1,13 @@
-use super::manifest::{
-    RealizationProvenance, RelationDeclarationOwner, RelationDeclarationProvenance,
-    SystemManifestEntry, adapter_realization_provenance,
-};
 use super::sealed::Sealed;
 use crate::authoring::definitions::{
     AdapterBridgeMode, AdapterDefinition, SystemAdapterCompatibility,
 };
 use crate::authoring::system::{
     AdaptableSystemDefinition, SystemDefinition, SystemRealization, SystemSelection,
+};
+use crate::composition::{
+    RealizationProvenance, RelationDeclarationOwner, RelationDeclarationProvenance,
+    SystemManifestEntry, adapter_realization_provenance,
 };
 use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration};
 
@@ -200,7 +200,7 @@ where
 mod realization_provenance_tests {
     use super::*;
     use crate::authoring::AdapterDefinition;
-    use crate::authoring::fabric::manifest::AdapterRealizationMode;
+    use crate::composition::AdapterRealizationMode;
 
     crate::system! {
         ProvenanceSystem {

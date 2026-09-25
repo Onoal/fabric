@@ -73,6 +73,13 @@ distinct proc-macro package `onoal-fabric-sdk-macros`; it lives under `sdk/`
 because it supports the Rust SDK rather than defining a separate architectural
 family.
 
+Within those packages, source folders also communicate ownership without
+defining public API namespaces. The SDK separates authoring input
+(`sdk/src/authoring`), immutable built semantic truth (`sdk/src/composition`),
+and live Instance projection (`sdk/src/instance`). The Component participant
+crate separates declaration, participation, control, invocation, operation, and
+runtime machinery under `participants/component/src`.
+
 ## Maintaining this manual
 
 [Documentation maintenance](documentation.md) assigns source ownership and

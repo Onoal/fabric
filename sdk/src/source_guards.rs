@@ -75,10 +75,12 @@ fn sdk_source_stays_generic_and_curated() {
         "src/authoring/composition_ext.rs",
         "src/authoring/fabric/mod.rs",
         "src/authoring/fabric/builder.rs",
-        "src/authoring/fabric/manifest.rs",
         "src/authoring/fabric/resource.rs",
         "src/authoring/fabric/sealed.rs",
         "src/authoring/fabric/system.rs",
+        "src/composition/manifest.rs",
+        "src/composition/mod.rs",
+        "src/instance/mod.rs",
         "src/authoring/system/mod.rs",
         "src/authoring/definitions/mod.rs",
         "src/authoring/definitions/adapter_definition.rs",
@@ -572,7 +574,9 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
     let prelude = fs::read_to_string(crate_root().join("src/prelude.rs")).expect("read prelude");
     let builder = fs::read_to_string(crate_root().join("src/authoring/fabric/builder.rs"))
         .expect("read fabric builder");
-    let manifest = fs::read_to_string(crate_root().join("src/authoring/fabric/manifest.rs"))
+    let composition = fs::read_to_string(crate_root().join("src/composition/mod.rs"))
+        .expect("read composition source");
+    let manifest = fs::read_to_string(crate_root().join("src/composition/manifest.rs"))
         .expect("read fabric manifest");
     let resource = fs::read_to_string(crate_root().join("src/authoring/fabric/resource.rs"))
         .expect("read fabric resource contribution");
@@ -582,7 +586,7 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         .expect("read composition ext");
 
     assert!(
-        authoring.contains("pub use fabric::{")
+        authoring.contains("pub use crate::composition::{")
             && authoring.contains("Composition")
             && authoring.contains("Fabric,")
             && authoring.contains("FabricBuildError")
@@ -630,15 +634,17 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         "normal typed contributions should lower into one deterministic grouping-only Block"
     );
     assert!(
-        builder.contains("pub struct Composition")
-            && builder.contains("core: CoreComposition")
-            && builder.contains("pub fn id(&self) -> &CompositionId")
-            && builder.contains("pub fn core(&self) -> &CoreComposition")
-            && builder.contains("pub fn manifest(&self) -> &FabricManifest")
-            && builder.contains("pub fn into_core(self) -> CoreComposition")
-            && !builder.contains("BuiltFabric")
-            && !builder.contains("pub fn into_composition")
-            && !builder.contains("pub fn into_parts(self) -> (CoreComposition, FabricManifest)"),
+        composition.contains("pub struct Composition")
+            && composition.contains("core: CoreComposition")
+            && composition.contains("pub fn id(&self) -> &CompositionId")
+            && composition.contains("pub fn core(&self) -> &CoreComposition")
+            && composition.contains("pub fn manifest(&self) -> &FabricManifest")
+            && composition.contains("pub fn into_core(self) -> CoreComposition")
+            && !composition.contains("BuiltFabric")
+            && !composition.contains("pub fn into_composition")
+            && !composition
+                .contains("pub fn into_parts(self) -> (CoreComposition, FabricManifest)")
+            && !builder.contains("pub struct Composition"),
         "SDK Composition must own private Core and Manifest views without legacy aliases"
     );
     assert!(
@@ -661,8 +667,8 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         !manifest.contains("pub fn ") || !manifest.contains("&mut self"),
         "FabricManifest must expose no mutating APIs"
     );
-    let instance = fs::read_to_string(crate_root().join("src/authoring/instance.rs"))
-        .expect("read Instance source");
+    let instance =
+        fs::read_to_string(crate_root().join("src/instance/mod.rs")).expect("read Instance source");
     assert!(
         composition_ext.contains("impl CompositionExt for CoreComposition")
             && !composition_ext.contains("impl CompositionExt for crate::Composition")

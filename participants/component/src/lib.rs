@@ -12,27 +12,18 @@
 //! integrations: [`declaration`], [`participation`], [`invocation`],
 //! [`operator`], and [`advanced`].
 
-mod communication;
-mod component;
-mod component_scope;
-mod contract;
 mod control;
-mod control_snapshot;
 pub mod declaration;
 mod error;
 pub mod invocation;
 mod lifecycle;
-mod native;
 mod operation;
 mod operational;
-mod operations;
 pub mod participation;
 mod readiness;
-mod reconstruction;
 mod registry;
 mod requirement;
 mod runtime;
-mod surface;
 
 #[cfg(test)]
 mod catalog_tests;
@@ -52,27 +43,20 @@ mod snapshot_tests;
 mod source_guards;
 
 #[doc(hidden)]
-pub use communication::{
-    ComponentCommunication, ComponentCommunicationService, ComponentContract,
-    ProvidedComponentContract, component_communication_contract_id,
-    component_communication_contract_key,
-};
-pub use component::ComponentId;
-#[doc(hidden)]
-pub use component::ComponentInstanceBinding;
-#[doc(hidden)]
-pub use component_scope::{ComponentInvocation, ComponentScope};
-#[doc(hidden)]
-pub use contract::{
-    ComponentHost, ComponentHostService, component_host_contract_id, component_host_contract_key,
-};
-#[doc(hidden)]
 pub use control::{
     ComponentControl, ComponentControlRail, ComponentControlService, ComponentDesiredState,
     component_control_contract_id, component_control_contract_key,
 };
 #[doc(hidden)]
-pub use control_snapshot::{ComponentControlSnapshot, ComponentControlSnapshotEntry};
+pub use control::{ComponentControlSnapshot, ComponentControlSnapshotEntry};
+#[doc(hidden)]
+pub use control::{
+    ComponentReconstructionOutcome, ComponentReconstructionRail, ComponentReconstructionReport,
+    ComponentReconstructionResult, ComponentReconstructionRuntimeState,
+    ComponentReconstructionService, component_reconstruction_contract_id,
+    component_reconstruction_contract_key,
+};
+pub use declaration::ComponentId;
 #[doc(hidden)]
 pub use declaration::{
     ComponentApiEndpoint, ComponentApiMetadata, ComponentDeclaration, ComponentRelationDeclaration,
@@ -89,13 +73,28 @@ pub use error::{
 pub use fabric_core::{InstanceGeneration, InstanceId};
 #[doc(hidden)]
 pub use invocation::{
+    ComponentCommunication, ComponentCommunicationService, ComponentContract,
+    ProvidedComponentContract, component_communication_contract_id,
+    component_communication_contract_key,
+};
+#[doc(hidden)]
+pub use invocation::{
     InvocationContext, InvocationId, InvocationOrigin, InvocationRail, InvocationService,
     invocation_contract_id, invocation_contract_key,
 };
 #[doc(hidden)]
-pub use lifecycle::{ComponentHostLifecycle, ComponentHostStatus};
+pub use invocation::{
+    OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
+    OperationRegistrarService, operation_rail_contract_id, operation_rail_contract_key,
+    operation_registrar_contract_id, operation_registrar_contract_key,
+};
 #[doc(hidden)]
-pub use native::ComponentHostModule;
+pub use invocation::{
+    Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_id,
+    surface_contract_key,
+};
+#[doc(hidden)]
+pub use lifecycle::{ComponentHostLifecycle, ComponentHostStatus};
 #[doc(hidden)]
 pub use operation::{
     OperationDefinition, OperationDescriptor, OperationId, OperationKey, OperationTypeId,
@@ -105,11 +104,9 @@ pub use operational::{
     ComponentHostHandle, component_host_handle_contract_id, component_host_handle_contract_key,
 };
 #[doc(hidden)]
-pub use operations::{
-    OperationFuture, OperationRail, OperationRailService, OperationRegistrar,
-    OperationRegistrarService, operation_rail_contract_id, operation_rail_contract_key,
-    operation_registrar_contract_id, operation_registrar_contract_key,
-};
+pub use participation::ComponentInstanceBinding;
+#[doc(hidden)]
+pub use participation::{ComponentInvocation, ComponentScope};
 #[doc(hidden)]
 pub use participation::{ComponentParticipation, ComponentParticipationId};
 #[doc(hidden)]
@@ -117,13 +114,6 @@ pub use readiness::{
     ComponentAggregateBlocker, ComponentAggregateReadiness, ComponentReadinessPolicy,
     ComponentReadinessRail, ComponentReadinessService, component_readiness_contract_id,
     component_readiness_contract_key,
-};
-#[doc(hidden)]
-pub use reconstruction::{
-    ComponentReconstructionOutcome, ComponentReconstructionRail, ComponentReconstructionReport,
-    ComponentReconstructionResult, ComponentReconstructionRuntimeState,
-    ComponentReconstructionService, component_reconstruction_contract_id,
-    component_reconstruction_contract_key,
 };
 #[doc(hidden)]
 pub use registry::{
@@ -139,6 +129,8 @@ pub use requirement::{
     component_requirement_contract_key,
 };
 #[doc(hidden)]
+pub use runtime::ComponentHostModule;
+#[doc(hidden)]
 pub use runtime::{
     ComponentAugmentationParticipationPreparation, ComponentAugmentationParticipationRealization,
     ComponentMaterializer, ComponentMaterializerService, ComponentParticipationCleanup,
@@ -150,9 +142,8 @@ pub use runtime::{
     component_resource_dependency_contract_key, component_system_dependency_contract_key,
 };
 #[doc(hidden)]
-pub use surface::{
-    Surface, SurfaceId, SurfaceRegistry, SurfaceRegistryService, surface_contract_id,
-    surface_contract_key,
+pub use runtime::{
+    ComponentHost, ComponentHostService, component_host_contract_id, component_host_contract_key,
 };
 
 /// Instance-local host, control, readiness, reconstruction, and observation APIs.

@@ -2,7 +2,18 @@ use std::sync::Arc;
 
 use fabric_core::{ContractId, ContractKey};
 
-use crate::{ComponentControlSnapshot, ComponentError, ComponentId, ComponentInstanceBinding};
+use crate::{ComponentError, ComponentId, ComponentInstanceBinding};
+
+mod reconstruction;
+mod snapshot;
+
+pub use reconstruction::{
+    ComponentReconstructionOutcome, ComponentReconstructionRail, ComponentReconstructionReport,
+    ComponentReconstructionResult, ComponentReconstructionRuntimeState,
+    ComponentReconstructionService, component_reconstruction_contract_id,
+    component_reconstruction_contract_key,
+};
+pub use snapshot::{ComponentControlSnapshot, ComponentControlSnapshotEntry};
 
 const COMPONENT_CONTROL_CONTRACT_ID: &str = "fabric.component.control";
 

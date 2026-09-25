@@ -24,7 +24,9 @@ pub mod resource;
 pub mod system;
 pub mod versions;
 
+mod composition;
 mod error;
+mod instance;
 
 #[cfg(test)]
 mod source_guards;

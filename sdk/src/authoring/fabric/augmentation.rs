@@ -1,11 +1,11 @@
 use fabric_core::{ContractProviderSelection, Module, ModuleDeclaration};
 
-use super::manifest::ResourceAugmentationManifestEntry;
 use super::sealed::Sealed;
 use crate::authoring::definitions::{
     PrimaryResourceContract, ResourceAugmentation, ResourceAugmentationDefinition,
     ResourceAugmentationRealization, ResourceAugmentationSupportDefinition,
 };
+use crate::composition::ResourceAugmentationManifestEntry;
 
 /// A sealed normal-authoring contribution created by `ResourceAugmentation`.
 pub trait IntoFabricResourceAugmentation: Sealed {

@@ -14,6 +14,7 @@ use super::{
     ComponentSpec,
 };
 use crate::authoring::requirement_for_key;
+use crate::composition::ComponentAugmentationManifestEntry;
 
 /// Externally owned semantic meaning attached to one configured ComponentInstanceBinding.
 pub trait ComponentAugmentationDefinition<C>: Sized + Send + Sync + 'static
@@ -103,14 +104,12 @@ where
         ComponentAugmentationSet {
             component: self.component,
             providers: Vec::new(),
-            manifest: vec![
-                super::super::fabric::ComponentAugmentationManifestEntry::new(
-                    contract.id().clone(),
-                    contract.identity().clone(),
-                    component_id,
-                    None,
-                ),
-            ],
+            manifest: vec![ComponentAugmentationManifestEntry::new(
+                contract.id().clone(),
+                contract.identity().clone(),
+                component_id,
+                None,
+            )],
         }
     }
 }
@@ -185,7 +184,7 @@ where
 {
     pub(crate) component: ComponentSpec<C>,
     pub(crate) providers: Vec<Box<dyn Module>>,
-    pub(crate) manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+    pub(crate) manifest: Vec<ComponentAugmentationManifestEntry>,
 }
 
 /// One more semantic attachment being appended to a ComponentInstanceBinding augmentation
@@ -197,7 +196,7 @@ where
 {
     attachment: ComponentAugmentation<C, X>,
     providers: Vec<Box<dyn Module>>,
-    manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+    manifest: Vec<ComponentAugmentationManifestEntry>,
 }
 
 /// A supported augmentation appended to an existing ComponentInstanceBinding augmentation
@@ -221,7 +220,7 @@ where
 {
     pub(crate) component: ComponentRealization<C, A>,
     pub(crate) providers: Vec<Box<dyn Module>>,
-    pub(crate) manifest: Vec<super::super::fabric::ComponentAugmentationManifestEntry>,
+    pub(crate) manifest: Vec<ComponentAugmentationManifestEntry>,
 }
 
 /// An augmentation support contribution combined with the ordinary Adapter
@@ -299,14 +298,12 @@ where
         ComponentAugmentationSet {
             component,
             providers: vec![provider],
-            manifest: vec![
-                super::super::fabric::ComponentAugmentationManifestEntry::new(
-                    contract.id().clone(),
-                    contract.identity().clone(),
-                    component_id,
-                    Some(support_provider_module_id),
-                ),
-            ],
+            manifest: vec![ComponentAugmentationManifestEntry::new(
+                contract.id().clone(),
+                contract.identity().clone(),
+                component_id,
+                Some(support_provider_module_id),
+            )],
         }
     }
 }

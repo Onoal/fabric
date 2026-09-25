@@ -53,7 +53,7 @@ Calling `build()` validates those contributions and produces the normal SDK
 
 ```text
 Fabric                    = normal high-level authoring
-Composition               = composition semantic system
+Composition               = complete immutable declared semantic truth
 Composition.manifest()    = immutable semantic/provenance inspection
 Composition.core()        = deliberate advanced Core escape hatch
 fabric::core::Composition = generic resolved structural representation
@@ -111,6 +111,7 @@ needed.
 | What does a Component require? | What lifecycle state is live? |
 | Which provider satisfies a requirement? | Which Instance generation is running? |
 | Which compatibility requirements apply? | Which operations are executing? |
+| What initial Component participation was declared? | What Component participation is currently desired and observed? |
 
 The right column is deliberately not Composition state.
 

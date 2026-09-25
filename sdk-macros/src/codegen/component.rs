@@ -14,6 +14,7 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let visibility = &input.visibility;
     let component_name = &input.name;
     let config_name = format_ident!("{}Config", component_name);
+    let bound_api_trait = format_ident!("{}InstanceApi", component_name);
     let component_mod = format_ident!("{}", to_snake_case(component_name));
     let endpoint_module = format_ident!("api");
     let component_id = &input.component_id;
@@ -29,6 +30,14 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
     let operation_tokens = canonical_operations
         .iter()
         .map(|method| canonical_operation_tokens(&sdk, &input.component_id, method))
+        .collect::<Vec<_>>();
+    let bound_operation_trait_tokens = canonical_operations
+        .iter()
+        .map(|method| bound_operation_signature_tokens(&sdk, method))
+        .collect::<Vec<_>>();
+    let bound_operation_impl_tokens = canonical_operations
+        .iter()
+        .map(|method| bound_operation_impl_tokens(&sdk, &component_mod, &endpoint_module, method))
         .collect::<Vec<_>>();
     let operation_names = canonical_operations
         .iter()
@@ -336,6 +345,14 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
 
         #canonical_self_realization
 
+        #visibility trait #bound_api_trait {
+            #(#bound_operation_trait_tokens)*
+        }
+
+        impl<'__fabric_instance> #bound_api_trait for #sdk::BoundComponent<'__fabric_instance, #component_name> {
+            #(#bound_operation_impl_tokens)*
+        }
+
         #visibility mod #component_mod {
             use super::*;
 
@@ -351,6 +368,65 @@ pub fn expand_component(input: &ComponentInput) -> TokenStream {
             }
 
             #component_adapter_bridge
+        }
+    }
+}
+
+fn bound_operation_signature_tokens(sdk: &TokenStream, method: &ContractMethod) -> TokenStream {
+    let method_name = &method.signature.ident;
+    let argument_inputs = method
+        .signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => Some(argument),
+        })
+        .collect::<Vec<_>>();
+    let output_ty = match &method.signature.output {
+        syn::ReturnType::Default => quote!(()),
+        syn::ReturnType::Type(_, ty) => quote!(#ty),
+    };
+    quote! {
+        fn #method_name(
+            &self,
+            #(#argument_inputs),*
+        ) -> #sdk::component::OperationFuture<#output_ty>;
+    }
+}
+
+fn bound_operation_impl_tokens(
+    sdk: &TokenStream,
+    component_mod: &syn::Ident,
+    endpoint_module: &syn::Ident,
+    method: &ContractMethod,
+) -> TokenStream {
+    let method_name = &method.signature.ident;
+    let argument_inputs = method
+        .signature
+        .inputs
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::FnArg::Receiver(_) => None,
+            syn::FnArg::Typed(argument) => Some(argument),
+        })
+        .collect::<Vec<_>>();
+    let arguments = method_call_args(&method.signature);
+    let input_expr = match arguments.as_slice() {
+        [] => quote!(()),
+        [only] => quote!(#only),
+        many => quote!((#(#many),*)),
+    };
+    let output_ty = match &method.signature.output {
+        syn::ReturnType::Default => quote!(()),
+        syn::ReturnType::Type(_, ty) => quote!(#ty),
+    };
+    quote! {
+        fn #method_name(
+            &self,
+            #(#argument_inputs),*
+        ) -> #sdk::component::OperationFuture<#output_ty> {
+            self.call(&#component_mod::#endpoint_module::#method_name(), #input_expr)
         }
     }
 }

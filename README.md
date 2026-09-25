@@ -68,7 +68,7 @@ materialization, including repeated materialization of the same `InstanceId`.
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.6" }
+fabric = { package = "onoal-fabric", version = "0.7.0" }
 ```
 
 ```rust

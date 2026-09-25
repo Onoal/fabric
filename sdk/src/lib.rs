@@ -37,14 +37,17 @@ pub use fabric_sdk_macros::{adapter, component, resource, system};
 // definitions, provider machinery, runtime state, and contract internals live
 // under `authoring`; raw orchestration remains under `core`.
 pub use authoring::{
-    AdapterRealizedOwner, ComponentAugmentationInspection, ComponentInspection, Composition,
-    Fabric, FabricBuildError, FabricContribution, Instance, IntoFabricContribution,
+    AdapterRealizedOwner, BoundComponent, ComponentAugmentationInspection, ComponentInspection,
+    ComponentLiveObservation, ComponentObservedParticipation, ComponentReconciliationObservation,
+    ComponentReconciliationOutcome, ComponentReconciliationResult, Composition, Fabric,
+    FabricBuildError, FabricContribution, Instance, InstanceObservation, IntoFabricContribution,
     IntoFabricResource, IntoFabricResourceAugmentation, IntoFabricSystem,
-    IntoFabricSystemAugmentation, RealizationInspection, ResourceAugmentationInspection,
-    ResourceInspection, ResourceSelection, SemanticApiEndpoint, SemanticApiMetadata,
-    SemanticRealizationKind, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
-    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
-    SystemAugmentationInspection, SystemInspection, SystemSelection,
+    IntoFabricSystemAugmentation, LocalRealizationObservation, LocalRealizationRole,
+    RealizationInspection, ResourceAugmentationInspection, ResourceInspection,
+    ResourceLiveObservation, ResourceSelection, SemanticApiEndpoint, SemanticApiMetadata,
+    SemanticRealizationKind, SemanticRealizationObservation, SemanticRelationBindingManifestEntry,
+    SemanticRelationOwner, SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationInspection, SystemInspection, SystemLiveObservation, SystemSelection,
 };
 pub use component::{ComponentDesiredState, ComponentError, ComponentId};
 pub use core::{

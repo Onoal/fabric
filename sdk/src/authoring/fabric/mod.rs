@@ -10,6 +10,10 @@ pub use augmentation::IntoFabricResourceAugmentation;
 pub use builder::{
     Composition, Fabric, FabricBuildError, FabricContribution, IntoFabricContribution,
 };
+pub(crate) use manifest::{
+    AdapterRealizationMode, RealizationProvenance, RelationDeclarationOwner,
+    RelationDeclarationProvenance,
+};
 pub use manifest::{
     AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
     ComponentInspection, ComponentResourceBindingManifestEntry,
@@ -21,7 +25,6 @@ pub use manifest::{
     SystemAugmentationInspection, SystemAugmentationManifestEntry, SystemInspection,
     SystemManifestEntry,
 };
-pub(crate) use manifest::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use resource::IntoFabricResource;
 pub use system::IntoFabricSystem;
 pub use system_augmentation::IntoFabricSystemAugmentation;

@@ -1,5 +1,5 @@
 use fabric::prelude::*;
-use fabric_test_component_greeter::{Greeter, GreeterConfig, GreeterInput, greeter};
+use fabric_test_component_greeter::{Greeter, GreeterConfig, GreeterInput, GreeterInstanceApi};
 
 #[test]
 fn normal_prelude_supports_the_complete_high_level_component_flow() {
@@ -25,19 +25,17 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
     let mut instance = composition
         .materialize("fabric.test.normal-prelude.instance")
         .expect("materialize");
+    let _: InstanceObservation = instance.observe();
     instance.start().expect("start");
-    let components = instance.components().expect("component host");
-    components
-        .materialize::<Greeter>()
-        .expect("component materialization");
-    let output = futures::executor::block_on(components.invoke_external(
-        &greeter::api::greet(),
-        GreeterInput {
-            name: "Ada".to_owned(),
-        },
-    ))
+    let greeter_component: BoundComponent<'_, Greeter> =
+        instance.component::<Greeter>().expect("bound component");
+    greeter_component.reconcile().expect("component reconcile");
+    let output = futures::executor::block_on(greeter_component.greet(GreeterInput {
+        name: "Ada".to_owned(),
+    }))
     .expect("typed invocation");
     assert_eq!(output.message, "hello, Ada");
+    let components = instance.components().expect("component host");
     components
         .dematerialize::<Greeter>()
         .expect("component dematerialization");

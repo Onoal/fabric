@@ -8,7 +8,8 @@ direct Core authoring.
 ## Model and ownership
 
 - **Core** validates the graph, evaluates compatibility, selects providers, and
-  materializes Instances. It is the structural resolver.
+  materializes Instances. It is generic structural construction machinery, not
+  Resource/System/Component semantic inspection.
 - **Resource** is an occurrence-based technical capability. An occurrence is
   identified by `ResourceId + ResourceName`.
 - **System** is an instance-wide shared capability. Normal typed authoring has
@@ -22,8 +23,9 @@ direct Core authoring.
 - **Host** represents environmental compatibility for live Adapter
   materialization. It is not a scheduler, placement engine, capacity model, or
   device/cloud ontology.
-- **Composition** is a reusable declaration. An **Instance** is one live,
-  generation-scoped materialization. `Composition != Instance`.
+- **Composition** is complete immutable declared semantic truth. An
+  **Instance** is one live, generation-scoped materialization and the complete
+  current live semantic observation boundary. `Composition != Instance`.
 
 Fabric generalizes machinery rather than package or product vocabulary.
 
@@ -135,6 +137,13 @@ a selection can bind or materialize; they do not establish replacement safety.
 `InstanceReport` is bounded current observation, not event history or a durable
 runtime record.
 
+SDK `Instance::observe()` is the normal Fabric live read model. It projects
+semantic Resources, Systems, Components, realization observations, desired
+Component participation, observed Component participation, lifecycle, and
+health from immutable Composition context plus current live runtime state. It
+does not mutate the Composition and does not replace raw
+`instance.core().report()` for deliberate Core diagnostics.
+
 ## Relations and realization
 
 Typed Contracts make consumption explicit. Resource, System, Adapter, and
@@ -188,6 +197,19 @@ not a second declaration language and does not make the Component live. A
 declaration-only Component is valid in Composition, but participation requires
 a realization.
 
+Normal invocation is instance-bound:
+
+```rust
+let app = instance.component::<App>()?;
+app.reconcile()?;
+let output = app.some_semantic_operation(input).await?;
+```
+
+The typed handle belongs to one Instance generation. Setting desired
+participation and reconciling are explicit; `start()` does not reconcile
+Component participation. Declaration-only lookup can succeed, while invocation
+or control reports a bounded unavailable/not-participating error.
+
 Canonical `runtime` supplies a default self realization for one participation;
 canonical Component-target `adapter!` supplies the same realization boundary.
 Runtime implementations use typed `self.config()` and `self.relations()`
@@ -206,7 +228,7 @@ SDK Composition
   ├── FabricManifest (semantic/provenance inspection)
   └── fabric::core::Composition (resolved generic structure)
         ↓ materialize
-      FabricInstance
+      SDK Instance
 ```
 
 `Composition::core()` is the deliberate advanced escape hatch; normal code
@@ -218,11 +240,12 @@ retains that selected provider's live value for its own materialization.
 Instance does not expose arbitrary contract lookup. A Component-bearing
 high-level Fabric build exports one Component operational capability.
 
-`Composition` materializes to `FabricInstance`, which delegates identity,
-generation, lifecycle, and reporting to the Core Instance. Its optional
-`FabricComponents` façade materializes and dematerializes Components and
-invokes typed `OperationKey<I, O>` values. Handles are local to one Instance
-and generation. A Resource/System-only Composition has no Component host.
+`Composition` materializes to SDK `Instance`, which delegates identity,
+generation, lifecycle, and raw reporting to the Core Instance while exposing
+semantic `observe()` as the normal live view. Its optional Component host
+backs `instance.component::<T>()`, desired-state changes, reconciliation, and
+typed invocation. Handles are local to one Instance and generation. A
+Resource/System-only Composition has no Component host.
 
 ## Inspection and advanced APIs
 

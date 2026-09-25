@@ -444,10 +444,16 @@ impl ModuleRuntime for ComponentHostModule {
         let readiness: Arc<dyn ComponentReadinessService> = self.shared.clone();
         let requirements: Arc<dyn ComponentRequirementService> = self.shared.clone();
         let materializer = Arc::new(ComponentMaterializer::new(runtime_host));
+        let control = Arc::new(ComponentControlRail::new(component_control));
+        let registry = Arc::new(ComponentRegistry::new(component_registry));
+        let reconstruction = Arc::new(ComponentReconstructionRail::new(reconstruction));
         let invocation_rail = Arc::new(crate::InvocationRail::new(invocation));
         let operations = Arc::new(OperationRail::new(operation_rail));
         let handle = crate::ComponentHostHandle::new(
             materializer.clone(),
+            control.clone(),
+            reconstruction.clone(),
+            registry.clone(),
             invocation_rail.clone(),
             operations.clone(),
         );
@@ -465,19 +471,10 @@ impl ModuleRuntime for ComponentHostModule {
                 &component_communication_contract_key(),
                 Arc::new(ComponentCommunication::new(component_communication)),
             ),
-            ModuleContract::new(
-                &component_control_contract_key(),
-                Arc::new(ComponentControlRail::new(component_control)),
-            ),
-            ModuleContract::new(
-                &component_registry_contract_key(),
-                Arc::new(ComponentRegistry::new(component_registry)),
-            ),
+            ModuleContract::new(&component_control_contract_key(), control),
+            ModuleContract::new(&component_registry_contract_key(), registry),
             ModuleContract::new(&component_materializer_contract_key(), materializer),
-            ModuleContract::new(
-                &component_reconstruction_contract_key(),
-                Arc::new(ComponentReconstructionRail::new(reconstruction)),
-            ),
+            ModuleContract::new(&component_reconstruction_contract_key(), reconstruction),
             ModuleContract::new(&operation_rail_contract_key(), operations),
             ModuleContract::new(
                 &operation_registrar_contract_key(),

@@ -67,7 +67,7 @@ Instance is not a change to the Composition.
 ## Materialize a Composition
 
 The normal high-level path begins with `Fabric`, builds a `Composition`, and
-then materializes a `FabricInstance`:
+then materializes an `Instance`:
 
 ```rust
 use fabric::*;
@@ -79,16 +79,16 @@ let composition = Fabric::new("example.instance")
     .expect("valid Composition");
 
 let mut instance = composition
-    .materialize_named("example.instance.local")
+    .materialize("example.instance.local")
     .expect("materialize");
 ```
 
-`materialize_named` is appropriate when the Composition has no declared Host
+`materialize` is appropriate when the Composition has no declared Host
 materialization requirement. When a realization declares Host compatibility
 requirements, supply the concrete `HostDescriptor` at materialization:
 
 ```rust
-let instance = composition.materialize_named_on("example.instance.local", &host)?;
+let instance = composition.materialize_on("example.instance.local", &host)?;
 ```
 
 The Composition declares compatibility requirements; the `HostDescriptor` is
@@ -125,27 +125,67 @@ after `Stopped` leaves the Instance stopped. `start()` is valid only from
 `Ready`; a stopped Instance is not restarted. To run again, create a fresh
 materialization.
 
-## Core Instance and FabricInstance
+## Semantic observation
 
-`core::Instance` is the lower-level live Core realization. `FabricInstance` is
+The normal live read model is `Instance::observe()`. It combines the immutable
+semantic Composition context with the current live Core runtime report and the
+current Component host observations.
+
+```text
+Composition = complete declared semantic truth
+Instance    = complete current live semantic observation boundary
+```
+
+`observe()` reports semantic Resources, Systems, Components, realization
+observations, Component desired participation, observed participation, observed
+health, aggregate lifecycle, and aggregate health. It is a current projection,
+not a history, journal, durable runtime record, or second source of truth.
+
+Component desired and observed state may intentionally differ:
+
+```text
+Enabled  + Absent
+Enabled  + Active
+Disabled + Active
+Disabled + Absent
+```
+
+`start()` starts the Instance lifecycle. It does not reconcile Component
+participation. Use the high-level Component handle or `reconcile_components()`
+to converge desired Component participation with observed participation.
+
+## Instance-bound Component API
+
+The normal Component path is bound to one Instance generation:
+
+```rust
+let app = instance.component::<App>()?;
+app.reconcile()?;
+let output = app.some_semantic_operation(input).await?;
+```
+
+For canonical `component!` declarations, Fabric generates typed methods on a
+local extension trait for the instance-bound handle. Handwritten Components can
+use the same handle with `call(&OperationKey, input)` when they deliberately
+own the lower-level operation key.
+
+Declaration lookup can succeed even when a Component is not participating.
+Invocation and control then return bounded Component errors instead of
+pretending a declaration-only Component is live.
+
+## Core Instance and raw observation
+
+`core::Instance` is the lower-level live Core realization. SDK `Instance` is
 the normal high-level Fabric façade around it.
 
 ```text
-FabricInstance = normal lifecycle, report, and bounded operation surface
-core::Instance = lower-level runtime machinery
+Instance              = semantic lifecycle, observation, and bounded operation surface
+fabric::core::Instance = lower-level runtime machinery
 ```
 
-The high-level façade provides:
-
-```text
-instance_id()  generation()  lifecycle()  report()
-start()        stop()        components()
-core()         core_mut()
-```
-
-`core()` and `core_mut()` remain available for deliberate low-level work, but
-normal users should prefer the `FabricInstance` lifecycle/reporting methods
-and its bounded Component surface. See the [Advanced Raw API](../advanced/raw-api.md)
+`core()` remains available for deliberate low-level work, including
+`instance.core().report()`. Normal users should prefer `Instance::observe()`
+and the bounded Component surface. See the [Advanced Raw API](../advanced/raw-api.md)
 for direct Core authoring.
 
 ## Three identities
@@ -169,8 +209,8 @@ Composition, package, schema, deployment, or user-selected version.
 ### Example B: two Instances from one Composition
 
 ```rust
-let first = composition.materialize_named("example.instance.first")?;
-let second = composition.materialize_named("example.instance.second")?;
+let first = composition.materialize("example.instance.first")?;
+let second = composition.materialize("example.instance.second")?;
 
 assert_ne!(first.instance_id(), second.instance_id());
 assert_ne!(first.generation(), second.generation());
@@ -183,8 +223,8 @@ One Composition can create independent runtime state for both Instances.
 The same logical `InstanceId` does not mean the same runtime incarnation:
 
 ```rust
-let first = composition.materialize_named("example.instance.local")?;
-let second = composition.materialize_named("example.instance.local")?;
+let first = composition.materialize("example.instance.local")?;
+let second = composition.materialize("example.instance.local")?;
 
 assert_eq!(first.instance_id(), second.instance_id());
 assert_ne!(first.generation(), second.generation());

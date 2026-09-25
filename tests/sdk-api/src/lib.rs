@@ -17,6 +17,8 @@ mod fabric_witness;
 #[cfg(test)]
 mod host_witness;
 #[cfg(test)]
+mod live_whole_witness;
+#[cfg(test)]
 mod public_surface_witness;
 #[cfg(test)]
 mod resource_augmentation_witness;

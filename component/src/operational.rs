@@ -3,7 +3,9 @@ use std::sync::Arc;
 use fabric_core::{ContractId, ContractKey};
 
 use crate::{
-    ComponentError, ComponentId, ComponentMaterializer, ComponentStatus, InvocationContext,
+    ComponentControl, ComponentControlRail, ComponentDesiredState, ComponentError, ComponentId,
+    ComponentInstanceBinding, ComponentMaterializer, ComponentReconstructionRail,
+    ComponentReconstructionReport, ComponentRegistry, ComponentStatus, InvocationContext,
     InvocationRail, OperationFuture, OperationKey, OperationRail,
 };
 
@@ -23,6 +25,9 @@ pub fn component_host_handle_contract_key() -> ContractKey<ComponentHostHandle> 
 #[derive(Clone)]
 pub struct ComponentHostHandle {
     materializer: Arc<ComponentMaterializer>,
+    control: Arc<ComponentControlRail>,
+    reconstruction: Arc<ComponentReconstructionRail>,
+    registry: Arc<ComponentRegistry>,
     invocation: Arc<InvocationRail>,
     operations: Arc<OperationRail>,
 }
@@ -37,11 +42,17 @@ impl std::fmt::Debug for ComponentHostHandle {
 impl ComponentHostHandle {
     pub fn new(
         materializer: Arc<ComponentMaterializer>,
+        control: Arc<ComponentControlRail>,
+        reconstruction: Arc<ComponentReconstructionRail>,
+        registry: Arc<ComponentRegistry>,
         invocation: Arc<InvocationRail>,
         operations: Arc<OperationRail>,
     ) -> Self {
         Self {
             materializer,
+            control,
+            reconstruction,
+            registry,
             invocation,
             operations,
         }
@@ -59,6 +70,34 @@ impl ComponentHostHandle {
         component_id: &ComponentId,
     ) -> Result<ComponentStatus, ComponentError> {
         self.materializer.dematerialize(component_id)
+    }
+
+    pub fn set_desired(
+        &self,
+        component: ComponentInstanceBinding,
+        desired: ComponentDesiredState,
+    ) -> Result<ComponentControl, ComponentError> {
+        self.control.set_desired(component, desired)
+    }
+
+    pub fn control(&self, component_id: &ComponentId) -> Result<ComponentControl, ComponentError> {
+        self.control.control(component_id)
+    }
+
+    pub fn controls(&self) -> Vec<ComponentControl> {
+        self.control.controls()
+    }
+
+    pub fn reconstruct(&self) -> Result<ComponentReconstructionReport, ComponentError> {
+        self.reconstruction.reconstruct()
+    }
+
+    pub fn status(&self, component_id: &ComponentId) -> Result<ComponentStatus, ComponentError> {
+        self.registry.component(component_id)
+    }
+
+    pub fn statuses(&self) -> Vec<ComponentStatus> {
+        self.registry.components()
     }
 
     pub fn begin_external(&self) -> Result<InvocationContext, ComponentError> {

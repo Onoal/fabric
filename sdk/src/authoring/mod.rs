@@ -44,7 +44,13 @@ pub use fabric::{
 };
 pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;
-pub use instance::{Instance, InstanceComponents};
+pub use instance::{
+    BoundComponent, ComponentLiveObservation, ComponentObservedParticipation,
+    ComponentReconciliationObservation, ComponentReconciliationOutcome,
+    ComponentReconciliationResult, Instance, InstanceComponents, InstanceObservation,
+    LocalRealizationObservation, LocalRealizationRole, ResourceLiveObservation,
+    SemanticRealizationObservation, SystemLiveObservation,
+};
 pub use runtime_authoring::{
     AdapterRuntimeState, RuntimeContext, RuntimeState, StatefulAdapterDefinition,
     StatefulRuntimeAuthoring,

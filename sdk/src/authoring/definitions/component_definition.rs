@@ -8,10 +8,11 @@ use crate::authoring::{
     SystemSelection,
 };
 use fabric_component::{
-    ComponentAugmentationParticipationRealization, ComponentDeclaration, ComponentError,
-    ComponentId, ComponentParticipationPreparation, ComponentParticipationRealization,
-    ComponentRelationName, ComponentResourceDependency, ComponentResourceRequirementDeclaration,
-    ComponentSystemRequirementDeclaration, component_named_resource_dependency_contract_key,
+    ComponentAugmentationParticipationRealization, ComponentDeclaration, ComponentDesiredState,
+    ComponentError, ComponentId, ComponentParticipationPreparation,
+    ComponentParticipationRealization, ComponentRelationName, ComponentResourceDependency,
+    ComponentResourceRequirementDeclaration, ComponentSystemRequirementDeclaration,
+    component_named_resource_dependency_contract_key,
     component_named_system_dependency_contract_key,
 };
 use fabric_core::{
@@ -462,6 +463,7 @@ where
     semantic_provider_selections: Vec<ComponentResourceBindingManifestEntry>,
     semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
     pub(crate) augmentation_preparations: Vec<ComponentAugmentationParticipationRealization>,
+    initial_participation: Option<ComponentDesiredState>,
 }
 
 #[doc(hidden)]
@@ -474,6 +476,7 @@ pub struct ComponentSpecParts {
     pub(crate) semantic_system_provider_selections: Vec<ComponentSystemBindingManifestEntry>,
     pub(crate) relation_declarations: Vec<RelationDeclarationProvenance>,
     pub(crate) augmentation_preparations: Vec<ComponentAugmentationParticipationRealization>,
+    pub(crate) initial_participation: Option<ComponentDesiredState>,
 }
 
 pub trait ComponentDefinition: Sized + Send + Sync + 'static {
@@ -711,11 +714,17 @@ where
             semantic_provider_selections: Vec::new(),
             semantic_system_provider_selections: Vec::new(),
             augmentation_preparations: Vec::new(),
+            initial_participation: None,
         }
     }
 
     pub fn declaration_only(config: C::Config) -> Self {
         Self::new(config)
+    }
+
+    pub fn initially_disabled(mut self) -> Self {
+        self.initial_participation = Some(ComponentDesiredState::Disabled);
+        self
     }
 
     pub fn self_realizing(config: C::Config) -> Result<Self, ComponentError>
@@ -943,6 +952,7 @@ where
             semantic_system_provider_selections: self.semantic_system_provider_selections,
             relation_declarations,
             augmentation_preparations: self.augmentation_preparations,
+            initial_participation: self.initial_participation,
         }
     }
 }
@@ -1014,6 +1024,10 @@ where
     }
     pub fn provider_selection(&self) -> &ContractProviderSelection {
         &self.selection
+    }
+    pub fn initially_disabled(mut self) -> Self {
+        self.component = self.component.initially_disabled();
+        self
     }
     pub(crate) fn into_parts(
         self,

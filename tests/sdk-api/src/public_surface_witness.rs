@@ -13,6 +13,11 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
         .component(Greeter::define(GreeterConfig {}))
         .build()
         .expect("build");
+    let _: ComponentDesiredState = composition
+        .components()
+        .next()
+        .expect("component inspection")
+        .initial_participation();
     let manifest = composition.manifest();
     assert_eq!(manifest.components().len(), 1);
     assert!(manifest.component_resource_bindings().is_empty());

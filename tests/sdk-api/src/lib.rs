@@ -5,6 +5,8 @@ mod component_declaration_witness;
 #[cfg(test)]
 mod composition_inspection_witness;
 #[cfg(test)]
+mod composition_instance_intent_witness;
+#[cfg(test)]
 mod contribution_witness;
 #[cfg(test)]
 mod extension_witness;

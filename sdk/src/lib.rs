@@ -46,7 +46,7 @@ pub use authoring::{
     SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
     SystemAugmentationInspection, SystemInspection, SystemSelection,
 };
-pub use component::{ComponentError, ComponentId};
+pub use component::{ComponentDesiredState, ComponentError, ComponentId};
 pub use core::{
     CompositionError, CompositionId, Health, InstanceError, InstanceGeneration, InstanceId,
     LifecycleState, RuntimeCleanupError,

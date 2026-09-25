@@ -173,6 +173,25 @@ impl ComponentHostModule {
         attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
         augmentations: impl IntoIterator<Item = ComponentAugmentationParticipationRealization>,
     ) -> Result<Self, ComponentError> {
+        Self::with_components_augmentations_and_initial_controls(
+            declarations,
+            attachments,
+            augmentations,
+            Vec::new(),
+        )
+    }
+
+    /// Constructs the native host with declarative initial desired controls.
+    ///
+    /// These controls are instance-neutral until Core binds a fresh
+    /// [`InstanceId`]. Explicit [`ComponentControlSnapshot`] restoration uses a
+    /// separate constructor and remains Instance-specific live state.
+    pub fn with_components_augmentations_and_initial_controls(
+        declarations: impl IntoIterator<Item = ComponentDeclaration>,
+        attachments: impl IntoIterator<Item = ComponentParticipationRealization>,
+        augmentations: impl IntoIterator<Item = ComponentAugmentationParticipationRealization>,
+        initial_controls: impl IntoIterator<Item = (ComponentId, ComponentDesiredState)>,
+    ) -> Result<Self, ComponentError> {
         let augmentations = augmentations
             .into_iter()
             .fold(BTreeMap::new(), |mut values, value| {
@@ -197,6 +216,29 @@ impl ComponentHostModule {
             for component_id in augmentations.keys() {
                 if !state.component_declarations.contains_key(component_id) {
                     return Err(ComponentError::UnknownComponent(component_id.clone()));
+                }
+            }
+            for (component_id, desired) in initial_controls {
+                if !state.component_declarations.contains_key(&component_id) {
+                    return Err(ComponentError::UnknownComponent(component_id));
+                }
+                if state
+                    .component_controls
+                    .insert(
+                        component_id.clone(),
+                        ComponentControl::new(
+                            ComponentInstanceBinding::for_instance(
+                                component_id.clone(),
+                                unbound_instance_id(),
+                            ),
+                            desired,
+                        ),
+                    )
+                    .is_some()
+                {
+                    return Err(ComponentError::DuplicateComponentControlSnapshotEntry(
+                        component_id,
+                    ));
                 }
             }
             state.augmentation_preparations = augmentations;
@@ -711,14 +753,8 @@ impl Module for ComponentHostModule {
             .values()
             .flat_map(|values| values.iter().cloned())
             .collect::<Vec<_>>();
-        let control_snapshot = if state.component_controls.is_empty() {
-            state.control_snapshot.clone()
-        } else {
-            Some(ComponentControlSnapshot::from_controls(
-                state.instance_id(),
-                state.component_controls.values().cloned(),
-            ))
-        };
+        let control_snapshot = state.control_snapshot.clone();
+        let component_controls = state.component_controls.clone();
         drop(state);
         let module = Self::with_optional_control_snapshot(
             readiness_policy,
@@ -742,6 +778,12 @@ impl Module for ComponentHostModule {
                         .push(value);
                     values
                 });
+        module
+            .shared
+            .inner
+            .lock()
+            .expect("component runtime state lock")
+            .component_controls = component_controls;
         Some(Box::new(module))
     }
 }

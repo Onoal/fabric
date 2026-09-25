@@ -1,5 +1,5 @@
 use crate::authoring::{AdapterDefinitionId, RelationTargetDescriptor};
-use fabric_component::{ComponentId, ComponentRelationName};
+use fabric_component::{ComponentDesiredState, ComponentId, ComponentRelationName};
 use fabric_core::{
     BlockId, CompositionExportDeclaration, ContractId, ContractIdentity, ContractProviderSelection,
     ContractRequirementDeclaration, ModuleDeclaration, ModuleId,
@@ -588,6 +588,7 @@ pub struct FabricManifest {
     component_augmentations: Vec<ComponentAugmentationManifestEntry>,
     components: Vec<fabric_component::ComponentDeclaration>,
     component_realizations: std::collections::BTreeMap<ComponentId, RealizationProvenance>,
+    component_initial_participation: std::collections::BTreeMap<ComponentId, ComponentDesiredState>,
     module_declarations: Vec<ModuleDeclaration>,
     provider_selections: Vec<ContractProviderSelection>,
     component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
@@ -608,6 +609,10 @@ impl FabricManifest {
         component_augmentations: Vec<ComponentAugmentationManifestEntry>,
         components: Vec<fabric_component::ComponentDeclaration>,
         component_realizations: std::collections::BTreeMap<ComponentId, RealizationProvenance>,
+        component_initial_participation: std::collections::BTreeMap<
+            ComponentId,
+            ComponentDesiredState,
+        >,
         module_declarations: Vec<ModuleDeclaration>,
         provider_selections: Vec<ContractProviderSelection>,
         component_resource_bindings: Vec<ComponentResourceBindingManifestEntry>,
@@ -626,6 +631,7 @@ impl FabricManifest {
             components,
             module_declarations,
             component_realizations,
+            component_initial_participation,
             provider_selections,
             component_resource_bindings,
             component_system_bindings,
@@ -665,6 +671,15 @@ impl FabricManifest {
         component_id: &ComponentId,
     ) -> Option<&RealizationProvenance> {
         self.component_realizations.get(component_id)
+    }
+
+    pub(crate) fn component_initial_participation(
+        &self,
+        component_id: &ComponentId,
+    ) -> Option<ComponentDesiredState> {
+        self.component_initial_participation
+            .get(component_id)
+            .copied()
     }
 
     pub fn component_resource_bindings(&self) -> &[ComponentResourceBindingManifestEntry] {
@@ -909,6 +924,11 @@ impl<'a> ComponentInspection<'a> {
         self.manifest
             .component_realization(self.declaration.component_id())
             .map(|provenance| RealizationInspection::new(provenance, self.manifest))
+    }
+    pub fn initial_participation(&self) -> ComponentDesiredState {
+        self.manifest
+            .component_initial_participation(self.declaration.component_id())
+            .expect("Component inspection must have retained initial participation intent")
     }
     pub fn relations(&self) -> impl Iterator<Item = &'a SemanticRelationBindingManifestEntry> + 'a {
         let component_id = self.declaration.component_id();

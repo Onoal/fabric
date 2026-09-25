@@ -42,18 +42,20 @@ The cross-cutting terms have deliberately different owners:
 | Relations | Which semantic capabilities are required? |
 | API | What can semantic consumers call? |
 | realization | Which concrete machinery provides that API? |
+| initial participation intent | Should a Component initially desire participation? |
 | state | What mutable live data belongs to this occurrence? |
 | lifecycle | When is that live machinery initialized, started, and stopped? |
 | health | How able is that live owner to fulfill its responsibility? |
 
 `Config != state`, `API != implementation`, `Resource != Adapter`,
-`Composition != Instance`, and `lifecycle != health`.
+`initial intent != observed participation`, `Composition != Instance`, and
+`lifecycle != health`.
 
 ## Start here
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.4" }
+fabric = { package = "onoal-fabric", version = "0.6.5" }
 ```
 
 ```rust

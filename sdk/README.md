@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.4" }
+fabric = { package = "onoal-fabric", version = "0.6.5" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -219,8 +219,9 @@ selections.
 `Composition` is immutable semantic declarative truth. Normal inspection reads
 it directly before materialization: Resources, Systems, Components, realization
 mode, Adapter definition identity, declared Host requirements, semantic API
-endpoint names, augmentation support, and resolved semantic Relations are all
-available without decoding Core ModuleIds.
+endpoint names, augmentation support, initial Component participation intent,
+and resolved semantic Relations are all available without decoding Core
+ModuleIds.
 
 ```rust
 for resource in composition.resources() {
@@ -235,6 +236,10 @@ for relation in composition.relations() {
     let _owner = relation.owner();
     let _role = relation.role();
     let _target = relation.resolved_target();
+}
+
+for component in composition.components() {
+    let _initial = component.initial_participation();
 }
 ```
 
@@ -254,6 +259,32 @@ let _providers = diagnostics.provider_selections();
 
 Manifest is not a deployment, package, serialization, reconstruction, or live
 runtime-state format.
+
+## Composition to Instance intent
+
+Component initial participation intent belongs to Composition truth. A
+self-realized or Adapter-realized Component defaults to
+`ComponentDesiredState::Enabled`; a declaration-only Component defaults to
+`ComponentDesiredState::Disabled`. Realized Components can opt out with
+`initially_disabled()`:
+
+```rust
+let composition = Fabric::new("workers")?
+    .component(Worker::define().using(WorkerAdapter::new())?.initially_disabled())
+    .build()?;
+```
+
+During materialization, each fresh Instance receives its own live desired
+controls seeded from that immutable Composition intent. Materialization does
+not create observed Component participation, and `start()` does not secretly
+reconcile every Component. Desired state and observed participation may differ
+until reconstruction or explicit operator control acts.
+
+Initial intent is not a `ComponentControlSnapshot`: snapshots are
+Instance-specific live/reconstruction state and keep their existing precedence
+in advanced Component-host reconstruction flows. Runtime control mutation never
+changes the Composition, and rematerializing the same Composition creates a
+fresh generation seeded from the original intent.
 
 ## Handwritten extensions and raw APIs
 

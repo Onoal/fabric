@@ -4,7 +4,7 @@ use std::error::Error;
 use std::fmt;
 
 use fabric_component::{
-    ComponentDeclaration, ComponentHostHandle, ComponentHostModule,
+    ComponentDeclaration, ComponentDesiredState, ComponentHostHandle, ComponentHostModule,
     ComponentParticipationRealization, component_host_handle_contract_key,
 };
 use fabric_core::{
@@ -518,6 +518,7 @@ struct FabricAuthoring {
     relation_declarations: Vec<RelationDeclarationProvenance>,
     components: Vec<ComponentDeclaration>,
     component_realizations: BTreeMap<ComponentId, RealizationProvenance>,
+    component_initial_participation: BTreeMap<ComponentId, ComponentDesiredState>,
     module_declarations: Vec<ModuleDeclaration>,
     typed_modules: Vec<Box<dyn Module>>,
     component_declarations: Vec<ComponentDeclaration>,
@@ -542,6 +543,7 @@ impl FabricAuthoring {
             relation_declarations: Vec::new(),
             components: Vec::new(),
             component_realizations: BTreeMap::new(),
+            component_initial_participation: BTreeMap::new(),
             module_declarations: Vec::new(),
             typed_modules: Vec::new(),
             component_declarations: Vec::new(),
@@ -570,6 +572,8 @@ impl FabricAuthoring {
         self.components.extend(other.components);
         self.component_realizations
             .extend(other.component_realizations);
+        self.component_initial_participation
+            .extend(other.component_initial_participation);
         self.module_declarations.extend(other.module_declarations);
         self.typed_modules.extend(other.typed_modules);
         self.component_declarations
@@ -627,9 +631,15 @@ impl FabricAuthoring {
         let (parts, modules, selections, augmentations, realization) =
             component.into_fabric_component();
         self.component_augmentations.extend(augmentations);
+        let component_id = parts.declaration.component_id().clone();
+        let initial_participation = parts
+            .initial_participation
+            .unwrap_or_else(|| default_initial_participation(&realization));
         self.components.push(parts.declaration.clone());
         self.component_realizations
-            .insert(parts.declaration.component_id().clone(), realization);
+            .insert(component_id.clone(), realization);
+        self.component_initial_participation
+            .insert(component_id, initial_participation);
         self.component_declarations.push(parts.declaration);
         self.component_augmentation_preparations
             .extend(parts.augmentation_preparations);
@@ -655,6 +665,15 @@ impl FabricAuthoring {
 
     fn add_provider_selection(&mut self, selection: ContractProviderSelection) {
         self.provider_selections.push(selection);
+    }
+}
+
+fn default_initial_participation(realization: &RealizationProvenance) -> ComponentDesiredState {
+    match realization {
+        RealizationProvenance::DeclarationOnly => ComponentDesiredState::Disabled,
+        RealizationProvenance::SelfRealization { .. } | RealizationProvenance::Adapter(_) => {
+            ComponentDesiredState::Enabled
+        }
     }
 }
 
@@ -922,6 +941,7 @@ impl Fabric {
             components,
             mut module_declarations,
             component_realizations,
+            component_initial_participation,
             typed_modules,
             component_declarations,
             component_self_realizations,
@@ -934,11 +954,17 @@ impl Fabric {
         // when no local self realization exists. Declaration-only Components are
         // host-known without any fake runtime behavior.
         let component_host_export = if !component_declarations.is_empty() {
-            let native_module = ComponentHostModule::with_components_and_augmentations(
-                component_declarations,
-                component_self_realizations,
-                component_augmentation_preparations,
-            )?;
+            let initial_controls = component_initial_participation
+                .iter()
+                .map(|(component_id, desired)| (component_id.clone(), *desired))
+                .collect::<Vec<_>>();
+            let native_module =
+                ComponentHostModule::with_components_augmentations_and_initial_controls(
+                    component_declarations,
+                    component_self_realizations,
+                    component_augmentation_preparations,
+                    initial_controls,
+                )?;
             module_declarations.push(native_module.declaration());
             default_modules.push(Box::new(native_module));
             Some(CompositionExport::new(
@@ -989,6 +1015,7 @@ impl Fabric {
             component_augmentations,
             components,
             component_realizations,
+            component_initial_participation,
             module_declarations,
             provider_selections,
             component_resource_provider_selections,

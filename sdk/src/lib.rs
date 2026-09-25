@@ -27,6 +27,7 @@ pub mod versions;
 mod composition;
 mod error;
 mod instance;
+mod materialization;
 
 #[cfg(test)]
 mod source_guards;
@@ -45,12 +46,13 @@ pub use authoring::{
     FabricBuildError, FabricContribution, Instance, InstanceObservation, IntoFabricContribution,
     IntoFabricResource, IntoFabricResourceAugmentation, IntoFabricSystem,
     IntoFabricSystemAugmentation, LocalRealizationObservation, LocalRealizationRole,
-    MaterializationProfile, MaterializationProfileName, RealizationInspection,
-    ResourceAugmentationInspection, ResourceInspection, ResourceLiveObservation, ResourceSelection,
-    SemanticApiEndpoint, SemanticApiMetadata, SemanticRealizationKind,
-    SemanticRealizationObservation, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
-    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
-    SystemAugmentationInspection, SystemInspection, SystemLiveObservation, SystemSelection,
+    MaterializationPlan, MaterializationPlanProvenance, MaterializationProfile,
+    MaterializationProfileName, RealizationInspection, ResourceAugmentationInspection,
+    ResourceInspection, ResourceLiveObservation, ResourceSelection, SemanticApiEndpoint,
+    SemanticApiMetadata, SemanticRealizationKind, SemanticRealizationObservation,
+    SemanticRelationBindingManifestEntry, SemanticRelationOwner, SemanticRelationTargetDefinition,
+    SemanticRelationTargetOccurrence, SystemAugmentationInspection, SystemInspection,
+    SystemLiveObservation, SystemSelection,
 };
 pub use component::{ComponentDesiredState, ComponentError, ComponentId};
 pub use core::{

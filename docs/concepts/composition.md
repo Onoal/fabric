@@ -38,13 +38,21 @@ Composition
     + MaterializationProfile
     + Host
         ↓
+    MaterializationPlan
+        ↓
     Instance
 ```
 
 `MaterializationProfile` is not Composition truth. It is supplied when creating
-an Instance and retained as Instance provenance. A Composition can therefore
-produce a `default` Instance and a `diagnostic` Instance without changing its
-declared participants, relations, manifest, or semantic inspection.
+an effective `MaterializationPlan` and retained as materialization provenance.
+A Composition can therefore produce a `default` Plan and a `diagnostic` Plan
+without changing its declared participants, relations, manifest, or semantic
+inspection.
+
+`MaterializationPlan` is frozen, non-live materialization truth prepared from
+one Composition under one Profile and Host context. It can be inspected before
+an Instance exists. It does not have lifecycle, health, runtime state,
+Component participation, or an `InstanceGeneration`.
 
 ## Why Composition exists
 
@@ -120,16 +128,16 @@ needed.
 
 ### Declaration time and runtime
 
-| Declaration time — Composition | Runtime — Instance |
-| --- | --- |
-| Which participants should exist? | Which runtime objects were materialized? |
-| What does a Component require? | What lifecycle state is live? |
-| Which provider satisfies a requirement? | Which Instance generation is running? |
-| Which compatibility requirements apply? | Which operations are executing? |
-| What initial Component participation was declared? | What Component participation is currently desired and observed? |
-| No occurrence Profile is stored here. | Which MaterializationProfile produced this Instance? |
+| Declaration time — Composition | Effective materialization — Plan | Runtime — Instance |
+| --- | --- | --- |
+| Which participants should exist? | Which participants are prepared for this occurrence context? | Which runtime objects were materialized? |
+| What does a Component require? | Which existing v1 realization truth applies? | What lifecycle state is live? |
+| Which provider satisfies a requirement? | Which Host context was validated? | Which Instance generation is running? |
+| Which compatibility requirements apply? | Which Profile applies? | Which operations are executing? |
+| What initial Component participation was declared? | What initial Component intent will seed a fresh Instance? | What Component participation is currently desired and observed? |
+| No occurrence Profile is stored here. | No live generation is stored here. | Which Plan/Profile produced this Instance? |
 
-The right column is deliberately not Composition state.
+The Plan and Instance columns are deliberately not Composition state.
 
 ## Requirements and provider selections
 

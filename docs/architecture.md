@@ -62,14 +62,22 @@ Composition
     + MaterializationProfile
     + Host
         ↓
+MaterializationPlan
+        ↓
 Instance
 ```
 
 In v1, `MaterializationProfile` is immutable Instance provenance with stable
 local identity. It is not Composition truth, not Host environmental truth, and
-not a general realization planner. Full Profile-driven realization policy and
-the semantic-resolution / realization-planning split are deliberately reserved
-for Fabric v2.
+not a general realization planner. `MaterializationPlan` is the frozen,
+non-live effective materialization truth prepared from a Composition, Profile,
+and Host before a live generation exists. It can expose the current selected
+realizations and initial Component intent inherited from v1 Composition truth,
+but it does not choose Adapters through a new policy engine.
+
+Fabric v1 has `MaterializationPlan`, not a general `MaterializationPlanner`.
+Full Profile-driven realization policy and the semantic-resolution /
+realization-planning split are deliberately reserved for Fabric v2.
 
 The same resolved graph supplies dependency ordering, startup, and reverse
 cleanup. It is not a service locator or a second resolver.

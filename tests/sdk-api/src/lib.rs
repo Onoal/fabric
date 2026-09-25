@@ -19,6 +19,8 @@ mod host_witness;
 #[cfg(test)]
 mod live_whole_witness;
 #[cfg(test)]
+mod materialization_plan_witness;
+#[cfg(test)]
 mod materialization_profile_witness;
 #[cfg(test)]
 mod public_surface_witness;

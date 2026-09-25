@@ -75,6 +75,7 @@ Definition
   -> Contribution
   -> Fabric
   -> Composition
+  -> MaterializationPlan
   -> Instance
   -> Running Instance
 ```
@@ -88,7 +89,7 @@ incarnation minted on each materialization.
 separate from both Composition and Host:
 
 ```text
-Composition + MaterializationProfile + Host -> Instance
+Composition + MaterializationProfile + Host -> MaterializationPlan -> Instance
 ```
 
 The default path remains simple:
@@ -111,6 +112,20 @@ let instance = composition.materialize_with_profile_on(
 
 In v1 the profile is immutable Instance provenance. It does not perform
 Profile-driven Adapter reselection or general realization planning.
+
+When the effective materialization truth should be inspected before runtime
+creation, create a Plan explicitly:
+
+```rust
+let profile = MaterializationProfile::new("diagnostic")?;
+let plan = composition.plan_with_profile_on(&profile, &HostDescriptor::native())?;
+assert_eq!(plan.materialization_profile(), &profile);
+let instance = plan.materialize("example.local.diagnostic")?;
+```
+
+`MaterializationPlan` is immutable and non-live. It has no lifecycle, health,
+runtime state, or `InstanceGeneration`; those belong to the resulting
+`Instance`. V1 does not expose a general `MaterializationPlanner`.
 
 `materialize` does not start runtime modules. It creates a Ready Instance and
 seeds initial Component desired controls from Composition intent. Only

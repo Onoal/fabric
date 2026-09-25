@@ -669,18 +669,21 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
     );
     let instance =
         fs::read_to_string(crate_root().join("src/instance/mod.rs")).expect("read Instance source");
+    let materialization = fs::read_to_string(crate_root().join("src/materialization/mod.rs"))
+        .expect("read Materialization source");
     assert!(
         composition_ext.contains("impl CompositionExt for CoreComposition")
             && !composition_ext.contains("impl CompositionExt for crate::Composition")
-            && instance.contains("impl Composition")
+            && materialization.contains("impl Composition")
+            && materialization.contains("pub struct MaterializationPlan")
+            && materialization.contains("pub fn materialize")
             && instance.contains("pub struct Instance")
-            && instance.contains("pub fn materialize")
             && instance.contains("pub fn composition_id")
             && instance.contains("pub fn core(&self)")
             && !instance.contains("pub fn core_mut")
             && !instance.contains("pub fn report")
             && instance.contains("pub fn components"),
-        "SDK Composition must materialize the bounded high-level Instance while CompositionExt remains raw"
+        "SDK Composition must plan and materialize the bounded high-level Instance while CompositionExt remains raw"
     );
     for source in [&builder, &manifest, &resource, &system] {
         for forbidden in [

@@ -69,7 +69,7 @@ Instance is not a change to the Composition.
 Materialization also has occurrence-specific intent:
 
 ```text
-Composition != MaterializationProfile != Host != Instance
+Composition != MaterializationProfile != Host != MaterializationPlan != Instance
 ```
 
 `MaterializationProfile` is frozen provenance for one materialized occurrence.
@@ -101,6 +101,57 @@ Profile is not Host. Host describes environmental facts and compatibility
 inputs. Profile describes occurrence intent. The same Composition may be
 materialized with different Profiles and different Hosts without mutating
 Composition inspection.
+
+## Materialization plan
+
+Before a live Instance exists, Fabric can prepare the effective non-live
+materialization truth:
+
+```text
+Composition
+    + MaterializationProfile
+    + Host
+        -> MaterializationPlan
+        -> Instance
+```
+
+`MaterializationPlan` is immutable and inspectable. It records which
+Composition is being materialized, which Profile applies, which Host context
+was validated, the current v1 realization truth inherited from Composition
+resolution, and the initial Component participation intent that will seed a
+fresh Instance.
+
+It is not live truth:
+
+```text
+MaterializationPlan != InstanceGeneration
+MaterializationPlan != LifecycleState
+MaterializationPlan != Health
+MaterializationPlan != Adapter runtime State
+MaterializationPlan != ComponentParticipation
+```
+
+Creating a Plan does not materialize runtime modules. Generation and runtime
+state appear only when the Plan is materialized:
+
+```rust
+let profile = MaterializationProfile::new("diagnostic")?;
+let plan = composition.plan_with_profile_on(&profile, &host)?;
+
+assert_eq!(plan.materialization_profile(), &profile);
+assert_eq!(plan.host(), Some(&host));
+
+let instance = plan.materialize("example.instance.diagnostic")?;
+assert_eq!(instance.materialization_plan(), plan.provenance());
+```
+
+Existing `composition.materialize...` methods are sugar over this boundary.
+Normal users can keep the simple path; advanced users can create and inspect a
+Plan before creating an Instance.
+
+One Plan is reusable because it is non-live. Each materialization of that Plan
+receives a fresh `InstanceGeneration` and fresh runtime state. To change
+Profile or Host intent, create another Plan.
 
 ## Materialize a Composition
 
@@ -249,7 +300,7 @@ These identifiers refer to different things:
 | `InstanceGeneration` | This specific materialized runtime incarnation. |
 
 ```text
-CompositionId != MaterializationProfile != InstanceId != InstanceGeneration
+CompositionId != MaterializationProfile != MaterializationPlan != InstanceId != InstanceGeneration
 ```
 
 Core mints a fresh `InstanceGeneration` for every materialization. The

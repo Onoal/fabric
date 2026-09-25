@@ -8,7 +8,7 @@ use fabric_core::{
 };
 
 use crate::SdkAuthoringError;
-use crate::authoring::{BlockAuthor, CompositionExt, FabricBuilder};
+use crate::authoring::{BlockAuthor, CompositionExt, Fabric, FabricBuilder};
 use crate::authoring::{PrimarySystemContract, SystemDefinition, SystemRequires, SystemSelection};
 use crate::contracts::{versioned_provider, versioned_requirement};
 use crate::ids::{block, composition, contract, instance};
@@ -257,8 +257,7 @@ fn fabric_builder_builds_raw_composition_and_materializes_raw_instance() {
         .expect("composition");
 
     takes_raw_composition(&composition);
-    let mut instance = composition
-        .materialize_named("fabric.test.sdk.instance")
+    let mut instance = CompositionExt::materialize_core(&composition, "fabric.test.sdk.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -280,11 +279,36 @@ fn readme_flow_builds_materializes_starts_and_stops_with_public_sdk_apis() {
 
     takes_raw_composition(&composition);
 
-    let mut instance = composition
-        .materialize_named("example.local")
-        .expect("instance");
+    let mut instance =
+        CompositionExt::materialize_core(&composition, "example.local").expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
+}
+
+#[test]
+fn high_level_instance_retains_shared_semantic_composition_context() {
+    let composition = Fabric::new("fabric.test.sdk.semantic-context")
+        .expect("fabric")
+        .build()
+        .expect("composition");
+
+    let first = composition
+        .materialize("fabric.test.sdk.semantic-context.first")
+        .expect("first instance");
+    let second = composition
+        .materialize("fabric.test.sdk.semantic-context.second")
+        .expect("second instance");
+
+    assert!(Arc::ptr_eq(
+        first.semantic_context(),
+        &composition.semantic_context()
+    ));
+    assert!(Arc::ptr_eq(
+        first.semantic_context(),
+        second.semantic_context()
+    ));
+    assert_ne!(first.instance_id(), second.instance_id());
+    assert_ne!(first.generation(), second.generation());
 }
 
 #[test]

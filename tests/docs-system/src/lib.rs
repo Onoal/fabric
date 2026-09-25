@@ -121,7 +121,7 @@ mod tests {
             .expect("resolved dependencies");
 
         let mut instance = composition
-            .materialize_named("example.system.dependencies.local")
+            .materialize("example.system.dependencies.local")
             .expect("materialize");
         instance.start().expect("start");
         let components = instance.components().expect("component host");

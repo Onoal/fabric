@@ -4,7 +4,7 @@ mod composition_ext;
 mod definitions;
 mod fabric;
 mod fabric_builder;
-mod fabric_instance;
+mod instance;
 mod runtime_authoring;
 mod system;
 
@@ -44,7 +44,7 @@ pub use fabric::{
 };
 pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;
-pub use fabric_instance::{FabricComponents, FabricInstance};
+pub use instance::{Instance, InstanceComponents};
 pub use runtime_authoring::{
     AdapterRuntimeState, RuntimeContext, RuntimeState, StatefulAdapterDefinition,
     StatefulRuntimeAuthoring,

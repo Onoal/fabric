@@ -312,7 +312,7 @@ fn external_support_for_an_adapted_resource_is_occurrence_scoped_and_manifest_tr
     assert_eq!(entry.resource_name().as_str(), "two");
 
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.resource-augmentation.instance",
             &HostDescriptor::native(),
         )
@@ -388,10 +388,10 @@ fn alternate_supports_preserve_x_identity_and_change_only_implementation() {
 
     let host = HostDescriptor::native();
     let mut first_instance = first
-        .materialize_named_on("first", &host)
+        .materialize_on("first", &host)
         .expect("first materialize");
     let mut second_instance = second
-        .materialize_named_on("second", &host)
+        .materialize_on("second", &host)
         .expect("second materialize");
     first_instance.start().expect("first start");
     second_instance.start().expect("second start");
@@ -427,7 +427,7 @@ fn base_only_adapted_resource_authoring_remains_valid() {
         .expect("base-only build");
     assert!(built.manifest().resource_augmentations().is_empty());
     let mut instance = built
-        .materialize_named_on("base-only", &HostDescriptor::native())
+        .materialize_on("base-only", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop instance");

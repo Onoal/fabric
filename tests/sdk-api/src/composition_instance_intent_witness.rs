@@ -282,7 +282,7 @@ fn materialization_seeds_desired_controls_without_observed_participation() {
     );
 
     let instance = composition
-        .materialize_named_on("fabric.test.intent.materialize.instance", &host())
+        .materialize_on("fabric.test.intent.materialize.instance", &host())
         .expect("materialize");
     let rails = captured(&capture);
 
@@ -313,7 +313,7 @@ fn reconstruction_observes_seeded_intent_after_start_without_start_reconciling()
     );
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.intent.reconstruct.instance", &host())
+        .materialize_on("fabric.test.intent.reconstruct.instance", &host())
         .expect("materialize");
     instance.start().expect("start");
     let rails = captured(&capture);
@@ -357,7 +357,7 @@ fn multi_instance_controls_are_fresh_and_runtime_mutation_does_not_leak() {
     );
 
     let mut instance_a = composition
-        .materialize_named_on("fabric.test.intent.multi.a", &host())
+        .materialize_on("fabric.test.intent.multi.a", &host())
         .expect("materialize a");
     let rails_a = captured(&capture_a);
     rails_a
@@ -376,7 +376,7 @@ fn multi_instance_controls_are_fresh_and_runtime_mutation_does_not_leak() {
 
     *capture_a.lock().expect("capture lock") = None;
     let instance_b = composition
-        .materialize_named_on("fabric.test.intent.multi.b", &host())
+        .materialize_on("fabric.test.intent.multi.b", &host())
         .expect("materialize b");
     let rails_b = captured(&capture_a);
 
@@ -441,7 +441,7 @@ fn resource_system_only_composition_has_no_component_controls() {
         .build()
         .expect("build");
     let instance = composition
-        .materialize_named("fabric.test.intent.resource-system-only.instance")
+        .materialize("fabric.test.intent.resource-system-only.instance")
         .expect("materialize");
 
     assert_eq!(composition.components().count(), 0);

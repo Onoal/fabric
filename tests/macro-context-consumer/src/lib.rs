@@ -226,7 +226,7 @@ fn external_adapters_consume_crate_root_adaptable_definitions() {
         HostArchitecture::new("x86_64").expect("architecture"),
     );
     let mut instance = built
-        .materialize_named_on("fabric.test.macro-context.external.instance", &host)
+        .materialize_on("fabric.test.macro-context.external.instance", &host)
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");
@@ -286,7 +286,7 @@ fn imported_and_reexported_canonical_targets_materialize_without_module_path_inf
         HostArchitecture::new("x86_64").expect("architecture"),
     );
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.macro-context.imported-canonical.instance",
             &host,
         )

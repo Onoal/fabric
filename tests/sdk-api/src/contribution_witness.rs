@@ -418,7 +418,7 @@ fn nested_parameterized_and_realized_contributions_materialize_normally() {
     );
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.contribution.materialize.instance", &host())
+        .materialize_on("fabric.test.contribution.materialize.instance", &host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");

@@ -350,11 +350,11 @@ fn resource_support_declaration_is_merged_bound_and_host_checked() {
         Some(&base_requirement),
     );
     assert!(matches!(
-        built.materialize_named_on("resource-missing-host", &HostDescriptor::native()),
+        built.materialize_on("resource-missing-host", &HostDescriptor::native()),
         Err(CompositionError::HostIncompatible { .. })
     ));
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "resource-compatible-host",
             &HostDescriptor::native()
                 .with_facility(HostFacilityId::new(FACILITY).expect("facility")),
@@ -426,11 +426,11 @@ fn system_and_component_support_declarations_preserve_integrity() {
         Some(&system_base_requirement),
     );
     assert!(matches!(
-        system_built.materialize_named_on("system-missing-host", &HostDescriptor::native()),
+        system_built.materialize_on("system-missing-host", &HostDescriptor::native()),
         Err(CompositionError::HostIncompatible { .. })
     ));
     let mut system_instance = system_built
-        .materialize_named_on(
+        .materialize_on(
             "system-compatible-host",
             &HostDescriptor::native()
                 .with_facility(HostFacilityId::new(FACILITY).expect("facility")),
@@ -470,11 +470,11 @@ fn system_and_component_support_declarations_preserve_integrity() {
         .build()
         .expect("build");
     assert!(matches!(
-        component_built.materialize_named_on("component-missing-host", &HostDescriptor::native()),
+        component_built.materialize_on("component-missing-host", &HostDescriptor::native()),
         Err(CompositionError::HostIncompatible { .. })
     ));
     let mut component_instance = component_built
-        .materialize_named_on(
+        .materialize_on(
             "component-compatible-host",
             &HostDescriptor::native()
                 .with_facility(HostFacilityId::new(FACILITY).expect("facility")),

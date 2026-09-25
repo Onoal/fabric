@@ -98,7 +98,7 @@ fn sdk_exposes_handwritten_system_authoring_without_a_second_runtime_model() {
 
     takes_raw_composition(&composition);
     let mut instance = composition
-        .materialize_named("fabric.test.sdk.system.instance")
+        .materialize_core("fabric.test.sdk.system.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");

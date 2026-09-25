@@ -2,6 +2,7 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
 use fabric_component::{
     ComponentDeclaration, ComponentDesiredState, ComponentHostHandle, ComponentHostModule,
@@ -354,7 +355,7 @@ impl From<CompositionError> for FabricBuildError {
 
 pub struct Composition {
     core: CoreComposition,
-    manifest: FabricManifest,
+    manifest: Arc<FabricManifest>,
     component_host_export: Option<CompositionExport<ComponentHostHandle>>,
 }
 
@@ -411,6 +412,10 @@ impl Composition {
 
     pub(crate) fn component_host_export(&self) -> Option<&CompositionExport<ComponentHostHandle>> {
         self.component_host_export.as_ref()
+    }
+
+    pub(crate) fn semantic_context(&self) -> Arc<FabricManifest> {
+        Arc::clone(&self.manifest)
     }
 }
 
@@ -1027,7 +1032,7 @@ impl Fabric {
         );
         Ok(Composition {
             core: composition,
-            manifest,
+            manifest: Arc::new(manifest),
             component_host_export,
         })
     }

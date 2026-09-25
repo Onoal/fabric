@@ -536,10 +536,11 @@ fn sdk_host_materialization_surface_stays_thin_and_generic() {
         "AdapterProviderModule should lower adapter host compatibility into the raw module seam"
     );
     assert!(
-        composition_ext.contains("fn materialize_named_on<I>(")
-            && composition_ext
-                .contains("self.materialize_on(instance_id.into_instance_id()?, host)"),
-        "CompositionExt should expose only a thin named-host wrapper over core materialization"
+        composition_ext.contains("fn materialize_core_on<I>(")
+            && composition_ext.contains(
+                "CoreComposition::materialize_on(self, instance_id.into_instance_id()?, host)"
+            ),
+        "CompositionExt should expose only a thin advanced wrapper over core materialization"
     );
     assert!(
         core.contains("HostMaterializationRequirement")
@@ -590,8 +591,10 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
     );
     assert!(
         lib.contains("Composition")
+            && lib.contains("Instance")
             && lib.contains("Fabric,")
             && prelude.contains("Composition, CompositionError")
+            && prelude.contains("Instance, InstanceError")
             && lib.contains("ResourceInspection")
             && lib.contains("SystemInspection")
             && lib.contains("ComponentInspection")
@@ -658,16 +661,20 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
         !manifest.contains("pub fn ") || !manifest.contains("&mut self"),
         "FabricManifest must expose no mutating APIs"
     );
-    let fabric_instance = fs::read_to_string(crate_root().join("src/authoring/fabric_instance.rs"))
-        .expect("read FabricInstance source");
+    let instance = fs::read_to_string(crate_root().join("src/authoring/instance.rs"))
+        .expect("read Instance source");
     assert!(
         composition_ext.contains("impl CompositionExt for CoreComposition")
             && !composition_ext.contains("impl CompositionExt for crate::Composition")
-            && fabric_instance.contains("impl Composition")
-            && fabric_instance.contains("pub struct FabricInstance")
-            && fabric_instance.contains("pub fn materialize_named")
-            && fabric_instance.contains("pub fn components"),
-        "SDK Composition must materialize the bounded high-level FabricInstance while CompositionExt remains raw"
+            && instance.contains("impl Composition")
+            && instance.contains("pub struct Instance")
+            && instance.contains("pub fn materialize")
+            && instance.contains("pub fn composition_id")
+            && instance.contains("pub fn core(&self)")
+            && !instance.contains("pub fn core_mut")
+            && !instance.contains("pub fn report")
+            && instance.contains("pub fn components"),
+        "SDK Composition must materialize the bounded high-level Instance while CompositionExt remains raw"
     );
     for source in [&builder, &manifest, &resource, &system] {
         for forbidden in [
@@ -736,6 +743,7 @@ fn normal_prelude_quarantines_legacy_and_raw_machinery() {
         "BuiltFabric",
         "FabricManifest",
         "FabricManifestDiagnostics",
+        "InstanceComponents",
     ] {
         assert!(
             !prelude.contains(forbidden),

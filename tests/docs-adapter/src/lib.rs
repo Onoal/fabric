@@ -62,11 +62,11 @@ mod tests {
         let host = HostDescriptor::native();
         assert!(
             composition
-                .materialize_named_on("example.adapter.host.missing", &host)
+                .materialize_on("example.adapter.host.missing", &host)
                 .is_err()
         );
         let mut instance = composition
-            .materialize_named_on(
+            .materialize_on(
                 "example.adapter.host.matching",
                 &host.with_facility(external_counter_host_facility()),
             )

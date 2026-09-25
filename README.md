@@ -20,9 +20,17 @@ Relations, API                state, lifecycle, health
            \  selected in a      /
             +-- Composition ----+
                     |
+                    | build
+                    v
+              Composition
+                    |
                     | materialize
                     v
-             Instance generation
+                Instance
+                    |
+                    | start
+                    v
+            Running Instance
 ```
 
 - **Resource**: an occurrence-based semantic capability.
@@ -31,8 +39,8 @@ Relations, API                state, lifecycle, health
 - **Component**: a semantic behavioral participant that consumes capabilities
   and may expose a typed API.
 - **Host**: environment facts that determine whether a realization can run.
-- **Composition**: reusable declarative truth and provider selection.
-- **Instance**: one generation-scoped live materialization of a Composition.
+- **Composition**: immutable declared semantic truth and provider selection.
+- **Instance**: one high-level live materialization of a Composition.
 
 The cross-cutting terms have deliberately different owners:
 
@@ -51,11 +59,16 @@ The cross-cutting terms have deliberately different owners:
 `initial intent != observed participation`, `Composition != Instance`, and
 `lifecycle != health`.
 
+`InstanceId` is the logical authored live occurrence identity. An
+`InstanceGeneration` is the fresh runtime incarnation minted on every
+materialization, including repeated materialization of the same `InstanceId`.
+`materialize` creates a Ready Instance; only `start` moves it to Running.
+
 ## Start here
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.5" }
+fabric = { package = "onoal-fabric", version = "0.6.6" }
 ```
 
 ```rust

@@ -64,7 +64,7 @@ fn external_canonical_adapter_uses_target_only_authoring() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.canonical-store.instance",
             &test_host(),
         )
@@ -495,7 +495,7 @@ fn external_resource_adapter_and_component_compose_through_the_canonical_sdk_pat
     assert_eq!(built.manifest().resources()[0].name().as_str(), "primary");
 
     let mut instance = built
-        .materialize_named_on("fabric.test.ecosystem.instance", &test_host())
+        .materialize_on("fabric.test.ecosystem.instance", &test_host())
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -545,7 +545,7 @@ fn external_clean_normal_authoring_derives_schema_support_and_provisional_defaul
         fabric::resource::ResourceSchemaIdentity::Provisional
     ));
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.clean-normal-authoring.instance",
             &test_host(),
         )
@@ -590,7 +590,7 @@ fn external_config_authoring_keeps_semantic_and_realization_config_separate() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.universal-config.instance",
             &test_host(),
         )
@@ -628,7 +628,7 @@ fn no_config_normal_authoring_needs_no_config_value() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on("fabric.test.external.no-config.instance", &test_host())
+        .materialize_on("fabric.test.external.no-config.instance", &test_host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");
@@ -664,7 +664,7 @@ fn external_relations_bind_resource_system_and_adapter_dependencies() {
         .build()
         .expect("relations resolve");
     let mut instance = built
-        .materialize_named_on("fabric.test.external.relations.instance", &test_host())
+        .materialize_on("fabric.test.external.relations.instance", &test_host())
         .expect("relations bind");
     instance.start().expect("relations start");
     instance.stop().expect("relations stop");
@@ -683,7 +683,7 @@ fn external_component_macro_owns_participation_local_teardown_without_native_run
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.component-teardown.instance",
             &test_host(),
         )

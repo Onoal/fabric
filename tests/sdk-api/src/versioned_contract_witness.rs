@@ -43,7 +43,7 @@ fn sdk_versioned_contract_authoring_builds_raw_composition_and_preserves_provena
 
     takes_raw_composition(&composition);
     let mut instance = composition
-        .materialize_named("fabric.test.sdk.instance")
+        .materialize_core("fabric.test.sdk.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -91,7 +91,7 @@ fn sdk_preserves_requirement_declaration_integrity_failures() {
         .expect("declaration graph validates without executing runtime bind");
 
     let error = composition
-        .materialize_named("fabric.test.sdk.instance")
+        .materialize_core("fabric.test.sdk.instance")
         .expect_err("runtime bind must reject the undeclared requirement");
 
     assert!(matches!(
@@ -157,7 +157,7 @@ fn sdk_provider_selection_is_a_thin_authoring_wrapper_over_core() {
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named("fabric.test.sdk.instance")
+        .materialize_core("fabric.test.sdk.instance")
         .expect("instance");
     instance.start().expect("start");
 

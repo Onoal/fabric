@@ -3,23 +3,31 @@ use fabric_component::{
     OperationKey,
 };
 use fabric_core::{
-    CompositionError, Instance, InstanceGeneration, InstanceId, InstanceReport, LifecycleState,
+    CompositionError, CompositionId, Instance as CoreInstance, InstanceGeneration, InstanceId,
+    LifecycleState,
 };
 use fabric_host::HostDescriptor;
+use std::sync::Arc;
 
+use super::fabric::FabricManifest;
 use super::{ComponentDefinition, Composition};
 use crate::ids::IntoInstanceId;
 
-/// High-level live Fabric Instance. It delegates lifecycle and inspection to
-/// Core while exposing only the deliberate ComponentInstanceBinding operator boundary.
-pub struct FabricInstance {
-    core: Instance,
-    components: Option<FabricComponents>,
+/// One high-level live materialization of a semantic Fabric [`Composition`].
+///
+/// `Instance` owns generation-scoped live Core runtime state while retaining
+/// the immutable semantic Composition context it was materialized from.
+pub struct Instance {
+    core: CoreInstance,
+    #[allow(dead_code)]
+    semantic_context: Arc<FabricManifest>,
+    components: Option<InstanceComponents>,
 }
 
-impl std::fmt::Debug for FabricInstance {
+impl std::fmt::Debug for Instance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FabricInstance")
+        f.debug_struct("Instance")
+            .field("composition_id", self.composition_id())
             .field("instance_id", self.instance_id())
             .field("generation", &self.generation())
             .field("lifecycle", &self.lifecycle())
@@ -28,34 +36,34 @@ impl std::fmt::Debug for FabricInstance {
 }
 
 #[derive(Clone)]
-pub struct FabricComponents {
+pub struct InstanceComponents {
     handle: std::sync::Arc<ComponentHostHandle>,
 }
 
 impl Composition {
-    pub fn materialize_named<I>(&self, instance_id: I) -> Result<FabricInstance, CompositionError>
+    pub fn materialize<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId,
     {
-        self.materialize_named_with_host(instance_id, None)
+        self.materialize_with_host(instance_id, None)
     }
 
-    pub fn materialize_named_on<I>(
+    pub fn materialize_on<I>(
         &self,
         instance_id: I,
         host: &HostDescriptor,
-    ) -> Result<FabricInstance, CompositionError>
+    ) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId,
     {
-        self.materialize_named_with_host(instance_id, Some(host))
+        self.materialize_with_host(instance_id, Some(host))
     }
 
-    fn materialize_named_with_host<I>(
+    fn materialize_with_host<I>(
         &self,
         instance_id: I,
         host: Option<&HostDescriptor>,
-    ) -> Result<FabricInstance, CompositionError>
+    ) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId,
     {
@@ -65,50 +73,67 @@ impl Composition {
                 .materialize_on(instance_id.into_instance_id()?, host)?,
             None => self.core().materialize(instance_id.into_instance_id()?)?,
         };
-        let components = self.component_host_export().map(|export| FabricComponents {
-            handle: core
-                .export(export)
-                .expect("Composition component export must be retained by its Instance"),
-        });
-        Ok(FabricInstance { core, components })
+        let components = self
+            .component_host_export()
+            .map(|export| InstanceComponents {
+                handle: core
+                    .export(export)
+                    .expect("Composition component export must be retained by its Instance"),
+            });
+        Ok(Instance {
+            core,
+            semantic_context: self.semantic_context(),
+            components,
+        })
     }
 }
 
-impl FabricInstance {
-    pub fn core(&self) -> &Instance {
+impl Instance {
+    /// Returns the immutable raw Core runtime occurrence for deliberate
+    /// advanced diagnostics.
+    pub fn core(&self) -> &CoreInstance {
         &self.core
     }
-    pub fn core_mut(&mut self) -> &mut Instance {
-        &mut self.core
+
+    pub fn composition_id(&self) -> &CompositionId {
+        self.core.composition_id()
     }
+
     pub fn instance_id(&self) -> &InstanceId {
         self.core.instance_id()
     }
+
     pub fn generation(&self) -> InstanceGeneration {
         self.core.generation()
     }
+
     pub fn lifecycle(&self) -> LifecycleState {
         self.core.lifecycle()
     }
-    pub fn report(&self) -> InstanceReport {
-        self.core.report()
-    }
+
     pub fn start(&mut self) -> Result<(), fabric_core::InstanceError> {
         self.core.start()
     }
+
     pub fn stop(&mut self) -> Result<(), fabric_core::RuntimeCleanupError> {
         self.core.stop()
     }
 
-    /// Returns the bounded ComponentInstanceBinding control surface, if this Composition has
-    /// a ComponentInstanceBinding host. Resource/System-only Compositions intentionally have
-    /// no fake ComponentInstanceBinding operator.
-    pub fn components(&self) -> Option<&FabricComponents> {
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub(crate) fn semantic_context(&self) -> &Arc<FabricManifest> {
+        &self.semantic_context
+    }
+
+    /// Returns the bounded Component live/operator surface, if this
+    /// Composition has a Component host. Resource/System-only Compositions
+    /// intentionally have no fake Component operator.
+    pub fn components(&self) -> Option<&InstanceComponents> {
         self.components.as_ref()
     }
 }
 
-impl FabricComponents {
+impl InstanceComponents {
     pub fn materialize<C>(&self) -> Result<ComponentStatus, ComponentError>
     where
         C: ComponentDefinition,

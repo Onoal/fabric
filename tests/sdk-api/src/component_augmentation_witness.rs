@@ -446,7 +446,7 @@ fn external_component_semantic_prepares_alongside_base_operations() {
         &Greeter::component_id()
     );
     let mut instance = built
-        .materialize_named("component-augmentation")
+        .materialize("component-augmentation")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -473,7 +473,7 @@ fn third_party_component_augmentation_teardown_is_participation_scoped() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named("component-augmentation-teardown")
+        .materialize("component-augmentation-teardown")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -499,7 +499,7 @@ fn failed_augmentation_preparation_never_activates_the_component() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named("component-augmentation-failure")
+        .materialize("component-augmentation-failure")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -527,7 +527,7 @@ fn augmentation_cannot_register_an_operation_absent_from_base_declaration() {
         .expect("build");
     assert_eq!(built.manifest().components()[0].operations().len(), 1);
     let mut instance = built
-        .materialize_named("component-augmentation-undeclared-operation")
+        .materialize("component-augmentation-undeclared-operation")
         .expect("materialize");
     instance.start().expect("start");
     assert!(
@@ -590,7 +590,7 @@ fn multiple_semantics_prepare_the_same_component_participation() {
     assert_eq!(built.manifest().components()[0].operations().len(), 1);
 
     let mut instance = built
-        .materialize_named("component-augmentation-multiple")
+        .materialize("component-augmentation-multiple")
         .expect("materialize");
     instance.start().expect("start");
     instance
@@ -621,7 +621,7 @@ fn zero_operation_component_can_receive_external_semantic_support() {
         .expect("build");
     assert!(built.manifest().components()[0].operations().is_empty());
     let mut instance = built
-        .materialize_named("component-augmentation-zero-operation")
+        .materialize("component-augmentation-zero-operation")
         .expect("materialize");
     instance.start().expect("start");
     instance
@@ -662,7 +662,7 @@ fn alternate_supports_preserve_the_same_semantic_contract() {
     );
 
     let mut first_instance = first_built
-        .materialize_named("component-augmentation-support-one")
+        .materialize("component-augmentation-support-one")
         .expect("first materialize");
     first_instance.start().expect("first start");
     first_instance
@@ -671,7 +671,7 @@ fn alternate_supports_preserve_the_same_semantic_contract() {
         .materialize::<Greeter>()
         .expect("first participation");
     let mut second_instance = second_built
-        .materialize_named("component-augmentation-support-two")
+        .materialize("component-augmentation-support-two")
         .expect("second materialize");
     second_instance.start().expect("second start");
     second_instance
@@ -730,7 +730,7 @@ fn multi_augmentation_authoring_retains_typed_requirements_for_each_semantic() {
         .expect("build");
     assert_eq!(built.manifest().component_augmentations().len(), 2);
     let mut instance = built
-        .materialize_named("component-augmentation-requirements")
+        .materialize("component-augmentation-requirements")
         .expect("materialize");
     instance.start().expect("start");
     assert_eq!(audit_bound.load(Ordering::SeqCst), 1);
@@ -775,7 +775,7 @@ fn bare_attachment_has_no_supported_requirement_while_later_support_remains_usab
             .any(|entry| entry.contract_id() == Trace::contract_key().id())
     );
     let mut instance = built
-        .materialize_named("component-augmentation-bare-and-supported")
+        .materialize("component-augmentation-bare-and-supported")
         .expect("materialize");
     instance.start().expect("start");
     assert_eq!(trace_bound.load(Ordering::SeqCst), 1);

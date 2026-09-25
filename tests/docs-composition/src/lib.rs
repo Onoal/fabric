@@ -123,7 +123,7 @@ fn selected_resource_occurrences_bind_component_roles_independently() {
     assert_eq!(bindings[1].resource_name().as_str(), "cache");
 
     let mut instance = composition
-        .materialize_named("example.store-composition.local")
+        .materialize("example.store-composition.local")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("component host");

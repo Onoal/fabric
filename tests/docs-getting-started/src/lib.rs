@@ -59,7 +59,7 @@ fn getting_started_flow_builds_inspects_materializes_and_invokes() {
     assert_eq!(manifest.components().len(), 1);
 
     let mut instance = composition
-        .materialize_named_on("example.greeter.local", &HostDescriptor::native())
+        .materialize_on("example.greeter.local", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
 

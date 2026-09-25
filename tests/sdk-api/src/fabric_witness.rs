@@ -902,7 +902,7 @@ fn fabric_builds_two_adapted_contributions_without_raw_parts_ceremony() {
     );
 
     let mut instance = built
-        .materialize_named_on("fabric.test.fabric.two-adapted.instance", &test_host())
+        .materialize_on("fabric.test.fabric.two-adapted.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1028,7 +1028,7 @@ fn fabric_raw_blocks_coexist_as_opaque_presence() {
     assert_eq!(built.manifest().resources().len(), 1);
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.raw-coexist.instance")
+        .materialize("fabric.test.fabric.raw-coexist.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1062,7 +1062,7 @@ fn fabric_declaration_only_resource_builds_manifests_and_fails_materialization()
         .clone();
 
     let error = built
-        .materialize_named("fabric.test.fabric.package-resource.instance")
+        .materialize("fabric.test.fabric.package-resource.instance")
         .expect_err("declaration-only resource must not materialize");
     assert!(matches!(
         error,
@@ -1094,7 +1094,7 @@ fn fabric_declaration_only_system_builds_manifests_and_fails_materialization() {
         .clone();
 
     let error = built
-        .materialize_named("fabric.test.fabric.package-system.instance")
+        .materialize("fabric.test.fabric.package-system.instance")
         .expect_err("declaration-only system must not materialize");
     assert!(matches!(
         error,
@@ -1135,7 +1135,7 @@ fn fabric_declaration_only_component_is_host_known_without_runtime() {
     );
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.package-component.instance")
+        .materialize("fabric.test.fabric.package-component.instance")
         .expect("instance with host-known declaration materializes");
     instance.start().expect("start");
 
@@ -1179,7 +1179,7 @@ fn fabric_self_contained_resource_flows_through_normal_authoring() {
         .expect("direct resource build");
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.direct.instance")
+        .materialize("fabric.test.fabric.direct.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1204,7 +1204,7 @@ fn fabric_self_contained_system_flows_through_normal_authoring() {
         .expect("direct system build");
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.system-direct.instance")
+        .materialize("fabric.test.fabric.system-direct.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1231,7 +1231,7 @@ fn fabric_handwritten_adapter_flows_through_normal_authoring() {
         .expect("handwritten adapter build");
 
     let mut instance = built
-        .materialize_named_on("fabric.test.fabric.clock.instance", &test_host())
+        .materialize_on("fabric.test.fabric.clock.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1258,7 +1258,7 @@ fn fabric_host_bound_adapter_flows_through_normal_authoring() {
         .expect("host-bound build");
 
     let mut instance = built
-        .materialize_named_on("fabric.test.fabric.host-bound.instance", &facility_host())
+        .materialize_on("fabric.test.fabric.host-bound.instance", &facility_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -1277,7 +1277,7 @@ fn fabric_runtime_component_flows_through_normal_authoring() {
     assert_eq!(built.manifest().components().len(), 1);
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.greeter.instance")
+        .materialize("fabric.test.fabric.greeter.instance")
         .expect("instance");
     instance.start().expect("start");
 
@@ -1312,7 +1312,7 @@ fn gateway_component_is_realized_by_pingora_adapter_through_core_contracts() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on("fabric.test.gateway.local", &facility_host())
+        .materialize_on("fabric.test.gateway.local", &facility_host())
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -1366,7 +1366,7 @@ fn adapter_realized_component_prepares_external_augmentation_without_adapter_kno
         .expect("build");
     assert_eq!(built.manifest().component_augmentations().len(), 2);
     let mut instance = built
-        .materialize_named_on("fabric.test.gateway.augmentation.local", &facility_host())
+        .materialize_on("fabric.test.gateway.augmentation.local", &facility_host())
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -1405,7 +1405,7 @@ fn gateway_adapter_realization_keeps_component_config_per_composition() {
     ] {
         let built = build(composition_id, prefix);
         let mut instance = built
-            .materialize_named_on(format!("{composition_id}.local"), &facility_host())
+            .materialize_on(format!("{composition_id}.local"), &facility_host())
             .expect("materialize");
         instance.start().expect("start");
         let components = instance.components().expect("components");
@@ -1440,7 +1440,7 @@ fn gateway_adapter_realization_rejects_an_incompatible_host() {
         .expect("build");
     assert!(
         built
-            .materialize_named_on("fabric.test.gateway.host.local", &test_host())
+            .materialize_on("fabric.test.gateway.host.local", &test_host())
             .is_err()
     );
 }
@@ -1460,7 +1460,7 @@ fn gateway_semantics_support_an_alternate_adapter_realization() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on("fabric.test.gateway.alternate.local", &facility_host())
+        .materialize_on("fabric.test.gateway.alternate.local", &facility_host())
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("components");
@@ -1522,7 +1522,7 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
 
     let instance_id = "fabric.test.generational.gateway.local";
     let mut first = first_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("first instance");
     first.start().expect("first starts");
     let first_generation = first.generation();
@@ -1534,7 +1534,7 @@ fn generational_component_realization_change_keeps_live_instances_independent() 
         .clone();
 
     let mut second = second_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("second instance");
     second.start().expect("second starts");
     let second_generation = second.generation();
@@ -1620,7 +1620,7 @@ fn failed_new_generation_is_isolated_from_a_running_generation() {
 
     let instance_id = "fabric.test.generational.failure.local";
     let mut running = running_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("running instance");
     running.start().expect("running start");
     let running_generation = running.generation();
@@ -1630,7 +1630,7 @@ fn failed_new_generation_is_isolated_from_a_running_generation() {
         .expect("running Gateway participation");
 
     let mut failed = failing_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("failed generation is still returned Ready");
     assert_ne!(running_generation, failed.generation());
     assert!(failed.start().is_err());
@@ -1647,7 +1647,7 @@ fn failed_new_generation_is_isolated_from_a_running_generation() {
     // Host prevents a usable new Instance from being returned at all.
     assert!(
         failing_built
-            .materialize_named_on(instance_id, &test_host())
+            .materialize_on(instance_id, &test_host())
             .is_err()
     );
     assert_eq!(running.lifecycle(), LifecycleState::Running);
@@ -1699,10 +1699,10 @@ fn generational_resource_realization_change_is_fresh_and_has_no_state_transfer()
 
     let instance_id = "fabric.test.generational.clock.local";
     let mut first = first_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("first instance");
     let mut second = second_built
-        .materialize_named_on(instance_id, &facility_host())
+        .materialize_on(instance_id, &facility_host())
         .expect("second instance");
     assert_eq!(first.instance_id(), second.instance_id());
     assert_ne!(first.generation(), second.generation());
@@ -1723,10 +1723,10 @@ fn fabric_component_operator_is_instance_local_and_preserves_lifecycle_errors() 
         .expect("build");
 
     let mut first = built
-        .materialize_named("fabric.test.operator.first")
+        .materialize("fabric.test.operator.first")
         .expect("first");
     let mut second = built
-        .materialize_named("fabric.test.operator.second")
+        .materialize("fabric.test.operator.second")
         .expect("second");
     assert_ne!(first.generation(), second.generation());
 
@@ -1824,7 +1824,7 @@ fn component_macro_resolves_typed_resource_and_system_dependencies() {
     assert_eq!(built.manifest().component_system_bindings().len(), 1);
 
     let mut instance = built
-        .materialize_named("fabric.test.component.macro-dependencies.instance")
+        .materialize("fabric.test.component.macro-dependencies.instance")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("component operator export");
@@ -1848,7 +1848,7 @@ fn component_macro_keeps_domain_results_inside_typed_output() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named("fabric.test.component.document-probe.instance")
+        .materialize("fabric.test.component.document-probe.instance")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -1930,7 +1930,7 @@ fn run_dual_counter_probe(swap: bool) -> DualCounterOutput {
     );
     assert_eq!(built.manifest().component_resource_bindings().len(), 2);
     let mut instance = built
-        .materialize_named("fabric.test.dual-counter.instance")
+        .materialize("fabric.test.dual-counter.instance")
         .expect("instance");
     instance.start().expect("start");
     let components = instance.components().expect("component operator export");
@@ -2068,7 +2068,7 @@ fn fabric_explicit_selection_resolves_ambiguity_and_core_owns_ambiguity() {
     );
 
     let mut instance = built
-        .materialize_named("fabric.test.fabric.selected.instance")
+        .materialize("fabric.test.fabric.selected.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -2467,7 +2467,7 @@ fn component_owned_system_requirement_lowers_through_core_and_reaches_its_runtim
         &TestOperations::system_id()
     );
     let mut instance = built
-        .materialize_named("fabric.test.component.system-owned.instance")
+        .materialize("fabric.test.component.system-owned.instance")
         .expect("instance");
     instance.start().expect("start");
     rails
@@ -2562,7 +2562,7 @@ fn component_system_explicit_selection_chooses_system_and_is_manifest_truth() {
     assert_eq!(selection.system_id(), &TestOperations::system_id());
     assert_eq!(selection.system_id(), &TestOperations::system_id());
     let mut instance = built
-        .materialize_named("fabric.test.component.system-selected.instance")
+        .materialize("fabric.test.component.system-selected.instance")
         .expect("instance");
     instance.start().expect("start");
     rails
@@ -2631,7 +2631,7 @@ fn two_components_independently_consume_one_system_and_combined_dependencies_rem
         1
     );
     let mut instance = built
-        .materialize_named("fabric.test.component.system-shared.instance")
+        .materialize("fabric.test.component.system-shared.instance")
         .expect("instance");
     instance.start().expect("start");
     let materializer = rails
@@ -2675,7 +2675,7 @@ fn declaration_only_component_keeps_system_requirement_without_participation() {
         1
     );
     let mut instance = built
-        .materialize_named("fabric.test.component.declaration-system.instance")
+        .materialize("fabric.test.component.declaration-system.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -2704,7 +2704,7 @@ fn component_system_handoffs_are_fresh_for_each_materialized_instance() {
         .expect("build");
     for name in ["one", "two"] {
         let mut instance = built
-            .materialize_named(format!("fabric.test.component.system-fresh.{name}"))
+            .materialize(format!("fabric.test.component.system-fresh.{name}"))
             .expect("instance");
         instance.start().expect("start");
         let materializer = rails
@@ -2800,12 +2800,12 @@ fn integrated_alpha_system_runs_end_to_end() {
     assert_eq!(built.manifest().component_resource_bindings().len(), 1);
     assert_eq!(built.manifest().component_system_bindings().len(), 1);
     let mut instance = built
-        .materialize_named_on("fabric.test.alpha.instance", &alpha_host())
+        .materialize_on("fabric.test.alpha.instance", &alpha_host())
         .expect("host");
     assert_eq!(instance.lifecycle(), LifecycleState::Ready);
     let generation = instance.generation();
     instance.start().expect("start");
-    let report = instance.report();
+    let report = instance.core().report();
     assert_eq!(report.lifecycle, LifecycleState::Running);
     assert_eq!(report.generation, generation);
     rails
@@ -2823,7 +2823,7 @@ fn integrated_alpha_system_runs_end_to_end() {
             marker: 7
         }]
     );
-    assert_eq!(instance.report().lifecycle, LifecycleState::Running);
+    assert_eq!(instance.lifecycle(), LifecycleState::Running);
     instance.stop().expect("stop instance");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
 }
@@ -2864,7 +2864,7 @@ fn integrated_alpha_system_rejects_incompatible_host() {
         .build()
         .expect("semantic build");
     let error = built
-        .materialize_named_on("fabric.test.alpha.incompatible.instance", &facility_host())
+        .materialize_on("fabric.test.alpha.incompatible.instance", &facility_host())
         .expect_err("operations facility is absent");
     assert!(matches!(error, CompositionError::HostIncompatible { .. }));
     assert!(observations.lock().expect("observations").is_empty());
@@ -2904,7 +2904,7 @@ fn component_owned_resource_requirement_lowers_through_core_and_reaches_its_runt
     );
 
     let mut instance = built
-        .materialize_named("fabric.test.component.resource-owned.instance")
+        .materialize("fabric.test.component.resource-owned.instance")
         .expect("instance");
     instance.start().expect("start");
     rails_capture
@@ -2967,7 +2967,7 @@ fn component_owned_resource_requirement_uses_explicit_resource_selection() {
         1
     );
     let mut instance = built
-        .materialize_named("fabric.test.component.resource-selected.instance")
+        .materialize("fabric.test.component.resource-selected.instance")
         .expect("instance");
     instance.start().expect("start");
     rails_capture
@@ -3017,7 +3017,7 @@ fn components_with_identical_resource_requirements_keep_independent_selected_pro
         .expect("independent selections build");
     assert_eq!(built.manifest().component_resource_bindings().len(), 2);
     let mut instance = built
-        .materialize_named("fabric.test.component.independent-resource-providers.instance")
+        .materialize("fabric.test.component.independent-resource-providers.instance")
         .expect("instance");
     instance.start().expect("start");
     let materializer = rails
@@ -3093,7 +3093,7 @@ fn components_with_identical_resource_requirements_may_share_one_provider() {
         .build()
         .expect("shared provider build");
     let mut instance = built
-        .materialize_named("fabric.test.component.shared-resource-provider.instance")
+        .materialize("fabric.test.component.shared-resource-provider.instance")
         .expect("instance");
     instance.start().expect("start");
     let materializer = rails
@@ -3135,7 +3135,7 @@ fn declaration_only_component_keeps_resource_requirement_without_participation()
         1
     );
     let mut instance = built
-        .materialize_named("fabric.test.component.declaration-resource.instance")
+        .materialize("fabric.test.component.declaration-resource.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");

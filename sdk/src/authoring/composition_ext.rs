@@ -8,11 +8,11 @@ use crate::ids::IntoInstanceId;
 /// Normal SDK [`crate::Composition`] has inherent high-level materialization
 /// methods and intentionally does not implement this trait.
 pub trait CompositionExt {
-    fn materialize_named<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
+    fn materialize_core<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId;
 
-    fn materialize_named_on<I>(
+    fn materialize_core_on<I>(
         &self,
         instance_id: I,
         host: &HostDescriptor,
@@ -22,14 +22,14 @@ pub trait CompositionExt {
 }
 
 impl CompositionExt for CoreComposition {
-    fn materialize_named<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
+    fn materialize_core<I>(&self, instance_id: I) -> Result<Instance, CompositionError>
     where
         I: IntoInstanceId,
     {
-        self.materialize(instance_id.into_instance_id()?)
+        CoreComposition::materialize(self, instance_id.into_instance_id()?)
     }
 
-    fn materialize_named_on<I>(
+    fn materialize_core_on<I>(
         &self,
         instance_id: I,
         host: &HostDescriptor,
@@ -37,6 +37,6 @@ impl CompositionExt for CoreComposition {
     where
         I: IntoInstanceId,
     {
-        self.materialize_on(instance_id.into_instance_id()?, host)
+        CoreComposition::materialize_on(self, instance_id.into_instance_id()?, host)
     }
 }

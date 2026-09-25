@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.5" }
+fabric = { package = "onoal-fabric", version = "0.6.6" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -54,8 +54,10 @@ let composition = Fabric::new("example")
 let manifest = composition.manifest();
 assert_eq!(manifest.components().len(), 1);
 
-let mut instance = composition.materialize_named("example.local").expect("instance");
+let mut instance = composition.materialize("example.local").expect("instance");
+assert_eq!(instance.lifecycle(), LifecycleState::Ready);
 instance.start().expect("start");
+assert_eq!(instance.lifecycle(), LifecycleState::Running);
 let components = instance.components().expect("component host");
 components.materialize::<Greeter>().expect("materialize component");
 let output = futures::executor::block_on(
@@ -66,11 +68,34 @@ components.dematerialize::<Greeter>().expect("dematerialize component");
 instance.stop().expect("stop instance");
 ```
 
-`Composition` materializes to `FabricInstance`; raw
-`composition.core().materialize(...)` remains available to advanced Core
-users. `FabricInstance::components()` is `None` when the Composition has no
-Component host. It is a bounded Component operational façade, not a general
-Instance service locator.
+The normal live flow is:
+
+```text
+Definition
+  -> Contribution
+  -> Fabric
+  -> Composition
+  -> Instance
+  -> Running Instance
+```
+
+`Composition` is immutable declared semantic truth. `Instance` is one
+generation-bearing live materialization of that truth. `InstanceId` is the
+logical authored instance identity; `InstanceGeneration` is the fresh runtime
+incarnation minted on each materialization.
+
+`materialize` does not start runtime modules. It creates a Ready Instance and
+seeds initial Component desired controls from Composition intent. Only
+`instance.start()` moves the generation to Running, and Running still does not
+mean desired Components have been reconciled into observed participation.
+
+Raw Core diagnostics remain deliberate through `instance.core()` and
+`composition.core()`. The high-level `Instance` reserves normal semantic live
+observation for the next checkpoint.
+
+`Instance::components()` is `None` when the Composition has no Component host.
+It is a bounded Component operational façade, not a general Instance service
+locator.
 
 Host-constrained Adapter compositions materialize explicitly with a
 `HostDescriptor` through the host-aware high-level materialization method.

@@ -172,7 +172,7 @@ fn external_resource_adapter_can_target_a_macro_generated_resource_from_another_
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.external.counter.instance", &test_host())
+        .materialize_on("fabric.test.external.counter.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -204,7 +204,7 @@ fn external_system_adapter_can_target_a_macro_generated_system_from_another_crat
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.external.operations.instance", &test_host())
+        .materialize_on("fabric.test.external.operations.instance", &test_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -243,7 +243,7 @@ fn external_adapter_can_consume_systems_through_the_canonical_adapter_surface() 
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.operations.dependency.instance",
             &test_host(),
         )
@@ -277,7 +277,7 @@ fn external_host_bound_resource_adapter_still_requires_explicit_host_truth() {
         .expect("composition");
 
     let error = composition
-        .materialize_named("fabric.test.external.counter.host.instance")
+        .materialize("fabric.test.external.counter.host.instance")
         .expect_err("hostless materialization should fail");
     assert!(matches!(
         error,
@@ -285,7 +285,7 @@ fn external_host_bound_resource_adapter_still_requires_explicit_host_truth() {
     ));
 
     let error = composition
-        .materialize_named_on("fabric.test.external.counter.host.missing", &test_host())
+        .materialize_on("fabric.test.external.counter.host.missing", &test_host())
         .expect_err("missing facility");
     assert!(matches!(
         error,
@@ -294,7 +294,7 @@ fn external_host_bound_resource_adapter_still_requires_explicit_host_truth() {
     ));
 
     let mut instance = composition
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.external.counter.host.instance",
             &test_host().with_facility(external_counter_host_facility()),
         )

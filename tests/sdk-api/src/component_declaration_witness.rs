@@ -522,7 +522,7 @@ fn canonical_component_api_declaration_has_no_local_runtime_attachment() {
         .build()
         .expect("declaration-only component builds");
     let mut instance = built
-        .materialize_named("fabric.test.component-declaration.runtime-free.instance")
+        .materialize("fabric.test.component-declaration.runtime-free.instance")
         .expect("host-known declaration materializes");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -545,7 +545,7 @@ fn canonical_component_runtime_registers_semantic_api_without_operation_ceremony
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named("fabric.test.component-declaration.canonical-runtime.instance")
+        .materialize("fabric.test.component-declaration.canonical-runtime.instance")
         .expect("instance");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -591,7 +591,7 @@ fn canonical_component_runtime_receives_typed_resource_and_system_relations() {
         .build()
         .expect("build with target-driven relation carriers");
     let mut instance = built
-        .materialize_named("fabric.test.component-declaration.related-runtime.instance")
+        .materialize("fabric.test.component-declaration.related-runtime.instance")
         .expect("instance");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -620,7 +620,7 @@ fn canonical_component_runtime_state_is_participation_local_and_tears_down_once(
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named("fabric.test.component-declaration.lifecycle-runtime.instance")
+        .materialize("fabric.test.component-declaration.lifecycle-runtime.instance")
         .expect("instance");
     instance.start().expect("start");
     let components = instance.components().expect("component host");
@@ -670,7 +670,7 @@ fn canonical_component_adapter_realizes_a_declaration_through_participation() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.adapter-realized.instance",
             &HostDescriptor::native(),
         )
@@ -702,7 +702,7 @@ fn explicit_component_adapter_replaces_the_default_self_realization() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.default-or-adapter.instance",
             &HostDescriptor::native(),
         )
@@ -736,7 +736,7 @@ fn api_less_component_adapter_can_prepare_one_participation() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.adapter-prepared-autonomous.instance",
             &HostDescriptor::native(),
         )
@@ -775,7 +775,7 @@ fn component_adapter_state_relations_and_cleanup_are_participation_owned() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.adapter-participation-audit.instance",
             &HostDescriptor::native(),
         )
@@ -848,7 +848,7 @@ fn explicit_component_adapter_replaces_self_prepare_and_teardown() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.replacement-audit.instance",
             &HostDescriptor::native(),
         )
@@ -883,7 +883,7 @@ fn component_adapter_target_resolution_uses_the_imported_type() {
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.component-declaration.imported-target.instance",
             &HostDescriptor::native(),
         )

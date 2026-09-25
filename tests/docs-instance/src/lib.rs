@@ -34,16 +34,13 @@ fn component_fabric() -> Fabric {
 fn materialization_lifecycle_report_and_component_boundary_are_distinct() {
     let composition = component_fabric().build().expect("valid Composition");
     let mut instance = composition
-        .materialize_named("example.instance.local")
+        .materialize("example.instance.local")
         .expect("materialize");
 
     assert_eq!(instance.lifecycle(), LifecycleState::Ready);
     assert!(instance.components().is_some());
-    let ready_report = instance.report();
-    assert_eq!(ready_report.composition_id, composition.id().clone());
-    assert_eq!(ready_report.instance_id, instance.instance_id().clone());
-    assert_eq!(ready_report.generation, instance.generation());
-    assert_eq!(ready_report.lifecycle, LifecycleState::Ready);
+    assert_eq!(instance.composition_id(), composition.id());
+    assert_eq!(instance.lifecycle(), LifecycleState::Ready);
 
     instance.start().expect("start");
     assert_eq!(instance.lifecycle(), LifecycleState::Running);
@@ -64,10 +61,10 @@ fn materialization_lifecycle_report_and_component_boundary_are_distinct() {
 fn one_composition_creates_independent_instances_and_fresh_generations() {
     let composition = component_fabric().build().expect("valid Composition");
     let first = composition
-        .materialize_named("example.instance.first")
+        .materialize("example.instance.first")
         .expect("first Instance");
     let second = composition
-        .materialize_named("example.instance.second")
+        .materialize("example.instance.second")
         .expect("second Instance");
 
     assert_ne!(first.instance_id(), second.instance_id());
@@ -78,10 +75,10 @@ fn one_composition_creates_independent_instances_and_fresh_generations() {
 fn rematerializing_the_same_instance_id_mints_a_fresh_generation() {
     let composition = component_fabric().build().expect("valid Composition");
     let first = composition
-        .materialize_named("example.instance.local")
+        .materialize("example.instance.local")
         .expect("first Instance");
     let second = composition
-        .materialize_named("example.instance.local")
+        .materialize("example.instance.local")
         .expect("second Instance");
 
     assert_eq!(first.instance_id(), second.instance_id());
@@ -103,7 +100,7 @@ fn resource_only_instance_has_no_component_surface() {
         .build()
         .expect("valid Composition");
     let instance = composition
-        .materialize_named("example.instance.resource-only.local")
+        .materialize("example.instance.resource-only.local")
         .expect("materialize");
 
     assert!(instance.components().is_none());

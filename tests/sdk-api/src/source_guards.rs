@@ -101,13 +101,13 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     for dependency in [
-        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.6.5\", path = \"host\" }",
-        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.6.5\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.6.5\", path = \"resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.6.5\", path = \"system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.6.5\", path = \"component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.6.5\", path = \"sdk-macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.6.5\", path = \"sdk\" }",
+        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.6.6\", path = \"host\" }",
+        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.6.6\", path = \"core\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.6.6\", path = \"resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.6.6\", path = \"system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.6.6\", path = \"component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.6.6\", path = \"sdk-macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"0.6.6\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -143,8 +143,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     assert!(
-        workspace_manifest.contains("version = \"0.6.5\""),
-        "the Fabric family source graph must share the 0.6.5 workspace version"
+        workspace_manifest.contains("version = \"0.6.6\""),
+        "the Fabric family source graph must share the 0.6.6 workspace version"
     );
     for manifest in [
         "host/Cargo.toml",

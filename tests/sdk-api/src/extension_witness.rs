@@ -135,7 +135,7 @@ fn sdk_versioned_requires_clock_resolves_primary_contract_and_preserves_provenan
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.sdk.extension.instance", &sdk_host())
+        .materialize_core_on("fabric.test.sdk.extension.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -181,7 +181,7 @@ fn adapter_backed_clock_requires_explicit_host_truth_even_when_host_requirement_
         .expect("composition");
 
     let error = composition
-        .materialize_named("fabric.test.sdk.host-required.instance")
+        .materialize_core("fabric.test.sdk.host-required.instance")
         .expect_err("adapter-backed compositions should require explicit host truth");
 
     assert!(matches!(
@@ -220,7 +220,7 @@ fn host_bound_clock_adapter_evaluates_required_facility_during_materialization()
 
     let missing_host = sdk_host();
     let error = composition
-        .materialize_named_on("fabric.test.sdk.host-bound.missing", &missing_host)
+        .materialize_core_on("fabric.test.sdk.host-bound.missing", &missing_host)
         .expect_err("missing host facility should fail");
 
     assert!(matches!(
@@ -233,7 +233,7 @@ fn host_bound_clock_adapter_evaluates_required_facility_during_materialization()
     ));
 
     let mut instance = composition
-        .materialize_named_on(
+        .materialize_core_on(
             "fabric.test.sdk.host-bound.instance",
             &sdk_host().with_facility(host_bound_clock_facility()),
         )
@@ -335,7 +335,7 @@ fn direct_resource_realization_works_without_any_adapter_object() {
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named("fabric.test.sdk.direct-resource.instance")
+        .materialize_core("fabric.test.sdk.direct-resource.instance")
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -455,7 +455,7 @@ fn typed_requires_clock_still_preserves_fx5_requirement_declaration_integrity() 
         .expect("declaration graph validates without executing runtime bind");
 
     let error = composition
-        .materialize_named_on("fabric.test.sdk.clock-mismatch.instance", &sdk_host())
+        .materialize_core_on("fabric.test.sdk.clock-mismatch.instance", &sdk_host())
         .expect_err("runtime bind must reject the undeclared requirement");
 
     assert!(matches!(
@@ -899,7 +899,7 @@ fn two_clock_instances_bind_distinct_realization_providers_and_public_consumers(
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.sdk.two-clocks.instance", &sdk_host())
+        .materialize_core_on("fabric.test.sdk.two-clocks.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -971,7 +971,7 @@ fn realization_dependency_order_is_driven_by_the_contract_graph() {
         .expect("composition");
 
     let mut instance = composition
-        .materialize_named_on("fabric.test.sdk.lifecycle.instance", &sdk_host())
+        .materialize_core_on("fabric.test.sdk.lifecycle.instance", &sdk_host())
         .expect("instance");
     instance.start().expect("start");
     instance.stop().expect("stop instance");

@@ -92,7 +92,7 @@ fn typed_resource_and_system_dependencies_reach_the_canonical_runtime() {
         .build()
         .expect("valid dependencies");
     let mut instance = composition
-        .materialize_named("example.component.dependencies.local")
+        .materialize("example.component.dependencies.local")
         .expect("Instance");
     let instance_id = instance.instance_id().clone();
     let generation = instance.generation();
@@ -124,7 +124,7 @@ fn declaration_only_component_is_valid_but_has_no_native_attachment() {
         .expect("declaration-only ComponentInstanceBinding is valid");
     assert_eq!(composition.manifest().components()[0].operations().len(), 0);
     let mut instance = composition
-        .materialize_named("example.component.declaration-only.local")
+        .materialize("example.component.declaration-only.local")
         .expect("Instance");
     instance.start().expect("start");
     let error = instance
@@ -154,7 +154,7 @@ fn component_api_domain_output_and_participation_are_distinct() {
             .is_empty()
     );
     let mut instance = composition
-        .materialize_named("example.component.local")
+        .materialize("example.component.local")
         .expect("Instance");
     instance.start().expect("start");
     let components = instance

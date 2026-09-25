@@ -376,7 +376,7 @@ fn external_support_for_an_adapted_system_is_semantic_and_manifest_truthful() {
     assert_eq!(entry.system_id(), &AdaptedOperations::system_id());
 
     let mut instance = built
-        .materialize_named_on("system-augmentation", &HostDescriptor::native())
+        .materialize_on("system-augmentation", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
     assert_eq!(
@@ -428,10 +428,10 @@ fn alternate_supports_preserve_x_identity_and_change_only_implementation() {
     );
     let host = HostDescriptor::native();
     let mut first_instance = first
-        .materialize_named_on("first", &host)
+        .materialize_on("first", &host)
         .expect("first materialize");
     let mut second_instance = second
-        .materialize_named_on("second", &host)
+        .materialize_on("second", &host)
         .expect("second materialize");
     first_instance.start().expect("first start");
     second_instance.start().expect("second start");
@@ -468,7 +468,7 @@ fn base_only_adapted_system_authoring_remains_valid() {
         .expect("base-only build");
     assert!(built.manifest().system_augmentations().is_empty());
     let mut instance = built
-        .materialize_named_on("base-only", &HostDescriptor::native())
+        .materialize_on("base-only", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop instance");
@@ -487,7 +487,7 @@ fn self_realizing_system_remains_compatible_with_external_augmentation_support()
         .build()
         .expect("build");
     let mut instance = built
-        .materialize_named_on("native", &HostDescriptor::native())
+        .materialize_on("native", &HostDescriptor::native())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop instance");

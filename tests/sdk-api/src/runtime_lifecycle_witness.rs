@@ -753,7 +753,7 @@ fn canonical_adapters_export_the_target_semantic_api_without_subject_forwarding(
         .expect("canonical adapters compose");
 
     let mut instance = composition
-        .materialize_named_on("canonical-adapter", &host())
+        .materialize_on("canonical-adapter", &host())
         .expect("canonical adapters materialize");
     assert_eq!(instance.lifecycle(), LifecycleState::Ready);
     instance.start().expect("canonical adapters start");
@@ -767,7 +767,7 @@ fn canonical_adapters_export_the_target_semantic_api_without_subject_forwarding(
             label: "adapter-config".to_owned(),
         })
     );
-    assert_eq!(instance.report().health, Health::Degraded);
+    assert_eq!(instance.core().report().health, Health::Degraded);
     instance.stop().expect("canonical adapters stop");
     assert_eq!(instance.lifecycle(), LifecycleState::Stopped);
     assert_eq!(
@@ -776,7 +776,7 @@ fn canonical_adapters_export_the_target_semantic_api_without_subject_forwarding(
     );
 
     let mut fresh_generation = composition
-        .materialize_named_on("canonical-adapter-fresh", &host())
+        .materialize_on("canonical-adapter-fresh", &host())
         .expect("fresh canonical adapter generation");
     fresh_generation.start().expect("fresh start");
     assert_eq!(
@@ -815,7 +815,7 @@ fn differential_realizations_compose_one_semantic_provider_from_one_effective_ad
         .build()
         .expect("differential composition");
     let mut instance = composition
-        .materialize_named_on("differential", &host())
+        .materialize_on("differential", &host())
         .expect("materialize differential providers");
     instance.start().expect("start");
     assert_eq!(
@@ -849,7 +849,7 @@ fn stateful_resource_runtime_is_fresh_shared_and_lifecycle_aware() {
         .expect("composition");
 
     let mut first = composition
-        .materialize_named_on("fabric.test.lifecycle.resource.first", &host())
+        .materialize_core_on("fabric.test.lifecycle.resource.first", &host())
         .expect("first materialization");
     first.start().expect("first start");
     let service = first.export(&export).expect("resource export");
@@ -865,7 +865,7 @@ fn stateful_resource_runtime_is_fresh_shared_and_lifecycle_aware() {
     first.stop().expect("first stop");
 
     let mut second = composition
-        .materialize_named_on("fabric.test.lifecycle.resource.second", &host())
+        .materialize_core_on("fabric.test.lifecycle.resource.second", &host())
         .expect("second materialization");
     second.start().expect("second start");
     let second_service = second.export(&export).expect("second export");
@@ -899,7 +899,7 @@ fn api_only_resource_and_system_are_valid_semantic_definitions_without_self_runt
         .build()
         .expect("semantic resource declaration builds");
     let resource_error = resource_built
-        .materialize_named_on("api-only-resource", &host())
+        .materialize_on("api-only-resource", &host())
         .expect_err("semantic resource without a live realization must not materialize");
     assert!(matches!(
         resource_error,
@@ -912,7 +912,7 @@ fn api_only_resource_and_system_are_valid_semantic_definitions_without_self_runt
         .build()
         .expect("semantic system declaration builds");
     let system_error = system_built
-        .materialize_named_on("api-only-system", &host())
+        .materialize_on("api-only-system", &host())
         .expect_err("semantic system without a live realization must not materialize");
     assert!(matches!(
         system_error,
@@ -941,7 +941,7 @@ fn config_relations_and_api_do_not_imply_a_resource_owned_runtime() {
     assert_eq!(built.manifest().resources().len(), 2);
     assert_eq!(built.manifest().systems().len(), 1);
     assert!(matches!(
-        built.materialize_named_on("api-only-facets", &host()),
+        built.materialize_on("api-only-facets", &host()),
         Err(CompositionError::MissingRuntimeMaterializer { .. })
     ));
 }
@@ -966,7 +966,7 @@ fn stateful_resource_ready_stop_and_stop_failure_use_core_cleanup() {
         .expect("block")
         .build()
         .expect("composition")
-        .materialize_named_on("fabric.test.lifecycle.ready-stop.instance", &host())
+        .materialize_core_on("fabric.test.lifecycle.ready-stop.instance", &host())
         .expect("materialize");
     ready_instance.stop().expect("ready stop");
     assert_eq!(ready_instance.lifecycle(), LifecycleState::Stopped);
@@ -992,7 +992,7 @@ fn stateful_resource_ready_stop_and_stop_failure_use_core_cleanup() {
         .expect("block")
         .build()
         .expect("composition")
-        .materialize_named_on("fabric.test.lifecycle.stop-failure.instance", &host())
+        .materialize_core_on("fabric.test.lifecycle.stop-failure.instance", &host())
         .expect("materialize");
     failing_instance.start().expect("start");
     let cleanup = failing_instance
@@ -1033,7 +1033,7 @@ fn startup_abandonment_reaches_high_level_authored_stop_hooks() {
         .expect("block")
         .build()
         .expect("composition")
-        .materialize_named_on(
+        .materialize_core_on(
             "fabric.test.lifecycle.startup-abandonment.instance",
             &host(),
         )
@@ -1071,7 +1071,7 @@ fn stateful_system_runtime_uses_the_same_lifecycle_authoring_path() {
         .expect("block")
         .build()
         .expect("composition")
-        .materialize_named_on("fabric.test.lifecycle.system.instance", &host())
+        .materialize_core_on("fabric.test.lifecycle.system.instance", &host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");
@@ -1102,7 +1102,7 @@ fn stateful_resource_adapter_preserves_host_compatibility_and_shared_occurrence_
         .build()
         .expect("composition");
     let mut instance = composition
-        .materialize_named_on(
+        .materialize_on(
             "fabric.test.lifecycle.resource-adapter.instance",
             &host().with_facility(adapter_host_facility()),
         )
@@ -1149,7 +1149,7 @@ fn stateful_system_adapter_binds_declared_system_dependencies() {
         .build()
         .expect("composition");
     let mut instance = composition
-        .materialize_named_on("fabric.test.lifecycle.system-adapter.instance", &host())
+        .materialize_on("fabric.test.lifecycle.system-adapter.instance", &host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");
@@ -1241,7 +1241,7 @@ fn one_adapter_definition_reuses_its_identity_across_resource_occurrences() {
     );
 
     let mut instance = composition
-        .materialize_named_on("adapter-identity-occurrences", &host())
+        .materialize_on("adapter-identity-occurrences", &host())
         .expect("materialize");
     instance.start().expect("start");
     instance.stop().expect("stop");

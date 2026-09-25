@@ -23,7 +23,7 @@ fn normal_prelude_supports_the_complete_high_level_component_flow() {
     assert!(manifest.component_resource_bindings().is_empty());
     assert!(manifest.component_system_bindings().is_empty());
     let mut instance = composition
-        .materialize_named("fabric.test.normal-prelude.instance")
+        .materialize("fabric.test.normal-prelude.instance")
         .expect("materialize");
     instance.start().expect("start");
     let components = instance.components().expect("component host");

@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod canonical_instance_witness;
+#[cfg(test)]
 mod component_augmentation_witness;
 #[cfg(test)]
 mod component_declaration_witness;

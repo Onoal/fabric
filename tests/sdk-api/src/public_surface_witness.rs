@@ -3,8 +3,13 @@ use fabric_test_component_greeter::{Greeter, GreeterConfig, GreeterInput, greete
 
 #[test]
 fn normal_prelude_supports_the_complete_high_level_component_flow() {
+    fn empty_contribution() -> impl IntoFabricContribution {
+        FabricContribution::new()
+    }
+
     let composition: Composition = Fabric::new("fabric.test.normal-prelude")
         .expect("fabric")
+        .with(empty_contribution())
         .component(Greeter::define(GreeterConfig {}))
         .build()
         .expect("build");

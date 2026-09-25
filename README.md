@@ -53,7 +53,7 @@ The cross-cutting terms have deliberately different owners:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.3" }
+fabric = { package = "onoal-fabric", version = "0.6.4" }
 ```
 
 ```rust
@@ -79,6 +79,24 @@ fabric::adapter! {
 `Store` states the semantic API once. `MemoryStore` owns the concrete
 implementation. A Composition selects that Adapter; consumers bind and call
 the `Store` API, not an Adapter-specific interface.
+
+Reusable authoring can be organized into identity-less contributions:
+
+```rust
+fn storage() -> impl IntoFabricContribution {
+    FabricContribution::new()
+        .resource(Store::select("main").expect("store").using(MemoryStore::new()).expect("adapter"))
+}
+
+let composition = Fabric::new("example.app")?
+    .with(storage())
+    .build()?;
+```
+
+A contribution is source organization only. It is not a Composition,
+Component, package, lifecycle owner, semantic occurrence, or inspection node.
+Writing `.with(storage())` produces the same built Composition truth as writing
+the same `.resource(...)` call inline.
 
 ## Read next
 

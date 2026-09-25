@@ -15,6 +15,7 @@ fabric-test-resource-clock = { path = "../extensions/resource-clock" }
 fabric-test-resource-counter = { path = "../extensions/resource-counter" }
 fabric-test-system-operations = { path = "../extensions/system-operations" }
 fabric-test-component-greeter = { path = "../extensions/component-greeter" }
+fabric-test-external-extension = { path = "../external-extension" }
 
 [dev-dependencies]
 futures = "0.3.31"

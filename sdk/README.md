@@ -20,7 +20,7 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "0.6.3" }
+fabric = { package = "onoal-fabric", version = "0.6.4" }
 ```
 
 Normal code imports the SDK through its public Rust crate name:
@@ -157,6 +157,62 @@ An API endpoint has one typed output. Domain failure belongs in that output;
 `ComponentError` remains the outer Fabric runtime/control plane. For example,
 an `api` method returning `Result<Document, DocumentError>` is invoked as
 `Result<Result<Document, DocumentError>, ComponentError>`.
+
+## Reusable contributions
+
+The authoring layers have distinct jobs:
+
+| Layer | Meaning |
+| --- | --- |
+| Definition | what one semantic thing means |
+| Contribution | reusable organization of authoring |
+| Fabric | complete authoring accumulator |
+| Composition | built resolved semantic system |
+
+`Contribution != Composition`, `Contribution != Component`, and
+`Contribution != Package`. A contribution has no identity, lifecycle, runtime,
+semantic occurrence, or inspection entry. It disappears into `Fabric` before
+the single `build()` boundary.
+
+Small systems can stay inline:
+
+```rust
+let composition = Fabric::new("hello")?
+    .resource(Store::select("main")?.using(MemoryStore::new())?)
+    .component(App::define())
+    .build()?;
+```
+
+Large systems can factor ordinary Rust authoring functions:
+
+```rust
+fn storage(name: &'static str) -> impl IntoFabricContribution {
+    let store = Store::select(name)
+        .expect("store")
+        .using(MemoryStore::new())
+        .expect("adapter");
+
+    FabricContribution::new()
+        .resource(store)
+}
+
+fn platform() -> impl IntoFabricContribution {
+    FabricContribution::new()
+        .with(networking())
+        .with(storage("main"))
+}
+
+let composition = Fabric::new("aether")?
+    .with(platform())
+    .with(agent())
+    .build()?;
+```
+
+Contribution configuration is just Rust input to the function. Conflicts and
+provider resolution remain whole-Composition laws checked by `Fabric::build()`;
+contribution boundaries do not isolate Resources, Systems, Components,
+relations, augmentations, Adapter realizations, raw Blocks, or provider
+selections.
 
 ## Composition inspection
 

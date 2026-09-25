@@ -7,7 +7,9 @@ mod system;
 mod system_augmentation;
 
 pub use augmentation::IntoFabricResourceAugmentation;
-pub use builder::{Composition, Fabric, FabricBuildError};
+pub use builder::{
+    Composition, Fabric, FabricBuildError, FabricContribution, IntoFabricContribution,
+};
 pub use manifest::{
     AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
     ComponentInspection, ComponentResourceBindingManifestEntry,

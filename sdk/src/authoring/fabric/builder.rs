@@ -414,8 +414,96 @@ impl Composition {
     }
 }
 
-pub struct Fabric {
-    composition_id: CompositionId,
+/// Identity-less reusable organization of Fabric authoring.
+///
+/// A contribution is not a Composition, participant, package, lifecycle owner,
+/// or runtime object. It only records authoring operations that can be merged
+/// into a [`Fabric`] before the single final [`Fabric::build`] boundary.
+pub struct FabricContribution {
+    authoring: FabricAuthoring,
+}
+
+impl Default for FabricContribution {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FabricContribution {
+    pub fn new() -> Self {
+        Self {
+            authoring: FabricAuthoring::new(),
+        }
+    }
+
+    pub fn with(mut self, contribution: impl IntoFabricContribution) -> Self {
+        self.authoring
+            .merge(contribution.into_fabric_contribution().authoring);
+        self
+    }
+
+    pub fn resource(mut self, resource: impl IntoFabricResource) -> Self {
+        self.authoring.add_resource(resource);
+        self
+    }
+
+    /// Adds externally owned semantic meaning to one selected Resource occurrence.
+    pub fn resource_augmentation(
+        mut self,
+        augmentation: impl IntoFabricResourceAugmentation,
+    ) -> Self {
+        self.authoring.add_resource_augmentation(augmentation);
+        self
+    }
+
+    pub fn system(mut self, system: impl IntoFabricSystem) -> Self {
+        self.authoring.add_system(system);
+        self
+    }
+
+    /// Adds externally owned semantic meaning to one selected System occurrence.
+    pub fn system_augmentation(mut self, augmentation: impl IntoFabricSystemAugmentation) -> Self {
+        self.authoring.add_system_augmentation(augmentation);
+        self
+    }
+
+    pub fn component(mut self, component: impl IntoFabricComponent) -> Self {
+        self.authoring.add_component(component);
+        self
+    }
+
+    pub fn with_block(mut self, block: Block) -> Self {
+        self.authoring.add_block(block);
+        self
+    }
+
+    pub fn block(
+        self,
+        block_id: impl IntoBlockId,
+        configure: impl FnOnce(BlockAuthor) -> BlockAuthor,
+    ) -> Result<Self, CompositionError> {
+        let block = configure(BlockAuthor::new(block_id)?).build();
+        Ok(self.with_block(block))
+    }
+
+    pub fn select_provider(mut self, selection: ContractProviderSelection) -> Self {
+        self.authoring.add_provider_selection(selection);
+        self
+    }
+}
+
+/// Converts reusable authoring into an identity-less Fabric contribution.
+pub trait IntoFabricContribution {
+    fn into_fabric_contribution(self) -> FabricContribution;
+}
+
+impl IntoFabricContribution for FabricContribution {
+    fn into_fabric_contribution(self) -> FabricContribution {
+        self
+    }
+}
+
+struct FabricAuthoring {
     blocks: Vec<Block>,
     raw_block_ids: Vec<BlockId>,
     provider_selections: Vec<ContractProviderSelection>,
@@ -436,6 +524,138 @@ pub struct Fabric {
     component_self_realizations: Vec<ComponentParticipationRealization>,
     component_augmentation_preparations:
         Vec<fabric_component::ComponentAugmentationParticipationRealization>,
+}
+
+impl FabricAuthoring {
+    fn new() -> Self {
+        Self {
+            blocks: Vec::new(),
+            raw_block_ids: Vec::new(),
+            provider_selections: Vec::new(),
+            component_resource_provider_selections: Vec::new(),
+            component_system_provider_selections: Vec::new(),
+            resources: Vec::new(),
+            resource_augmentations: Vec::new(),
+            systems: Vec::new(),
+            system_augmentations: Vec::new(),
+            component_augmentations: Vec::new(),
+            relation_declarations: Vec::new(),
+            components: Vec::new(),
+            component_realizations: BTreeMap::new(),
+            module_declarations: Vec::new(),
+            typed_modules: Vec::new(),
+            component_declarations: Vec::new(),
+            component_self_realizations: Vec::new(),
+            component_augmentation_preparations: Vec::new(),
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.blocks.extend(other.blocks);
+        self.raw_block_ids.extend(other.raw_block_ids);
+        self.provider_selections.extend(other.provider_selections);
+        self.component_resource_provider_selections
+            .extend(other.component_resource_provider_selections);
+        self.component_system_provider_selections
+            .extend(other.component_system_provider_selections);
+        self.resources.extend(other.resources);
+        self.resource_augmentations
+            .extend(other.resource_augmentations);
+        self.systems.extend(other.systems);
+        self.system_augmentations.extend(other.system_augmentations);
+        self.component_augmentations
+            .extend(other.component_augmentations);
+        self.relation_declarations
+            .extend(other.relation_declarations);
+        self.components.extend(other.components);
+        self.component_realizations
+            .extend(other.component_realizations);
+        self.module_declarations.extend(other.module_declarations);
+        self.typed_modules.extend(other.typed_modules);
+        self.component_declarations
+            .extend(other.component_declarations);
+        self.component_self_realizations
+            .extend(other.component_self_realizations);
+        self.component_augmentation_preparations
+            .extend(other.component_augmentation_preparations);
+    }
+
+    fn add_resource(&mut self, resource: impl IntoFabricResource) {
+        let contribution = resource.into_fabric_resource();
+        self.resources.push(contribution.entry().clone());
+        self.module_declarations
+            .extend(contribution.declarations().iter().cloned());
+        self.provider_selections
+            .extend(contribution.provider_selections().iter().cloned());
+        self.relation_declarations
+            .extend(contribution.relation_declarations().iter().cloned());
+        self.typed_modules.extend(contribution.modules());
+    }
+
+    fn add_resource_augmentation(&mut self, augmentation: impl IntoFabricResourceAugmentation) {
+        let contribution = augmentation.into_fabric_resource_augmentation();
+        self.resource_augmentations
+            .push(contribution.entry().clone());
+        let (modules, declarations, selections) = contribution.into_parts();
+        self.typed_modules.extend(modules);
+        self.module_declarations.extend(declarations);
+        self.provider_selections.extend(selections);
+    }
+
+    fn add_system(&mut self, system: impl IntoFabricSystem) {
+        let contribution = system.into_fabric_system();
+        self.systems.push(contribution.entry().clone());
+        self.module_declarations
+            .extend(contribution.declarations().iter().cloned());
+        self.provider_selections
+            .extend(contribution.provider_selections().iter().cloned());
+        self.relation_declarations
+            .extend(contribution.relation_declarations().iter().cloned());
+        self.typed_modules.extend(contribution.modules());
+    }
+
+    fn add_system_augmentation(&mut self, augmentation: impl IntoFabricSystemAugmentation) {
+        let contribution = augmentation.into_fabric_system_augmentation();
+        self.system_augmentations.push(contribution.entry().clone());
+        let (modules, declarations, selections) = contribution.into_parts();
+        self.typed_modules.extend(modules);
+        self.module_declarations.extend(declarations);
+        self.provider_selections.extend(selections);
+    }
+
+    fn add_component(&mut self, component: impl IntoFabricComponent) {
+        let (parts, modules, selections, augmentations, realization) =
+            component.into_fabric_component();
+        self.component_augmentations.extend(augmentations);
+        self.components.push(parts.declaration.clone());
+        self.component_realizations
+            .insert(parts.declaration.component_id().clone(), realization);
+        self.component_declarations.push(parts.declaration);
+        self.component_augmentation_preparations
+            .extend(parts.augmentation_preparations);
+        self.typed_modules.extend(parts.carriers);
+        self.typed_modules.extend(modules);
+        self.provider_selections.extend(selections);
+        self.provider_selections.extend(parts.provider_selections);
+        self.component_resource_provider_selections
+            .extend(parts.semantic_provider_selections);
+        self.component_system_provider_selections
+            .extend(parts.semantic_system_provider_selections);
+        self.relation_declarations
+            .extend(parts.relation_declarations);
+        if let Some(self_realization) = parts.self_realization {
+            self.component_self_realizations.push(self_realization);
+        }
+    }
+
+    fn add_block(&mut self, block: Block) {
+        self.raw_block_ids.push(block.id().clone());
+        self.blocks.push(block);
+    }
+
+    fn add_provider_selection(&mut self, selection: ContractProviderSelection) {
+        self.provider_selections.push(selection);
+    }
 }
 
 fn resolved_semantic_relation_bindings(
@@ -614,6 +834,11 @@ fn resolved_semantic_relation_bindings(
         .collect()
 }
 
+pub struct Fabric {
+    composition_id: CompositionId,
+    authoring: FabricAuthoring,
+}
+
 impl Fabric {
     pub fn new(composition_id: impl IntoCompositionId) -> Result<Self, CompositionError> {
         Ok(Self::from_id(composition_id.into_composition_id()?))
@@ -622,37 +847,18 @@ impl Fabric {
     pub fn from_id(composition_id: CompositionId) -> Self {
         Self {
             composition_id,
-            blocks: Vec::new(),
-            raw_block_ids: Vec::new(),
-            provider_selections: Vec::new(),
-            component_resource_provider_selections: Vec::new(),
-            component_system_provider_selections: Vec::new(),
-            resources: Vec::new(),
-            resource_augmentations: Vec::new(),
-            systems: Vec::new(),
-            system_augmentations: Vec::new(),
-            component_augmentations: Vec::new(),
-            relation_declarations: Vec::new(),
-            components: Vec::new(),
-            component_realizations: BTreeMap::new(),
-            module_declarations: Vec::new(),
-            typed_modules: Vec::new(),
-            component_declarations: Vec::new(),
-            component_self_realizations: Vec::new(),
-            component_augmentation_preparations: Vec::new(),
+            authoring: FabricAuthoring::new(),
         }
     }
 
+    pub fn with(mut self, contribution: impl IntoFabricContribution) -> Self {
+        self.authoring
+            .merge(contribution.into_fabric_contribution().authoring);
+        self
+    }
+
     pub fn resource(mut self, resource: impl IntoFabricResource) -> Self {
-        let contribution = resource.into_fabric_resource();
-        self.resources.push(contribution.entry().clone());
-        self.module_declarations
-            .extend(contribution.declarations().iter().cloned());
-        self.provider_selections
-            .extend(contribution.provider_selections().iter().cloned());
-        self.relation_declarations
-            .extend(contribution.relation_declarations().iter().cloned());
-        self.typed_modules.extend(contribution.modules());
+        self.authoring.add_resource(resource);
         self
     }
 
@@ -661,69 +867,28 @@ impl Fabric {
         mut self,
         augmentation: impl IntoFabricResourceAugmentation,
     ) -> Self {
-        let contribution = augmentation.into_fabric_resource_augmentation();
-        self.resource_augmentations
-            .push(contribution.entry().clone());
-        let (modules, declarations, selections) = contribution.into_parts();
-        self.typed_modules.extend(modules);
-        self.module_declarations.extend(declarations);
-        self.provider_selections.extend(selections);
+        self.authoring.add_resource_augmentation(augmentation);
         self
     }
 
     pub fn system(mut self, system: impl IntoFabricSystem) -> Self {
-        let contribution = system.into_fabric_system();
-        self.systems.push(contribution.entry().clone());
-        self.module_declarations
-            .extend(contribution.declarations().iter().cloned());
-        self.provider_selections
-            .extend(contribution.provider_selections().iter().cloned());
-        self.relation_declarations
-            .extend(contribution.relation_declarations().iter().cloned());
-        self.typed_modules.extend(contribution.modules());
+        self.authoring.add_system(system);
         self
     }
 
     /// Adds externally owned semantic meaning to one selected System occurrence.
     pub fn system_augmentation(mut self, augmentation: impl IntoFabricSystemAugmentation) -> Self {
-        let contribution = augmentation.into_fabric_system_augmentation();
-        self.system_augmentations.push(contribution.entry().clone());
-        let (modules, declarations, selections) = contribution.into_parts();
-        self.typed_modules.extend(modules);
-        self.module_declarations.extend(declarations);
-        self.provider_selections.extend(selections);
+        self.authoring.add_system_augmentation(augmentation);
         self
     }
 
     pub fn component(mut self, component: impl IntoFabricComponent) -> Self {
-        let (parts, modules, selections, augmentations, realization) =
-            component.into_fabric_component();
-        self.component_augmentations.extend(augmentations);
-        self.components.push(parts.declaration.clone());
-        self.component_realizations
-            .insert(parts.declaration.component_id().clone(), realization);
-        self.component_declarations.push(parts.declaration);
-        self.component_augmentation_preparations
-            .extend(parts.augmentation_preparations);
-        self.typed_modules.extend(parts.carriers);
-        self.typed_modules.extend(modules);
-        self.provider_selections.extend(selections);
-        self.provider_selections.extend(parts.provider_selections);
-        self.component_resource_provider_selections
-            .extend(parts.semantic_provider_selections);
-        self.component_system_provider_selections
-            .extend(parts.semantic_system_provider_selections);
-        self.relation_declarations
-            .extend(parts.relation_declarations);
-        if let Some(self_realization) = parts.self_realization {
-            self.component_self_realizations.push(self_realization);
-        }
+        self.authoring.add_component(component);
         self
     }
 
     pub fn with_block(mut self, block: Block) -> Self {
-        self.raw_block_ids.push(block.id().clone());
-        self.blocks.push(block);
+        self.authoring.add_block(block);
         self
     }
 
@@ -737,13 +902,12 @@ impl Fabric {
     }
 
     pub fn select_provider(mut self, selection: ContractProviderSelection) -> Self {
-        self.provider_selections.push(selection);
+        self.authoring.add_provider_selection(selection);
         self
     }
 
     pub fn build(self) -> Result<Composition, FabricBuildError> {
-        let Self {
-            composition_id,
+        let FabricAuthoring {
             blocks,
             raw_block_ids,
             provider_selections,
@@ -762,7 +926,8 @@ impl Fabric {
             component_declarations,
             component_self_realizations,
             component_augmentation_preparations,
-        } = self;
+        } = self.authoring;
+        let composition_id = self.composition_id;
 
         let mut default_modules = typed_modules;
         // The native host carries every composed Component declaration, even

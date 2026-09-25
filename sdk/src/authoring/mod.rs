@@ -32,14 +32,15 @@ pub use definitions::{
 pub use fabric::{
     AdapterRealizedOwner, ComponentAugmentationInspection, ComponentAugmentationManifestEntry,
     ComponentInspection, ComponentResourceBindingManifestEntry,
-    ComponentSystemBindingManifestEntry, Composition, Fabric, FabricBuildError, FabricManifest,
-    FabricManifestDiagnostics, IntoFabricResource, IntoFabricResourceAugmentation,
-    IntoFabricSystem, IntoFabricSystemAugmentation, RealizationInspection,
-    ResourceAugmentationInspection, ResourceAugmentationManifestEntry, ResourceInspection,
-    ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata, SemanticRealizationKind,
-    SemanticRelationBindingManifestEntry, SemanticRelationOwner, SemanticRelationTargetDefinition,
-    SemanticRelationTargetOccurrence, SystemAugmentationInspection,
-    SystemAugmentationManifestEntry, SystemInspection, SystemManifestEntry,
+    ComponentSystemBindingManifestEntry, Composition, Fabric, FabricBuildError, FabricContribution,
+    FabricManifest, FabricManifestDiagnostics, IntoFabricContribution, IntoFabricResource,
+    IntoFabricResourceAugmentation, IntoFabricSystem, IntoFabricSystemAugmentation,
+    RealizationInspection, ResourceAugmentationInspection, ResourceAugmentationManifestEntry,
+    ResourceInspection, ResourceManifestEntry, SemanticApiEndpoint, SemanticApiMetadata,
+    SemanticRealizationKind, SemanticRelationBindingManifestEntry, SemanticRelationOwner,
+    SemanticRelationTargetDefinition, SemanticRelationTargetOccurrence,
+    SystemAugmentationInspection, SystemAugmentationManifestEntry, SystemInspection,
+    SystemManifestEntry,
 };
 pub(crate) use fabric::{RelationDeclarationOwner, RelationDeclarationProvenance};
 pub use fabric_builder::FabricBuilder;

@@ -41,6 +41,7 @@ not required to understand the current architecture.
 
 - [0.4.x to 0.5 migration](migrations/0.5.md)
 - [Canonical executable examples](examples.md)
+- [Fabric v1 foundation readiness](releases/v1-foundation-readiness.md)
 - [Fabric 0.6 release notes](releases/0.6.0.md)
 - [Fabric 0.5 release notes](releases/0.5.0.md)
 

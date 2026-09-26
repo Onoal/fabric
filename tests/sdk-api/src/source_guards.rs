@@ -101,13 +101,13 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     for dependency in [
-        "fabric-host = { package = \"onoal-fabric-host\", version = \"0.7.0\", path = \"host\" }",
-        "fabric-core = { package = \"onoal-fabric-core\", version = \"0.7.0\", path = \"core\" }",
-        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"0.7.0\", path = \"participants/resource\" }",
-        "fabric-system = { package = \"onoal-fabric-system\", version = \"0.7.0\", path = \"participants/system\" }",
-        "fabric-component = { package = \"onoal-fabric-component\", version = \"0.7.0\", path = \"participants/component\" }",
-        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"0.7.0\", path = \"sdk/macros\" }",
-        "fabric = { package = \"onoal-fabric\", version = \"0.7.0\", path = \"sdk\" }",
+        "fabric-host = { package = \"onoal-fabric-host\", version = \"1.0.0\", path = \"host\" }",
+        "fabric-core = { package = \"onoal-fabric-core\", version = \"1.0.0\", path = \"core\" }",
+        "fabric-resource = { package = \"onoal-fabric-resource\", version = \"1.0.0\", path = \"participants/resource\" }",
+        "fabric-system = { package = \"onoal-fabric-system\", version = \"1.0.0\", path = \"participants/system\" }",
+        "fabric-component = { package = \"onoal-fabric-component\", version = \"1.0.0\", path = \"participants/component\" }",
+        "fabric-sdk-macros = { package = \"onoal-fabric-sdk-macros\", version = \"1.0.0\", path = \"sdk/macros\" }",
+        "fabric = { package = \"onoal-fabric\", version = \"1.0.0\", path = \"sdk\" }",
     ] {
         assert!(
             workspace_manifest.contains(dependency),
@@ -145,8 +145,8 @@ fn canonical_distribution_packages_keep_the_fabric_rust_crate_names() {
     }
 
     assert!(
-        workspace_manifest.contains("version = \"0.7.0\""),
-        "the Fabric family source graph must share the 0.7.0 workspace version"
+        workspace_manifest.contains("version = \"1.0.0\""),
+        "the Fabric family source graph must share the 1.0.0 workspace version"
     );
     for manifest in [
         "host/Cargo.toml",

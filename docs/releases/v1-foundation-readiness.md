@@ -1,9 +1,10 @@
 # Fabric v1 foundation readiness
 
-This document freezes the current Fabric v1 foundation architecture for the
-technical `1.0.0` release task. It is a release-readiness anchor, not the
-release itself: source crates remain `0.7.0` until the release task performs
-the coordinated version bump, tag, publication, and GitHub release.
+This document froze the Fabric v1 foundation architecture before the technical
+`1.0.0` release task. It was a release-readiness anchor, not the release
+itself: at readiness freeze time, source crates still remained `0.7.0`.
+Released `1.0.0` state is represented by the `v1.0.0` tag and the Fabric
+1.0.0 release notes.
 
 ## Foundation model
 
@@ -74,8 +75,8 @@ complete Fabric semantic system locally.
 
 ## Release handoff
 
-The next release task should perform only mechanical release actions if the
-audit remains green:
+The release task was expected to perform only mechanical release actions if the
+audit remained green:
 
 1. bump all seven public crates from `0.7.0` to `1.0.0`;
 2. update all workspace internal dependency versions to `1.0.0`;

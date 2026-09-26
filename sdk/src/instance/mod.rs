@@ -1,3 +1,5 @@
+mod facility;
+
 use fabric_component::{
     ComponentDesiredState, ComponentError, ComponentHostHandle, ComponentId,
     ComponentInstanceBinding, ComponentReconstructionReport, ComponentReconstructionResult,
@@ -20,6 +22,11 @@ use crate::composition::{
 };
 use crate::materialization::{MaterializationPlanProvenance, MaterializationProfile};
 
+pub use facility::{
+    InstanceFacility, InstanceFacilityContext, InstanceFacilityError, InstanceFacilityName,
+    InstanceFacilityObservation,
+};
+
 /// One high-level live materialization of a semantic Fabric [`crate::Composition`].
 ///
 /// `Instance` owns generation-scoped live Core runtime state while retaining
@@ -29,6 +36,7 @@ pub struct Instance {
     semantic_context: Arc<FabricManifest>,
     materialization_plan: MaterializationPlanProvenance,
     components: Option<InstanceComponents>,
+    facilities: Vec<Box<dyn InstanceFacility>>,
 }
 
 impl std::fmt::Debug for Instance {
@@ -64,6 +72,7 @@ pub struct InstanceObservation {
     resources: Vec<ResourceLiveObservation>,
     systems: Vec<SystemLiveObservation>,
     components: Vec<ComponentLiveObservation>,
+    facilities: Vec<InstanceFacilityObservation>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -168,6 +177,7 @@ impl Instance {
             semantic_context,
             materialization_plan,
             components,
+            facilities: Vec::new(),
         }
     }
 
@@ -273,15 +283,45 @@ impl Instance {
             resources,
             systems,
             components,
+            facilities: self
+                .facilities
+                .iter()
+                .map(|facility| InstanceFacilityObservation::new(facility.name().clone()))
+                .collect(),
         }
     }
 
     pub fn start(&mut self) -> Result<(), fabric_core::InstanceError> {
-        self.core.start()
+        let starting = self.facility_context();
+        for facility in &mut self.facilities {
+            facility.starting(&starting);
+        }
+        let result = self.core.start();
+        if result.is_ok() {
+            let started = self.facility_context();
+            for facility in &mut self.facilities {
+                facility.started(&started);
+            }
+        }
+        result
     }
 
     pub fn stop(&mut self) -> Result<(), fabric_core::RuntimeCleanupError> {
-        self.core.stop()
+        if self.lifecycle() == LifecycleState::Stopped {
+            return self.core.stop();
+        }
+        let stopping = self.facility_context();
+        for facility in &mut self.facilities {
+            facility.stopping(&stopping);
+        }
+        let result = self.core.stop();
+        if self.lifecycle() == LifecycleState::Stopped {
+            let stopped = self.facility_context();
+            for facility in &mut self.facilities {
+                facility.stopped(&stopped);
+            }
+        }
+        result
     }
 
     #[cfg(test)]
@@ -295,6 +335,52 @@ impl Instance {
     /// intentionally have no fake Component operator.
     pub fn components(&self) -> Option<&InstanceComponents> {
         self.components.as_ref()
+    }
+
+    pub fn attach_facility(
+        &mut self,
+        mut facility: impl InstanceFacility + 'static,
+    ) -> Result<(), InstanceFacilityError> {
+        let name = facility.name().clone();
+        if self.lifecycle() == LifecycleState::Stopped {
+            return Err(InstanceFacilityError::InstanceStopped { name });
+        }
+        if self
+            .facilities
+            .iter()
+            .any(|attached| attached.name() == &name)
+        {
+            return Err(InstanceFacilityError::DuplicateFacility { name });
+        }
+        let context = self.facility_context();
+        facility.attached(&context);
+        self.facilities.push(Box::new(facility));
+        Ok(())
+    }
+
+    pub fn detach_facility(
+        &mut self,
+        name: &InstanceFacilityName,
+    ) -> Result<(), InstanceFacilityError> {
+        let position = self
+            .facilities
+            .iter()
+            .position(|facility| facility.name() == name)
+            .ok_or_else(|| InstanceFacilityError::FacilityNotFound { name: name.clone() })?;
+        let mut facility = self.facilities.remove(position);
+        let context = self.facility_context();
+        facility.detached(&context);
+        Ok(())
+    }
+
+    fn facility_context(&self) -> InstanceFacilityContext {
+        InstanceFacilityContext::new(
+            self.composition_id().clone(),
+            self.instance_id().clone(),
+            self.generation(),
+            self.materialization_plan.clone(),
+            self.lifecycle(),
+        )
     }
 
     pub fn reconcile_components(
@@ -532,6 +618,9 @@ impl InstanceObservation {
     }
     pub fn components(&self) -> &[ComponentLiveObservation] {
         &self.components
+    }
+    pub fn facilities(&self) -> &[InstanceFacilityObservation] {
+        &self.facilities
     }
 }
 

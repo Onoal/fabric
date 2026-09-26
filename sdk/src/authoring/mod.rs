@@ -22,9 +22,11 @@ pub(crate) use crate::composition::{RelationDeclarationOwner, RelationDeclaratio
 pub use crate::instance::{
     BoundComponent, ComponentLiveObservation, ComponentObservedParticipation,
     ComponentReconciliationObservation, ComponentReconciliationOutcome,
-    ComponentReconciliationResult, Instance, InstanceComponents, InstanceObservation,
-    LocalRealizationObservation, LocalRealizationRole, ResourceLiveObservation,
-    SemanticRealizationObservation, SystemLiveObservation,
+    ComponentReconciliationResult, Instance, InstanceComponents, InstanceFacility,
+    InstanceFacilityContext, InstanceFacilityError, InstanceFacilityName,
+    InstanceFacilityObservation, InstanceObservation, LocalRealizationObservation,
+    LocalRealizationRole, ResourceLiveObservation, SemanticRealizationObservation,
+    SystemLiveObservation,
 };
 pub use crate::materialization::{
     MaterializationPlan, MaterializationPlanProvenance, MaterializationProfile,

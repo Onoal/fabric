@@ -65,6 +65,13 @@ Composition
 MaterializationPlan
         ↓
 Instance
+├── semantic live world
+│   ├── Resources
+│   ├── Systems
+│   ├── ComponentParticipations
+│   └── Adapter runtimes
+│
+└── Instance Facilities
 ```
 
 In v1, `MaterializationProfile` is immutable Instance provenance with stable
@@ -81,6 +88,15 @@ realization-planning split are deliberately reserved for Fabric v2.
 
 The same resolved graph supplies dependency ordering, startup, and reverse
 cleanup. It is not a service locator or a second resolver.
+
+`InstanceFacility` is live-only operational machinery attached after
+materialization to one Instance generation. It is useful for local diagnostics,
+profiling, tracing bridges, or other operational tooling around that live
+occurrence. It is not Composition truth, not MaterializationPlan truth, and
+not a Resource, System, Component, or Adapter. Generic Instance observation
+reports only which Facilities are attached; Facility-private state remains
+Facility-owned. Facilities do not redefine Instance health and do not intercept
+Component, Resource, System, or Adapter operations in v1.
 
 ## Open semantic augmentation
 

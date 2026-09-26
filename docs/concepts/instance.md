@@ -153,6 +153,61 @@ One Plan is reusable because it is non-live. Each materialization of that Plan
 receives a fresh `InstanceGeneration` and fresh runtime state. To change
 Profile or Host intent, create another Plan.
 
+## Instance facilities
+
+An Instance is also the owner of optional live-only operational machinery:
+
+```text
+Instance
+├── semantic live world
+│   ├── Resources
+│   ├── Systems
+│   ├── ComponentParticipations
+│   └── Adapter runtimes
+│
+└── InstanceFacilities
+```
+
+`InstanceFacility` exists only around one live Instance generation. It can be
+attached after materialization to observe bounded Instance lifecycle events
+such as attach, start, stop, and detach. It is appropriate for operational
+tooling like local diagnostics, profiling, tracing bridges, or runtime
+inspection.
+
+It is not semantic system truth:
+
+```text
+InstanceFacility != Resource
+InstanceFacility != System
+InstanceFacility != Component
+InstanceFacility != Adapter
+InstanceFacility != MaterializationPlan
+```
+
+Instance-wide scope alone does not make something a System. A semantic logging
+capability required by application code may be a Resource or System; an
+operator-attached diagnostic recorder for one live occurrence is an
+InstanceFacility.
+
+Facilities are generation-scoped and optional. Attaching a Facility does not
+change the Composition, MaterializationPlan, MaterializationProfile,
+`InstanceId`, or `InstanceGeneration`. Running attachment is supported and
+observes the current Running context without fabricating historical start
+events. A terminal Stopped generation rejects new Facility attachment.
+
+Generic observation reports only Facility presence:
+
+```rust
+let observation = instance.observe();
+let names = observation.facilities();
+```
+
+Facility-private state is not dumped into `InstanceObservation`. Facilities do
+not redefine Instance health in v1 and do not intercept Component invocation,
+Resource API calls, System API calls, or Adapter operations. V1 intentionally
+does not introduce a generic event bus, middleware layer, Facility dependency
+graph, or Profile-driven Facility policy.
+
 ## Materialize a Composition
 
 The normal high-level path begins with `Fabric`, builds a `Composition`, and

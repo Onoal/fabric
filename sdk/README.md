@@ -77,6 +77,7 @@ Definition
   -> Composition
   -> MaterializationPlan
   -> Instance
+  -> optional InstanceFacilities
   -> Running Instance
 ```
 
@@ -126,6 +127,14 @@ let instance = plan.materialize("example.local.diagnostic")?;
 `MaterializationPlan` is immutable and non-live. It has no lifecycle, health,
 runtime state, or `InstanceGeneration`; those belong to the resulting
 `Instance`. V1 does not expose a general `MaterializationPlanner`.
+
+After materialization, an Instance can be enriched with live-only
+`InstanceFacility` operational tooling. Facilities belong to one
+`InstanceGeneration`; they do not alter Composition or MaterializationPlan
+truth and are not Resources, Systems, Components, or Adapters. Generic
+`Instance::observe()` reports attached Facility names only. Facility-private
+state remains private, and Facilities do not redefine Instance health or
+intercept semantic operations in v1.
 
 `materialize` does not start runtime modules. It creates a Ready Instance and
 seeds initial Component desired controls from Composition intent. Only

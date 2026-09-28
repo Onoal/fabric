@@ -20,8 +20,12 @@ Add the SDK package to an application:
 
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "1.0.0" }
+fabric = { package = "onoal-fabric", version = "1.1.0" }
 ```
+
+Fabric v1.1.0 is the current source line for the awaitable Resource API. It is
+not backwards compatible with v1.0.0 Resource declarations or calls, and its
+crates are not published by this checkpoint.
 
 Normal code imports the SDK through its public Rust crate name:
 

@@ -84,7 +84,8 @@ but it does not choose Adapters through a new policy engine.
 
 Fabric v1 has `MaterializationPlan`, not a general `MaterializationPlanner`.
 Full Profile-driven realization policy and the semantic-resolution /
-realization-planning split are deliberately reserved for Fabric v2.
+realization-planning split are deliberately reserved for a future explicit
+architecture checkpoint.
 
 The same resolved graph supplies dependency ordering, startup, and reverse
 cleanup. It is not a service locator or a second resolver.

@@ -66,9 +66,16 @@ materialization, including repeated materialization of the same `InstanceId`.
 
 ## Start here
 
+Current source line: Fabric v1.1.0.
+
+Fabric v1.1.0 introduces the awaitable Resource API shown below and is not
+backwards compatible with v1.0.0 Resource declarations or calls. The v1.1.0
+crates are not published by this checkpoint; the dependency form below is the
+v1.1.0 release target.
+
 ```toml
 [dependencies]
-fabric = { package = "onoal-fabric", version = "1.0.0" }
+fabric = { package = "onoal-fabric", version = "1.1.0" }
 ```
 
 ```rust
@@ -121,7 +128,10 @@ the same `.resource(...)` call inline.
    definition through realization, Composition, Instance, and typed use.
 2. [The manual index](docs/README.md) gives the intended learning order.
 3. [Architecture](docs/architecture.md) explains the stable ownership model.
-4. [Migration to 0.5](docs/migrations/0.5.md) maps legacy 0.4.x ceremony to
+4. [Migration to 1.1](docs/migrations/1.1.0.md) explains the awaitable
+   Resource API boundary against Fabric v1.0.0.
+5. [Versioning](docs/versioning.md) records Fabric's compatibility governance.
+6. [Migration to 0.5](docs/migrations/0.5.md) maps legacy 0.4.x ceremony to
    canonical authoring.
 
 Normal code uses `fabric::*`. Named modules such as `fabric::core` and

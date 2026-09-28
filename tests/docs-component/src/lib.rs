@@ -13,6 +13,17 @@ use fabric_test_resource_counter::DirectCounterConfig;
 use fabric_test_system_operations::TestOperations;
 #[cfg(test)]
 use fabric_test_system_operations::TestOperationsConfig;
+use std::future::Future;
+use std::task::{Context, Poll, Waker};
+
+fn expect_resource_ready<T>(mut future: fabric::resource::ResourceFuture<'_, T>) -> T {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    match Future::poll(future.as_mut(), &mut context) {
+        Poll::Ready(value) => value,
+        Poll::Pending => panic!("test Resource operation unexpectedly required async progress"),
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OpenInput {
@@ -59,7 +70,7 @@ fabric::component! {
         runtime {
             fn observe(&self) -> DependencyOutput {
                 DependencyOutput {
-                    value: self.relations().counter.current_value().value()
+                    value: expect_resource_ready(self.relations().counter.current_value()).value()
                         + self.relations().operations.current_marker().value()
                         + self.config().multiplier,
                 }

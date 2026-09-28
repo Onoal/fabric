@@ -12,6 +12,7 @@ use crate::ast::{
 
 struct ApiValidation<'a> {
     async_message: &'a str,
+    require_async: bool,
     method_kind: &'a str,
     generic_message: &'a str,
 }
@@ -29,7 +30,8 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
     validate_api(
         &input.api,
         &ApiValidation {
-            async_message: "async resource API methods are not supported",
+            async_message: "resource API methods must be async",
+            require_async: true,
             method_kind: "resource API methods",
             generic_message: "generic resource API methods are not supported",
         },
@@ -47,12 +49,12 @@ pub fn validate_resource(input: &ResourceInput) -> Result<()> {
     }
 
     for method in input.runtime_methods.iter().flatten() {
-        if method.signature.asyncness.is_some() {
+        if method.signature.asyncness.is_none() {
             push_error(
                 &mut errors,
                 Error::new(
                     method.signature.ident.span(),
-                    "async resource API methods are not supported",
+                    "resource runtime methods must be async",
                 ),
             );
         }
@@ -106,6 +108,7 @@ pub fn validate_system(input: &SystemInput) -> Result<()> {
         &input.api,
         &ApiValidation {
             async_message: "async system API methods are not supported",
+            require_async: false,
             method_kind: "system API methods",
             generic_message: "generic system API methods are not supported",
         },
@@ -185,15 +188,6 @@ pub fn validate_adapter(input: &AdapterInput) -> Result<()> {
     validate_relation_names(&input.relations, &mut errors, "adapter");
 
     for method in &input.runtime_methods {
-        if method.signature.asyncness.is_some() {
-            push_error(
-                &mut errors,
-                Error::new(
-                    method.signature.ident.span(),
-                    "async adapter runtime methods are not supported",
-                ),
-            );
-        }
         validate_supported_signature(
             &method.signature,
             "adapter runtime methods",
@@ -233,6 +227,7 @@ pub fn validate_component(input: &ComponentInput) -> Result<()> {
             api,
             &ApiValidation {
                 async_message: "async component API methods are not supported",
+                require_async: false,
                 method_kind: "component API methods",
                 generic_message: "generic component API methods are not supported",
             },
@@ -336,7 +331,7 @@ fn validate_api(api: &ApiDefinition, rules: &ApiValidation<'_>, errors: &mut Opt
             error.combine(Error::new(first_span, "first API method declared here"));
             push_error(errors, error);
         }
-        if method.signature.asyncness.is_some() {
+        if method.signature.asyncness.is_some() != rules.require_async {
             push_error(
                 errors,
                 Error::new(method.signature.ident.span(), rules.async_message),

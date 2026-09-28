@@ -8,9 +8,10 @@ use crate::ast::{
 
 use super::common::{
     CanonicalAdapterBridgeTokens, PrimaryContractTokens, SubjectKind, api_contract_id_expr,
-    canonical_adapter_bridge_tokens, canonical_adapter_bridge_tokens_named, config_type_tokens,
-    fabric_path, has_config, inline_config_definition_tokens, method_call_args,
-    primary_contract_tokens, runtime_method_tokens, to_snake_case, version_literal_expr,
+    canonical_adapter_bridge_tokens_named, config_type_tokens, fabric_path, has_config,
+    inline_config_definition_tokens, method_call_args, resource_primary_contract_tokens,
+    resource_runtime_method_tokens, resource_runtime_trait_method_tokens,
+    resource_service_signature_tokens, to_snake_case, version_literal_expr,
 };
 
 pub fn expand_resource(input: &ResourceInput) -> TokenStream {
@@ -48,7 +49,8 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let resource_mod = format_ident!("{}", to_snake_case(resource_name));
     let raw_impl_mod = format_ident!("__fabric_raw_{}", to_snake_case(resource_name));
     let api = &input.api;
-    let contract_tokens = primary_contract_tokens(&sdk, api, quote!(primary_contract_id()));
+    let contract_tokens =
+        resource_primary_contract_tokens(&sdk, api, quote!(primary_contract_id()));
     let PrimaryContractTokens {
         service_name,
         contract_name,
@@ -59,11 +61,11 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     let CanonicalAdapterBridgeTokens {
         definition: canonical_adapter_bridge_definition,
         builder_name: canonical_adapter_builder_name,
-    } = canonical_adapter_bridge_tokens(api, &service_name, &contract_name);
+    } = canonical_adapter_bridge_tokens_named(api, &service_name, &contract_name, "", true);
     let differential = input.differential_realization.as_ref();
     let effective_api = differential.map(|differential| effective_api(api, differential));
     let effective_contract_tokens = effective_api.as_ref().map(|effective_api| {
-        primary_contract_tokens(
+        resource_primary_contract_tokens(
             &sdk,
             effective_api,
             quote!(effective_realization_contract_id()),
@@ -102,6 +104,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             &tokens.service_name,
             &tokens.contract_name,
             "Effective",
+            true,
         )
         .definition
     });
@@ -114,6 +117,7 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
             &tokens.service_name,
             &tokens.contract_name,
             "Effective",
+            true,
         )
         .builder_name
     });
@@ -272,34 +276,33 @@ pub fn expand_resource(input: &ResourceInput) -> TokenStream {
     };
 
     let runtime_methods = input.runtime_methods.as_deref().unwrap_or(&[]);
-    let runtime_inherent_methods = runtime_methods.iter().map(runtime_method_tokens);
+    let runtime_inherent_methods = runtime_methods
+        .iter()
+        .map(|method| resource_runtime_method_tokens(&sdk, method));
     let runtime_trait_methods = if let Some(differential) = differential {
         api.methods
             .iter()
             .map(|method| {
-                let signature = &method.signature;
-                let name = &signature.ident;
-                let args = method_call_args(signature);
+                let raw_signature = &method.signature;
+                let name = &raw_signature.ident;
+                let args = method_call_args(raw_signature);
                 if differential
                     .mediated
                     .iter()
                     .any(|mediated| mediated == name)
                 {
+                    let signature = resource_service_signature_tokens(&sdk, raw_signature);
                     quote!(#signature { Self::#name(self, #(#args),*) })
                 } else {
+                    let signature = resource_service_signature_tokens(&sdk, raw_signature);
                     quote!(#signature { self.realization.#name(#(#args),*) })
                 }
             })
             .collect::<Vec<_>>()
     } else {
-        runtime_methods
+        api.methods
             .iter()
-            .map(|method| {
-                let signature = &method.signature;
-                let name = &signature.ident;
-                let args = method_call_args(signature);
-                quote!(#signature { Self::#name(self, #(#args),*) })
-            })
+            .map(|method| resource_runtime_trait_method_tokens(&sdk, method))
             .collect::<Vec<_>>()
     };
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {

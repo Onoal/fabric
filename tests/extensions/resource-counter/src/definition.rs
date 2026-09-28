@@ -12,11 +12,11 @@ fabric::resource! {
         }
 
         api {
-            fn current_value(&self) -> CounterValue;
+            async fn current_value(&self) -> CounterValue;
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }
@@ -35,26 +35,26 @@ fabric::resource! {
         }
 
         api {
-            fn current_value(&self) -> CounterValue;
-            fn source_provider(&self) -> String;
-            fn source_identity(&self) -> String;
-            fn source_contract_pointer(&self) -> usize;
+            async fn current_value(&self) -> CounterValue;
+            async fn source_provider(&self) -> String;
+            async fn source_identity(&self) -> String;
+            async fn source_contract_pointer(&self) -> usize;
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
-                CounterValue::new(self.source.current_value().value() * 2)
+            async fn current_value(&self) -> CounterValue {
+                CounterValue::new(self.source.current_value().await.value() * 2)
             }
 
-            fn source_provider(&self) -> String {
+            async fn source_provider(&self) -> String {
                 self.source.provider().as_str().to_owned()
             }
 
-            fn source_identity(&self) -> String {
+            async fn source_identity(&self) -> String {
                 self.source.identity().to_string()
             }
 
-            fn source_contract_pointer(&self) -> usize {
+            async fn source_contract_pointer(&self) -> usize {
                 ::std::sync::Arc::as_ptr(&self.source.value()) as usize
             }
         }
@@ -69,7 +69,7 @@ fabric::resource! {
         config {}
 
         api {
-            fn current_value(&self) -> CounterValue;
+            async fn current_value(&self) -> CounterValue;
         }
     }
 }

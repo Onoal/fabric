@@ -56,7 +56,7 @@ struct ReplacementAdapterConfig {
 resource! {
     DeclarationStore {
         id: "fabric.test.component-declaration.store";
-        api { fn get(&self, key: String) -> Option<String>; }
+        api { async fn get(&self, key: String) -> Option<String>; }
     }
 }
 
@@ -70,8 +70,8 @@ system! {
 resource! {
     CanonicalRuntimeStore {
         id: "fabric.test.component-declaration.runtime-store";
-        api { fn get(&self, key: String) -> Option<String>; }
-        runtime { fn get(&self, key: String) -> Option<String> { Some(format!("store:{key}")) } }
+        api { async fn get(&self, key: String) -> Option<String>; }
+        runtime { async fn get(&self, key: String) -> Option<String> { Some(format!("store:{key}")) } }
     }
 }
 
@@ -87,7 +87,7 @@ resource! {
     VersionedDeclarationStore {
         id: "fabric.test.component-declaration.versioned-store";
         version: "1.2.0";
-        api { fn get(&self, key: String) -> Option<String>; }
+        api { async fn get(&self, key: String) -> Option<String>; }
     }
 }
 
@@ -164,14 +164,14 @@ adapter! {
                 format!(
                     "{}:{}:{}:{}:{}:{count}",
                     self.component_config().prefix,
-                    self.component_relations()
-                        .component_store
-                        .get(key.clone())
-                        .expect("component relation"),
+                    crate::support::expect_resource_ready(
+                        self.component_relations()
+                            .component_store
+                            .get(key.clone())
+                    )
+                    .expect("component relation"),
                     self.component_relations().component_clock.now(),
-                    self.relations()
-                        .adapter_store
-                        .get(key)
+                    crate::support::expect_resource_ready(self.relations().adapter_store.get(key))
                         .expect("adapter relation"),
                     self.relations().adapter_clock.now(),
                 )
@@ -333,8 +333,11 @@ component! {
         api { fn inspect(&self, key: String) -> String; }
         runtime {
             fn inspect(&self, key: String) -> String {
-                let primary = self.relations().primary.get(key.clone()).expect("primary");
-                let cache = self.relations().cache.get(key).expect("cache");
+                let primary =
+                    crate::support::expect_resource_ready(self.relations().primary.get(key.clone()))
+                        .expect("primary");
+                let cache =
+                    crate::support::expect_resource_ready(self.relations().cache.get(key)).expect("cache");
                 format!("{primary}:{cache}:{}", self.relations().clock.now())
             }
         }

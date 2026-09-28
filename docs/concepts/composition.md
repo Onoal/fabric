@@ -171,10 +171,10 @@ fabric::resource! {
         version: "0.1.0";
         config { label: String; }
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
         runtime {
-            fn label(&self) -> String { self.config().label.clone() }
+            async fn label(&self) -> String { self.config().label.clone() }
         }
     }
 }
@@ -192,8 +192,8 @@ fabric::component! {
         runtime {
             fn inspect(&self) -> StoreObservation {
                 StoreObservation {
-                    primary: self.relations().primary_store.label(),
-                    cache: self.relations().cache_store.label(),
+                    primary: futures::executor::block_on(self.relations().primary_store.label()),
+                    cache: futures::executor::block_on(self.relations().cache_store.label()),
                 }
             }
         }

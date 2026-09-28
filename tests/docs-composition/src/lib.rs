@@ -9,6 +9,17 @@ use fabric::component::declaration::ComponentRelationName;
 use fabric::core::ContractVersionRequirement;
 #[allow(unused_imports)]
 use fabric::prelude::*;
+use std::future::Future;
+use std::task::{Context, Poll, Waker};
+
+fn expect_resource_ready<T>(mut future: fabric::resource::ResourceFuture<'_, T>) -> T {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    match Future::poll(future.as_mut(), &mut context) {
+        Poll::Ready(value) => value,
+        Poll::Pending => panic!("test Resource operation unexpectedly required async progress"),
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoreObservation {
@@ -22,10 +33,10 @@ fabric::resource! {
         version: "0.1.0";
         config { label: String; }
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
         runtime {
-            fn label(&self) -> String { self.config.label.clone() }
+            async fn label(&self) -> String { self.config.label.clone() }
         }
     }
 }
@@ -43,8 +54,8 @@ fabric::component! {
         runtime {
             fn inspect(&self) -> StoreObservation {
                 StoreObservation {
-                    primary: self.relations().primary_store.label(),
-                    cache: self.relations().cache_store.label(),
+                    primary: expect_resource_ready(self.relations().primary_store.label()),
+                    cache: expect_resource_ready(self.relations().cache_store.label()),
                 }
             }
         }

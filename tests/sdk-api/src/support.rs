@@ -1,7 +1,18 @@
+use std::future::Future;
 use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, Waker};
 
 use fabric::prelude::*;
 use fabric::{core::*, ids::*};
+
+pub fn expect_resource_ready<T>(mut future: fabric::resource::ResourceFuture<'_, T>) -> T {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    match Future::poll(future.as_mut(), &mut context) {
+        Poll::Ready(value) => value,
+        Poll::Pending => panic!("test Resource operation unexpectedly required async progress"),
+    }
+}
 
 #[derive(Clone)]
 pub struct NotesContract {

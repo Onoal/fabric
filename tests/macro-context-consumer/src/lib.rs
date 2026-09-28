@@ -8,9 +8,21 @@ use fabric_test_macro_context::{
 };
 use fabric_test_macro_context::{ImportedCanonicalStore as ImportedStore, ImportedCanonicalSystem};
 use fabric_test_macro_context::{ImportedValue, RootKey, RootVersionedStore, RootVersionedSystem};
+use std::future::Future;
+use std::task::{Context, Poll, Waker};
 
 mod facade {
     pub use fabric_test_macro_context::ImportedCanonicalStore;
+}
+
+#[allow(dead_code)]
+fn expect_resource_ready<T>(mut future: fabric::resource::ResourceFuture<'_, T>) -> T {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    match Future::poll(future.as_mut(), &mut context) {
+        Poll::Ready(value) => value,
+        Poll::Pending => panic!("test Resource operation unexpectedly required async progress"),
+    }
 }
 
 #[allow(dead_code)]
@@ -61,7 +73,7 @@ component! {
             fn read(&self, input: ImportedReadInput) -> ImportedReadOutput {
                 let _ = input;
                 ImportedReadOutput {
-                    store: self.relations().store.get(),
+                    store: expect_resource_ready(self.relations().store.get()),
                     system: self.relations().system.now(),
                 }
             }
@@ -79,8 +91,8 @@ component! {
             fn read(&self, input: DifferentialReadInput) -> DifferentialReadOutput {
                 let _ = input;
                 DifferentialReadOutput {
-                    read: self.relations().store.read(4),
-                    write: self.relations().store.write(4, 9),
+                    read: expect_resource_ready(self.relations().store.read(4)),
+                    write: expect_resource_ready(self.relations().store.write(4, 9)),
                 }
             }
         }
@@ -114,7 +126,7 @@ adapter! {
     ExternalRootStore for RootVersionedStore {
         id: "test.external-root-store";
         runtime {
-            fn get(&self, key: RootKey) -> ImportedValue {
+            async fn get(&self, key: RootKey) -> ImportedValue {
                 ImportedValue(key.0 + 1)
             }
         }
@@ -125,8 +137,8 @@ adapter! {
     ImportedDifferentialStoreAdapter for ImportedDifferentialStore {
         id: "test.imported-differential-store-adapter";
         runtime {
-            fn write(&self, _key: u64, value: u64) -> u64 { value }
-            fn read_raw(&self, key: u64) -> u64 { key }
+            async fn write(&self, _key: u64, value: u64) -> u64 { value }
+            async fn read_raw(&self, key: u64) -> u64 { key }
         }
     }
 }
@@ -145,7 +157,7 @@ adapter! {
     ImportedStoreAdapter for ImportedStore {
         id: "test.imported-store-adapter";
         runtime {
-            fn get(&self) -> u64 { 17 }
+            async fn get(&self) -> u64 { 17 }
         }
     }
 }
@@ -154,7 +166,7 @@ adapter! {
     FullyQualifiedStoreAdapter for fabric_test_macro_context::ImportedCanonicalStore {
         id: "test.fully-qualified-store-adapter";
         runtime {
-            fn get(&self) -> u64 { 18 }
+            async fn get(&self) -> u64 { 18 }
         }
     }
 }
@@ -163,7 +175,7 @@ adapter! {
     ReexportedStoreAdapter for facade::ImportedCanonicalStore {
         id: "test.reexported-store-adapter";
         runtime {
-            fn get(&self) -> u64 { 19 }
+            async fn get(&self) -> u64 { 19 }
         }
     }
 }

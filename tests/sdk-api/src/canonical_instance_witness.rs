@@ -8,10 +8,10 @@ fabric::resource! {
         id: "fabric.test.instance.local-store";
         config { label: String; }
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
         runtime {
-            fn label(&self) -> String {
+            async fn label(&self) -> String {
                 self.config.label.clone()
             }
         }

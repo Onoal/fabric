@@ -54,8 +54,8 @@ fabric::component! {
 fabric::resource! {
     IntentOnlyResource {
         id: "fabric.test.intent.resource-only";
-        api { fn read(&self) -> u64; }
-        runtime { fn read(&self) -> u64 { 1 } }
+        api { async fn read(&self) -> u64; }
+        runtime { async fn read(&self) -> u64 { 1 } }
     }
 }
 

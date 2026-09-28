@@ -8,8 +8,8 @@ fabric::resource! {
     KeyValueStore {
         id: "example.key-value";
         api {
-            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, KeyValueError>;
-            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), KeyValueError>;
+            async fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, KeyValueError>;
+            async fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), KeyValueError>;
         }
     }
 }
@@ -49,10 +49,12 @@ implementation. An owner `version: "1.2.0";` also determines the normal API
 contract version. Omit it and both owner and API are provisional. API-local IDs
 and versions are therefore not part of the normal language.
 
-`api {}` is valid for an explicit marker capability. The supported method
-subset remains the existing synchronous, non-generic `&self` form with simple
-named arguments. `async`, generic methods, arbitrary receiver forms, and
-method bodies are rejected with API-level diagnostics.
+`api {}` is valid for an explicit marker capability. Resource operations use
+the canonical `async fn` form and are uniformly awaitable; local realizations
+may complete immediately while event-loop or remote realizations can await
+their platform work. System operations remain synchronous. Generic methods,
+arbitrary receiver forms, and method bodies are rejected with API-level
+diagnostics.
 
 ## API, Config, Relations, and Runtime
 
@@ -73,9 +75,9 @@ fabric::resource! {
         id: "example.postgres";
         config { namespace: String; }
         relations { requires { storage: Volume; clock: Clock; } }
-        api { fn query(&self, sql: String) -> Result<Vec<String>, QueryError>; }
+        api { async fn query(&self, sql: String) -> Result<Vec<String>, QueryError>; }
         runtime {
-            fn query(&self, sql: String) -> Result<Vec<String>, QueryError> {
+            async fn query(&self, sql: String) -> Result<Vec<String>, QueryError> {
                 let _ = (&self.storage, &self.clock, &self.config().namespace, sql);
                 Ok(Vec::new())
             }
@@ -85,8 +87,9 @@ fabric::resource! {
 ```
 
 Relations target this generated semantic API. After normal binding, runtime and
-lifecycle code call it through typed fields such as `self.storage.get(...)` or
-`self.clock.now()`.
+lifecycle code call Resource operations through awaitable typed fields such as
+`self.storage.get(...).await`; System operations such as `self.clock.now()`
+remain immediate.
 
 For an API-only Resource/System selected with a canonical Adapter, the Adapter
 provides this API directly. The semantic definition does not grow a forwarding

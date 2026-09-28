@@ -79,7 +79,7 @@ fabric::component! {
             fn observe(&self, input: MacroDependencyInput) -> MacroDependencyOutput {
                 let _ = input;
                 MacroDependencyOutput {
-                    value: self.relations().counter.current_value().value()
+                    value: crate::support::expect_resource_ready(self.relations().counter.current_value()).value()
                         + self.relations().operations.current_marker().value()
                         + self.config().multiplier,
                 }
@@ -461,8 +461,8 @@ fabric::component! {
             fn observe(&self, input: DualCounterInput) -> DualCounterOutput {
                 let _ = input;
                 DualCounterOutput {
-                    primary: self.relations().primary_store.current_value().value(),
-                    secondary: self.relations().secondary_store.current_value().value(),
+                    primary: crate::support::expect_resource_ready(self.relations().primary_store.current_value()).value(),
+                    secondary: crate::support::expect_resource_ready(self.relations().secondary_store.current_value()).value(),
                 }
             }
         }
@@ -505,7 +505,7 @@ impl ModuleRuntime for DirectConsumer {
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture lock") =
-            Some(resolved.value().current_value().value());
+            Some(crate::support::expect_resource_ready(resolved.value().current_value()).value());
         Ok(())
     }
 
@@ -621,7 +621,7 @@ impl ModuleRuntime for AdaptedConsumer {
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture lock") =
-            Some(resolved.value().current_value().value());
+            Some(crate::support::expect_resource_ready(resolved.value().current_value()).value());
         Ok(())
     }
 
@@ -679,9 +679,7 @@ impl ModuleRuntime for ClockConsumer {
             .requirement
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
-        let tick = resolved
-            .value()
-            .current_tick()
+        let tick = crate::support::expect_resource_ready(resolved.value().current_tick())
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture lock") = Some(tick.value());
         Ok(())
@@ -2112,7 +2110,7 @@ impl ModuleRuntime for DerivedValueConsumer {
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture lock") =
-            Some(resolved.value().current_value().value());
+            Some(crate::support::expect_resource_ready(resolved.value().current_value()).value());
         Ok(())
     }
 
@@ -2257,8 +2255,7 @@ impl SelfRealizingComponentDefinition for AlphaComponent {
                     ContractVersionRequirement::parse("^2").expect("system requirement"),
                 ))?;
                 capture.lock().expect("capture").push(AlphaObservation {
-                    tick: clock
-                        .current_tick()
+                    tick: crate::support::expect_resource_ready(clock.current_tick())
                         .map_err(|_| fabric_component::ComponentError::Unavailable)?
                         .value(),
                     marker: system.current_marker().value(),
@@ -2297,7 +2294,7 @@ impl SelfRealizingComponentDefinition for ResourceOwnedComponent {
                 capture
                     .lock()
                     .expect("capture lock")
-                    .push(counter.current_value().value());
+                    .push(crate::support::expect_resource_ready(counter.current_value()).value());
                 Ok(Health::Healthy)
             },
         )
@@ -2325,7 +2322,7 @@ impl SelfRealizingComponentDefinition for ResourceOwnedComponentB {
                 capture
                     .lock()
                     .expect("capture lock")
-                    .push(counter.current_value().value());
+                    .push(crate::support::expect_resource_ready(counter.current_value()).value());
                 Ok(Health::Healthy)
             },
         )
@@ -2413,10 +2410,10 @@ impl SelfRealizingComponentDefinition for CombinedOwnedComponent {
                 let system = scope.system(&SystemRequires::<TestOperations>::versioned(
                     ContractVersionRequirement::parse("^1.2").expect("requirement"),
                 ))?;
-                capture
-                    .lock()
-                    .expect("capture lock")
-                    .push(resource.current_value().value() + system.current_marker().value());
+                capture.lock().expect("capture lock").push(
+                    crate::support::expect_resource_ready(resource.current_value()).value()
+                        + system.current_marker().value(),
+                );
                 Ok(Health::Healthy)
             },
         )

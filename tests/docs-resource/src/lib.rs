@@ -12,9 +12,9 @@ mod tests {
             version: "0.1.0";
             config { label: String; }
             api {
-                fn label(&self) -> String;
+                async fn label(&self) -> String;
             }
-            runtime { fn label(&self) -> String { self.config.label.clone() } }
+            runtime { async fn label(&self) -> String { self.config.label.clone() } }
         }
     }
 

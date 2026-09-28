@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use fabric::resource::ResourceFuture;
 use fabric_core::{ContractId, ContractIdentity, ContractKey, ContractVersion, ModuleId};
 
 use crate::{ClockError, ClockTick};
@@ -22,7 +23,7 @@ pub fn clock_realization_contract_version() -> ContractVersion {
 }
 
 pub trait ClockRealization: Send + Sync + 'static {
-    fn current_tick(&self) -> Result<ClockTick, ClockError>;
+    fn current_tick<'a>(&'a self) -> ResourceFuture<'a, Result<ClockTick, ClockError>>;
 
     fn clear(&self) -> Result<(), ClockError> {
         Ok(())
@@ -45,7 +46,7 @@ impl ClockRealizationContract {
         Self { inner }
     }
 
-    pub fn current_tick(&self) -> Result<ClockTick, ClockError> {
+    pub fn current_tick<'a>(&'a self) -> ResourceFuture<'a, Result<ClockTick, ClockError>> {
         self.inner.current_tick()
     }
 

@@ -5,8 +5,8 @@ fabric::resource! {
     LiveStore {
         id: "fabric.test.live.store";
         config { value: u64; }
-        api { fn get(&self) -> u64; }
-        runtime { fn get(&self) -> u64 { self.config.value } }
+        api { async fn get(&self) -> u64; }
+        runtime { async fn get(&self) -> u64 { self.config.value } }
     }
 }
 

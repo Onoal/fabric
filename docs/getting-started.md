@@ -14,7 +14,7 @@ use fabric::*;
 fabric::resource! {
     pub Store {
         id: "example.getting-started.store";
-        api { fn count(&self) -> usize; }
+        api { async fn count(&self) -> usize; }
     }
 }
 ```
@@ -29,13 +29,16 @@ Resource forwarding method to write.
 fabric::adapter! {
     pub MemoryStore for Store {
         id: "docs.memory-store";
-        runtime { fn count(&self) -> usize { 7 } }
+        runtime { async fn count(&self) -> usize { 7 } }
     }
 }
 ```
 
 The Adapter owns concrete implementation machinery. A stateful Adapter would
 put its mutable state and lifecycle hooks here, not in `Store` Config.
+Resource operations are uniformly awaitable; this local realization completes
+immediately, while an event-loop or remote realization can await its platform
+work behind the same semantic API.
 
 ## 3. Consume the semantic API
 
@@ -53,7 +56,11 @@ fabric::component! {
         runtime {
             fn greet(&self, input: GreetInput) -> GreetOutput {
                 GreetOutput {
-                    message: format!("hello, {} ({})", input.name, self.relations().store.count()),
+                    message: format!(
+                        "hello, {} ({})",
+                        input.name,
+                        futures::executor::block_on(self.relations().store.count())
+                    ),
                 }
             }
         }

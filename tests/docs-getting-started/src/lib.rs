@@ -1,18 +1,29 @@
 // This fixture is the executable source for docs/getting-started.md.
 #[allow(unused_imports)]
 use fabric::*;
+use std::future::Future;
+use std::task::{Context, Poll, Waker};
+
+fn expect_resource_ready<T>(mut future: fabric::resource::ResourceFuture<'_, T>) -> T {
+    let waker = Waker::noop();
+    let mut context = Context::from_waker(waker);
+    match Future::poll(future.as_mut(), &mut context) {
+        Poll::Ready(value) => value,
+        Poll::Pending => panic!("test Resource operation unexpectedly required async progress"),
+    }
+}
 
 fabric::resource! {
     pub Store {
         id: "example.getting-started.store";
-        api { fn count(&self) -> usize; }
+        api { async fn count(&self) -> usize; }
     }
 }
 
 fabric::adapter! {
     pub MemoryStore for Store {
         id: "test.memory-store";
-        runtime { fn count(&self) -> usize { 7 } }
+        runtime { async fn count(&self) -> usize { 7 } }
     }
 }
 
@@ -34,7 +45,11 @@ fabric::component! {
         runtime {
             fn greet(&self, input: GreetInput) -> GreetOutput {
                 GreetOutput {
-                    message: format!("hello, {} ({})", input.name, self.relations().store.count()),
+                    message: format!(
+                        "hello, {} ({})",
+                        input.name,
+                        expect_resource_ready(self.relations().store.count())
+                    ),
                 }
             }
         }

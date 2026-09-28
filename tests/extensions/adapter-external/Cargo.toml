@@ -11,4 +11,5 @@ fabric-test-resource-counter = { path = "../resource-counter" }
 fabric-test-system-operations = { path = "../system-operations" }
 
 [dev-dependencies]
+futures = "0.3.31"
 trybuild = "1.0.111"

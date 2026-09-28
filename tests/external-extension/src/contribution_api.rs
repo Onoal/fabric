@@ -5,7 +5,7 @@ fabric::resource! {
         id: "fabric.test.external.contribution-store";
 
         api {
-            fn count(&self) -> usize;
+            async fn count(&self) -> usize;
         }
     }
 }
@@ -15,7 +15,7 @@ fabric::adapter! {
         id: "test.external-contribution-store-adapter";
 
         runtime {
-            fn count(&self) -> usize { 13 }
+            async fn count(&self) -> usize { 13 }
         }
     }
 }

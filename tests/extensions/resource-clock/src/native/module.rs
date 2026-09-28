@@ -85,8 +85,10 @@ impl ClockRuntimeState {
 }
 
 impl ClockService for RealizedClock {
-    fn current_tick(&self) -> Result<ClockTick, crate::ClockError> {
-        self.state.current_realization()?.current_tick()
+    fn current_tick<'a>(
+        &'a self,
+    ) -> fabric::resource::ResourceFuture<'a, Result<ClockTick, crate::ClockError>> {
+        Box::pin(async move { self.state.current_realization()?.current_tick().await })
     }
 }
 

@@ -66,7 +66,7 @@ fabric::resource! {
         version: "0.1.0";
         config { label: String; }
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
     }
 }
@@ -99,10 +99,10 @@ fabric::resource! {
     LocalCounter {
         id: "example.local-counter";
         api {
-            fn current(&self) -> usize;
+            async fn current(&self) -> usize;
         }
         state { CounterState = CounterState::default(); }
-        runtime { fn current(&self) -> usize { self.state.get().current() } }
+        runtime { async fn current(&self) -> usize { self.state.get().current() } }
         lifecycle {
             initialize { Ok(()) }
             stop { self.state.get().close(); Ok(()) }

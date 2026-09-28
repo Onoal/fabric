@@ -9,3 +9,6 @@ fabric-core.workspace = true
 fabric-resource.workspace = true
 fabric.workspace = true
 fabric-test-resource-clock = { path = "../resource-clock" }
+
+[dev-dependencies]
+futures = "0.3.31"

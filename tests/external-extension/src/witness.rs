@@ -38,7 +38,7 @@ fabric::resource! {
         id: "fabric.test.external.canonical-store";
 
         api {
-            fn count(&self) -> usize;
+            async fn count(&self) -> usize;
         }
     }
 }
@@ -47,7 +47,7 @@ fabric::adapter! {
     pub ExternalCanonicalStoreAdapter for ExternalCanonicalStore {
         id: "test.external-canonical-store-adapter";
         runtime {
-            fn count(&self) -> usize { 7 }
+            async fn count(&self) -> usize { 7 }
         }
     }
 }
@@ -173,7 +173,7 @@ fabric::resource! {
         id: "fabric.test.external.configured-key-value";
         config: ResourceCreatorConfig;
 
-        api { fn namespace(&self) -> String; }
+        api { async fn namespace(&self) -> String; }
     }
 }
 
@@ -183,7 +183,7 @@ fabric::adapter! {
         config: LocalKeyValueConfig;
 
         runtime {
-            fn namespace(&self) -> String {
+            async fn namespace(&self) -> String {
                 format!(
                     "{}:{}",
                     self.config().defaults.label,
@@ -212,11 +212,11 @@ fabric::resource! {
         version: "1.2.0";
 
         api {
-            fn value(&self) -> u64;
+            async fn value(&self) -> u64;
         }
 
         runtime {
-            fn value(&self) -> u64 { 11 }
+            async fn value(&self) -> u64 { 11 }
         }
     }
 }
@@ -236,12 +236,12 @@ fabric::system! {
         }
 
         runtime {
-            fn observed(&self) -> u64 { (*self.target).value() }
+            fn observed(&self) -> u64 { futures::executor::block_on((*self.target).value()) }
         }
 
         lifecycle {
             initialize {
-                assert_eq!((*self.target).value(), 11);
+                assert_eq!(futures::executor::block_on((*self.target).value()), 11);
                 Ok(())
             }
         }
@@ -311,9 +311,9 @@ fabric::resource! {
         version: "0.1.0";
 
         api {
-            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
-            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
-            fn delete(&self, key: Vec<u8>) -> Result<(), String>;
+            async fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String>;
+            async fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String>;
+            async fn delete(&self, key: Vec<u8>) -> Result<(), String>;
         }
 
     }
@@ -328,16 +328,16 @@ fabric::adapter! {
         }
 
         runtime {
-            fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+            async fn get(&self, key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
                 Ok(self.state.get().values.lock().expect("values").get(&key).cloned())
             }
 
-            fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
+            async fn put(&self, key: Vec<u8>, value: Vec<u8>) -> Result<(), String> {
                 self.state.get().values.lock().expect("values").insert(key, value);
                 Ok(())
             }
 
-            fn delete(&self, key: Vec<u8>) -> Result<(), String> {
+            async fn delete(&self, key: Vec<u8>) -> Result<(), String> {
                 self.state.get().values.lock().expect("values").remove(&key);
                 Ok(())
             }
@@ -353,15 +353,15 @@ fabric::adapter! {
         supports: "^0.1";
 
         runtime {
-            fn get(&self, _key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
+            async fn get(&self, _key: Vec<u8>) -> Result<Option<Vec<u8>>, String> {
                 Ok(None)
             }
 
-            fn put(&self, _key: Vec<u8>, _value: Vec<u8>) -> Result<(), String> {
+            async fn put(&self, _key: Vec<u8>, _value: Vec<u8>) -> Result<(), String> {
                 Ok(())
             }
 
-            fn delete(&self, _key: Vec<u8>) -> Result<(), String> {
+            async fn delete(&self, _key: Vec<u8>) -> Result<(), String> {
                 Ok(())
             }
         }
@@ -383,8 +383,8 @@ fabric::resource! {
 fabric::resource! {
     RelationVolume {
         id: "fabric.test.external.relation-volume";
-        api { fn amount(&self) -> u64; }
-        runtime { fn amount(&self) -> u64 { 7 } }
+        api { async fn amount(&self) -> u64; }
+        runtime { async fn amount(&self) -> u64 { 7 } }
     }
 }
 
@@ -401,9 +401,9 @@ fabric::resource! {
         id: "fabric.test.external.relation-resource-probe";
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
-        api { fn total(&self) -> u64; }
-        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
-        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
+        api { async fn total(&self) -> u64; }
+        runtime { async fn total(&self) -> u64 { self.volume.amount().await + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { assert_eq!(futures::executor::block_on(self.volume.amount()) + self.clock.now(), 10); Ok(()) } }
     }
 }
 
@@ -413,15 +413,15 @@ fabric::system! {
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
         api { fn total(&self) -> u64; }
-        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
-        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
+        runtime { fn total(&self) -> u64 { futures::executor::block_on(self.volume.amount()) + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { assert_eq!(futures::executor::block_on(self.volume.amount()) + self.clock.now(), 10); Ok(()) } }
     }
 }
 
 fabric::resource! {
     RelationAdapterTarget {
         id: "fabric.test.external.relation-adapter-target";
-        api { fn total(&self) -> u64; }
+        api { async fn total(&self) -> u64; }
     }
 }
 
@@ -430,8 +430,8 @@ fabric::adapter! {
         id: "test.relation-aware-adapter";
         config { offset: u64; }
         relations { requires { volume: RelationVolume; clock: RelationClock; } }
-        runtime { fn total(&self) -> u64 { self.volume.amount() + self.clock.now() + self.config().offset } }
-        lifecycle { initialize { assert_eq!(self.volume.amount() + self.clock.now(), 10); Ok(()) } }
+        runtime { async fn total(&self) -> u64 { self.volume.amount().await + self.clock.now() + self.config().offset } }
+        lifecycle { initialize { assert_eq!(futures::executor::block_on(self.volume.amount()) + self.clock.now(), 10); Ok(()) } }
     }
 }
 

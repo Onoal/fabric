@@ -92,6 +92,7 @@ name = "fabric-test-adapter-clock-memory"
 version = "0.1.0"
 dependencies = [
  "fabric-test-resource-clock",
+ "futures",
  "onoal-fabric",
  "onoal-fabric-core",
  "onoal-fabric-resource",
@@ -103,6 +104,7 @@ version = "0.1.0"
 dependencies = [
  "fabric-test-resource-counter",
  "fabric-test-system-operations",
+ "futures",
  "onoal-fabric",
  "onoal-fabric-core",
  "trybuild",
@@ -458,6 +460,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 name = "onoal-fabric"
 version = "1.0.0"
 dependencies = [
+ "futures",
  "onoal-fabric-component",
  "onoal-fabric-core",
  "onoal-fabric-host",

@@ -72,3 +72,11 @@ fn canonical_component_adapter_runtime_contract_errors_are_diagnostic() {
     let cases = trybuild::TestCases::new();
     cases.compile_fail("tests/ui/component_adapter_runtime_*.rs");
 }
+
+#[test]
+fn canonical_resource_runtime_contract_errors_are_diagnostic() {
+    let cases = trybuild::TestCases::new();
+    cases.compile_fail("tests/ui/resource_sync_api.rs");
+    cases.compile_fail("tests/ui/resource_runtime_mismatch.rs");
+    cases.compile_fail("tests/ui/resource_adapter_runtime_mismatch.rs");
+}

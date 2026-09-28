@@ -77,7 +77,7 @@ use fabric::*;
 fabric::resource! {
     Store {
         id: "example.store";
-        api { fn get(&self, key: String) -> Option<String>; }
+        api { async fn get(&self, key: String) -> Option<String>; }
     }
 }
 
@@ -85,7 +85,7 @@ fabric::adapter! {
     MemoryStore for Store {
         id: "docs.memory-store";
         runtime {
-            fn get(&self, _key: String) -> Option<String> { None }
+            async fn get(&self, _key: String) -> Option<String> { None }
         }
     }
 }
@@ -93,7 +93,9 @@ fabric::adapter! {
 
 `Store` states the semantic API once. `MemoryStore` owns the concrete
 implementation. A Composition selects that Adapter; consumers bind and call
-the `Store` API, not an Adapter-specific interface.
+the awaitable `Store` API, not an Adapter-specific interface. Resource
+operations are uniformly awaitable so immediate local and event-loop-backed
+realizations share one capability contract.
 
 Reusable authoring can be organized into identity-less contributions:
 

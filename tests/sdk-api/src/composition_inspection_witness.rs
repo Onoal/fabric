@@ -31,8 +31,8 @@ fabric::resource! {
         version: "1.2.0";
         relations { requires { network: Network(version = "^1"); } }
         api {
-            fn get(&self) -> String;
-            fn put(&self, value: String);
+            async fn get(&self) -> String;
+            async fn put(&self, value: String);
         }
     }
 }
@@ -43,8 +43,8 @@ fabric::adapter! {
         host: HostRequirement::new().require_facility(inspection_facility());
         relations { requires { scheduler: Scheduler; } }
         runtime {
-            fn get(&self) -> String { "value".to_owned() }
-            fn put(&self, _value: String) {}
+            async fn get(&self) -> String { "value".to_owned() }
+            async fn put(&self, _value: String) {}
         }
     }
 }

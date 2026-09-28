@@ -55,11 +55,15 @@ impl Default for MemoryClock {
 }
 
 impl ClockRealization for MemoryClock {
-    fn current_tick(&self) -> Result<ClockTick, ClockError> {
-        let mut next = self.next.lock().expect("clock state");
-        let current = *next;
-        *next += 1;
-        Ok(ClockTick::new(current))
+    fn current_tick<'a>(
+        &'a self,
+    ) -> fabric::resource::ResourceFuture<'a, Result<ClockTick, ClockError>> {
+        Box::pin(async move {
+            let mut next = self.next.lock().expect("clock state");
+            let current = *next;
+            *next += 1;
+            Ok(ClockTick::new(current))
+        })
     }
 
     fn clear(&self) -> Result<(), ClockError> {

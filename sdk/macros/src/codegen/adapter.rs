@@ -5,7 +5,7 @@ use crate::ast::{AdapterInput, RelationDefinition};
 
 use super::common::{
     config_type_tokens, fabric_path, has_config, inline_config_definition_tokens,
-    runtime_method_tokens, to_snake_case,
+    resource_runtime_method_tokens, runtime_method_tokens, to_snake_case,
 };
 
 pub fn expand_adapter(input: &AdapterInput) -> TokenStream {
@@ -108,7 +108,13 @@ fn expand_canonical_adapter(input: &AdapterInput) -> TokenStream {
         let field = &dependency.field;
         quote!(#field: self.#field.clone(),)
     });
-    let runtime_inherent_methods = input.runtime_methods.iter().map(runtime_method_tokens);
+    let runtime_inherent_methods = input.runtime_methods.iter().map(|method| {
+        if method.signature.asyncness.is_some() {
+            resource_runtime_method_tokens(&sdk, method)
+        } else {
+            runtime_method_tokens(method)
+        }
+    });
     let runtime_state_field = input.runtime_state.as_ref().map(|state| {
         let ty = &state.ty;
         quote!(state: #sdk::authoring::AdapterRuntimeState<#ty>,)

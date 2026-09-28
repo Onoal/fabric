@@ -11,9 +11,9 @@ mod root_wildcard {
             id: "docs.root.store";
             version: "0.1.0";
             api {
-                fn value(&self) -> u64;
+                async fn value(&self) -> u64;
             }
-            runtime { fn value(&self) -> u64 { 1 } }
+            runtime { async fn value(&self) -> u64 { 1 } }
         }
     }
 

@@ -72,10 +72,14 @@ struct OperationsDrivenClockRealization {
 }
 
 impl ClockRealization for OperationsDrivenClockRealization {
-    fn current_tick(&self) -> Result<ClockTick, ClockError> {
-        Ok(ClockTick::new(
-            self.operations.current_marker().value() + self.offset,
-        ))
+    fn current_tick<'a>(
+        &'a self,
+    ) -> fabric::resource::ResourceFuture<'a, Result<ClockTick, ClockError>> {
+        Box::pin(async move {
+            Ok(ClockTick::new(
+                self.operations.current_marker().value() + self.offset,
+            ))
+        })
     }
 }
 

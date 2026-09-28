@@ -1,0 +1,5 @@
+error: runtime method `read` does not match the declared contract signature
+ --> tests/ui/resource_runtime_mismatch.rs:6:24
+  |
+6 |         api { async fn read(&self, value: usize) -> usize; }
+  |                        ^^^^

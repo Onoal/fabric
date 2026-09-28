@@ -31,7 +31,7 @@ resource! {
         id: "fabric.test.macro-context.imported-canonical-store";
 
         api {
-            fn get(&self) -> u64;
+            async fn get(&self) -> u64;
         }
     }
 }
@@ -50,15 +50,15 @@ resource! {
     pub DifferentialImportedStore {
         id: "fabric.test.macro-context.differential-imported-store";
         api {
-            fn read(&self, key: u64) -> u64;
-            fn write(&self, key: u64, value: u64) -> u64;
+            async fn read(&self, key: u64) -> u64;
+            async fn write(&self, key: u64, value: u64) -> u64;
         }
         realization {
             mediate read;
-            fn read_raw(&self, key: u64) -> u64;
+            async fn read_raw(&self, key: u64) -> u64;
         }
         runtime {
-            fn read(&self, key: u64) -> u64 { self.realization.read_raw(key) + 1 }
+            async fn read(&self, key: u64) -> u64 { self.realization.read_raw(key).await + 1 }
         }
     }
 }
@@ -86,7 +86,7 @@ resource! {
         version: "0.1.0";
 
         api {
-            fn get(&self, key: RootKey) -> ImportedValue;
+            async fn get(&self, key: RootKey) -> ImportedValue;
         }
 
     }
@@ -101,7 +101,7 @@ adapter! {
         }
 
         runtime {
-            fn get(&self, key: RootKey) -> ImportedValue {
+            async fn get(&self, key: RootKey) -> ImportedValue {
                 ImportedValue(key.0)
             }
         }
@@ -155,7 +155,7 @@ pub mod capability {
             id: "fabric.test.macro-context.module-store";
 
             api {
-                fn get(&self, key: ModuleKey) -> ImportedValue;
+                async fn get(&self, key: ModuleKey) -> ImportedValue;
             }
 
         }
@@ -199,7 +199,7 @@ pub mod outer {
                     id: "fabric.test.macro-context.deep-store";
 
                     api {
-                        fn get(&self, key: DeepKey) -> ImportedValue;
+                        async fn get(&self, key: DeepKey) -> ImportedValue;
                     }
 
                 }

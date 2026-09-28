@@ -80,9 +80,7 @@ impl ModuleRuntime for ClockConsumer {
             .requirement
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
-        let tick = resolved
-            .value()
-            .current_tick()
+        let tick = crate::support::expect_resource_ready(resolved.value().current_tick())
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("clock capture") = Some(CapturedClockResolution {
             provider: resolved.provider().clone(),
@@ -288,7 +286,7 @@ impl ModuleRuntime for CounterConsumer {
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("counter capture") = Some(CapturedCounterResolution {
             module_id: resolved.provider().clone(),
-            value: resolved.value().current_value().value(),
+            value: crate::support::expect_resource_ready(resolved.value().current_value()).value(),
         });
         Ok(())
     }
@@ -636,8 +634,10 @@ impl AdapterDefinition for MissingContractClockAdapter {
 struct FixedRealization(u64);
 
 impl ClockRealization for FixedRealization {
-    fn current_tick(&self) -> Result<ClockTick, ClockError> {
-        Ok(ClockTick::new(self.0))
+    fn current_tick<'a>(
+        &'a self,
+    ) -> fabric::resource::ResourceFuture<'a, Result<ClockTick, ClockError>> {
+        Box::pin(async move { Ok(ClockTick::new(self.0)) })
     }
 }
 

@@ -32,15 +32,15 @@ fabric::resource! {
     ContributionStore {
         id: "fabric.test.contribution.store";
         relations { requires { signal: ContributionSignal; } }
-        api { fn read(&self) -> u64; }
-        runtime { fn read(&self) -> u64 { self.signal.ping() } }
+        api { async fn read(&self) -> u64; }
+        runtime { async fn read(&self) -> u64 { self.signal.ping() } }
     }
 }
 
 fabric::resource! {
     ContributionCache {
         id: "fabric.test.contribution.cache";
-        api { fn read(&self) -> u64; }
+        api { async fn read(&self) -> u64; }
     }
 }
 
@@ -48,26 +48,26 @@ fabric::adapter! {
     ContributionCacheAdapter for ContributionCache {
         id: "fabric.test.contribution.cache-adapter";
         host: HostRequirement::new().require_facility(contribution_facility());
-        runtime { fn read(&self) -> u64 { 2 } }
+        runtime { async fn read(&self) -> u64 { 2 } }
     }
 }
 
 fabric::resource! {
     ContributionMediated {
         id: "fabric.test.contribution.mediated";
-        api { fn read(&self) -> u64; }
+        api { async fn read(&self) -> u64; }
         realization {
             mediate read;
-            fn raw_read(&self) -> u64;
+            async fn raw_read(&self) -> u64;
         }
-        runtime { fn read(&self) -> u64 { self.realization.raw_read() } }
+        runtime { async fn read(&self) -> u64 { self.realization.raw_read().await } }
     }
 }
 
 fabric::adapter! {
     ContributionMediatedAdapter for ContributionMediated {
         id: "fabric.test.contribution.mediated-adapter";
-        runtime { fn raw_read(&self) -> u64 { 3 } }
+        runtime { async fn raw_read(&self) -> u64 { 3 } }
     }
 }
 

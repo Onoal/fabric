@@ -40,9 +40,9 @@ fabric::resource! {
         id: "example.store";
         config { namespace: String; }
         api {
-            fn namespace(&self) -> String;
+            async fn namespace(&self) -> String;
         }
-        runtime { fn namespace(&self) -> String { self.config().namespace.clone() } }
+        runtime { async fn namespace(&self) -> String { self.config().namespace.clone() } }
     }
 }
 

@@ -1,0 +1,5 @@
+error: resource API methods must be async
+ --> tests/ui/resource_sync_api.rs:6:18
+  |
+6 |         api { fn read(&self) -> usize; }
+  |                  ^^^^

@@ -67,7 +67,7 @@ impl ModuleRuntime for CounterConsumer {
             .resolve_with_provider(bindings)
             .map_err(|error| ModuleError::new(error.to_string()))?;
         *self.capture.lock().expect("capture") = Some(CounterCapture {
-            value: resolved.value().current_value().value(),
+            value: futures::executor::block_on(resolved.value().current_value()).value(),
         });
         Ok(())
     }

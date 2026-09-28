@@ -1,7 +1,7 @@
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{FnArg, Pat, PatIdent, ReturnType};
+use syn::{FnArg, Pat, PatIdent, ReturnType, Signature};
 
 use crate::ast::{ApiDefinition, ConfigDefinition, ContractMethod, RuntimeMethod, VersionLiteral};
 
@@ -27,7 +27,7 @@ pub fn canonical_adapter_bridge_tokens(
     service_name: &Ident,
     contract_name: &Ident,
 ) -> CanonicalAdapterBridgeTokens {
-    canonical_adapter_bridge_tokens_named(api, service_name, contract_name, "")
+    canonical_adapter_bridge_tokens_named(api, service_name, contract_name, "", false)
 }
 
 pub fn canonical_adapter_bridge_tokens_named(
@@ -35,7 +35,9 @@ pub fn canonical_adapter_bridge_tokens_named(
     service_name: &Ident,
     contract_name: &Ident,
     prefix: &str,
+    resource_future: bool,
 ) -> CanonicalAdapterBridgeTokens {
+    let sdk = fabric_path();
     let builder_name = if prefix.is_empty() {
         format_ident!("CanonicalAdapterBuilder")
     } else {
@@ -157,16 +159,29 @@ pub fn canonical_adapter_bridge_tokens_named(
                 ReturnType::Default => quote!(()),
                 ReturnType::Type(_, ty) => quote!(#ty),
             };
-            quote!(#function: ::std::ops::Fn(&R, #(#inputs),*) -> #output + Send + Sync + 'static,)
+            if resource_future {
+                quote!(#function: for<'a> ::std::ops::Fn(&'a R, #(#inputs),*) -> #sdk::resource::ResourceFuture<'a, #output> + Send + Sync + 'static,)
+            } else {
+                quote!(#function: ::std::ops::Fn(&R, #(#inputs),*) -> #output + Send + Sync + 'static,)
+            }
         })
         .collect::<Vec<_>>();
     let service_methods = api.methods.iter().map(|method| {
         let signature = &method.signature;
         let name = &signature.ident;
         let args = method_call_args(signature);
-        quote! {
-            #signature {
-                (self.#name)(&self.runtime, #(#args),*)
+        if resource_future {
+            let service_signature = resource_service_signature_tokens(&sdk, signature);
+            quote! {
+                #service_signature {
+                    (self.#name)(&self.runtime, #(#args),*)
+                }
+            }
+        } else {
+            quote! {
+                #signature {
+                    (self.#name)(&self.runtime, #(#args),*)
+                }
             }
         }
     });
@@ -285,14 +300,44 @@ pub fn primary_contract_tokens(
     api: &ApiDefinition,
     contract_id_expr: TokenStream,
 ) -> PrimaryContractTokens {
+    primary_contract_tokens_with_mode(sdk, api, contract_id_expr, false)
+}
+
+pub fn resource_primary_contract_tokens(
+    sdk: &TokenStream,
+    api: &ApiDefinition,
+    contract_id_expr: TokenStream,
+) -> PrimaryContractTokens {
+    primary_contract_tokens_with_mode(sdk, api, contract_id_expr, true)
+}
+
+fn primary_contract_tokens_with_mode(
+    sdk: &TokenStream,
+    api: &ApiDefinition,
+    contract_id_expr: TokenStream,
+    resource_future: bool,
+) -> PrimaryContractTokens {
     let service_name = format_ident!("{}Service", api.name);
     let contract_name = format_ident!("{}Contract", api.name);
-    let service_methods = api.methods.iter().map(service_method_tokens).collect();
-    let contract_methods = api
-        .methods
-        .iter()
-        .map(contract_wrapper_method_tokens)
-        .collect();
+    let service_methods = if resource_future {
+        api.methods
+            .iter()
+            .map(|method| resource_service_method_tokens(sdk, method))
+            .collect()
+    } else {
+        api.methods.iter().map(service_method_tokens).collect()
+    };
+    let contract_methods = if resource_future {
+        api.methods
+            .iter()
+            .map(|method| resource_contract_wrapper_method_tokens(sdk, method))
+            .collect()
+    } else {
+        api.methods
+            .iter()
+            .map(contract_wrapper_method_tokens)
+            .collect()
+    };
     let contract_key_expr = contract_key_expr(sdk, &api.version, &contract_name, contract_id_expr);
 
     PrimaryContractTokens {
@@ -326,10 +371,44 @@ pub fn service_method_tokens(method: &ContractMethod) -> TokenStream {
     quote!(#signature;)
 }
 
+pub fn resource_service_method_tokens(sdk: &TokenStream, method: &ContractMethod) -> TokenStream {
+    let signature = resource_service_signature_tokens(sdk, &method.signature);
+    quote!(#signature;)
+}
+
+pub fn resource_service_signature_tokens(sdk: &TokenStream, signature: &Signature) -> TokenStream {
+    let name = &signature.ident;
+    let inputs = typed_inputs(signature);
+    let output = signature_output(signature);
+    if inputs.is_empty() {
+        quote! {
+            fn #name<'a>(&'a self) -> #sdk::resource::ResourceFuture<'a, #output>
+        }
+    } else {
+        quote! {
+            fn #name<'a>(&'a self, #(#inputs),*) -> #sdk::resource::ResourceFuture<'a, #output>
+        }
+    }
+}
+
 pub fn contract_wrapper_method_tokens(method: &ContractMethod) -> TokenStream {
     let signature = &method.signature;
     let name = &signature.ident;
     let args = method_call_args(signature);
+    quote! {
+        pub #signature {
+            self.inner.#name(#(#args),*)
+        }
+    }
+}
+
+pub fn resource_contract_wrapper_method_tokens(
+    sdk: &TokenStream,
+    method: &ContractMethod,
+) -> TokenStream {
+    let signature = resource_service_signature_tokens(sdk, &method.signature);
+    let name = &method.signature.ident;
+    let args = method_call_args(&method.signature);
     quote! {
         pub #signature {
             self.inner.#name(#(#args),*)
@@ -405,6 +484,42 @@ pub fn runtime_method_tokens(method: &RuntimeMethod) -> TokenStream {
         #[allow(dead_code)]
         #signature #body
     )
+}
+
+pub fn resource_runtime_method_tokens(sdk: &TokenStream, method: &RuntimeMethod) -> TokenStream {
+    let signature = resource_service_signature_tokens(sdk, &method.signature);
+    let body = &method.body;
+    quote!(
+        #[allow(dead_code)]
+        #signature {
+            ::std::boxed::Box::pin(async move #body)
+        }
+    )
+}
+
+pub fn resource_runtime_trait_method_tokens(
+    sdk: &TokenStream,
+    method: &ContractMethod,
+) -> TokenStream {
+    let signature = resource_service_signature_tokens(sdk, &method.signature);
+    let name = &method.signature.ident;
+    let args = method_call_args(&method.signature);
+    quote! {
+        #signature {
+            self.#name(#(#args),*)
+        }
+    }
+}
+
+fn signature_output(signature: &Signature) -> TokenStream {
+    match &signature.output {
+        ReturnType::Default => quote!(()),
+        ReturnType::Type(_, ty) => quote!(#ty),
+    }
+}
+
+fn typed_inputs(signature: &Signature) -> Vec<&syn::FnArg> {
+    signature.inputs.iter().skip(1).collect()
 }
 
 pub fn method_call_args(signature: &syn::Signature) -> Vec<TokenStream> {

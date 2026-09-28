@@ -32,7 +32,7 @@ fabric::resource! {
         id: "fabric.test.lifecycle.api-only-resource";
 
         api {
-            fn read(&self, key: u64) -> u64;
+            async fn read(&self, key: u64) -> u64;
         }
     }
 }
@@ -65,7 +65,7 @@ fabric::resource! {
         }
 
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
     }
 }
@@ -80,7 +80,7 @@ fabric::resource! {
         id: "fabric.test.lifecycle.canonical-adapter-resource";
 
         api {
-            fn read(&self) -> usize;
+            async fn read(&self) -> usize;
         }
     }
 }
@@ -112,7 +112,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn read(&self) -> usize {
+            async fn read(&self) -> usize {
                 self.state.get().value.fetch_add(1, Ordering::SeqCst) + 1
             }
         }
@@ -146,7 +146,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn label(&self) -> String {
+            async fn label(&self) -> String {
                 self.config.prefix.clone()
             }
         }
@@ -160,18 +160,18 @@ fabric::resource! {
         id: "fabric.test.lifecycle.differential-document-store";
 
         api {
-            fn read(&self, key: String) -> String;
-            fn write(&self, key: String, value: String) -> usize;
+            async fn read(&self, key: String) -> String;
+            async fn write(&self, key: String, value: String) -> usize;
         }
 
         realization {
             mediate read;
-            fn read_bytes(&self, key: String) -> Vec<u8>;
+            async fn read_bytes(&self, key: String) -> Vec<u8>;
         }
 
         runtime {
-            fn read(&self, key: String) -> String {
-                String::from_utf8(self.realization.read_bytes(key)).expect("utf8")
+            async fn read(&self, key: String) -> String {
+                String::from_utf8(self.realization.read_bytes(key).await).expect("utf8")
             }
         }
     }
@@ -181,8 +181,8 @@ fabric::adapter! {
     DifferentialDocumentAdapter for DifferentialDocumentStore {
         id: "test.differential-document-adapter";
         runtime {
-            fn write(&self, _key: String, value: String) -> usize { value.len() }
-            fn read_bytes(&self, key: String) -> Vec<u8> { key.into_bytes() }
+            async fn write(&self, _key: String, value: String) -> usize { value.len() }
+            async fn read_bytes(&self, key: String) -> Vec<u8> { key.into_bytes() }
         }
     }
 }
@@ -276,8 +276,10 @@ impl ModuleRuntime for DifferentialConsumer {
     }
     fn start(&mut self) -> Result<(), ModuleError> {
         *self.observation.lock().expect("observation") = Some((
-            self.document.read("read".to_owned()),
-            self.document.write("key".to_owned(), "value".to_owned()),
+            crate::support::expect_resource_ready(self.document.read("read".to_owned())),
+            crate::support::expect_resource_ready(
+                self.document.write("key".to_owned(), "value".to_owned()),
+            ),
             self.clock.now(),
             self.clock.label(),
         ));
@@ -381,10 +383,10 @@ impl ModuleRuntime for CanonicalAdapterConsumer {
 
     fn start(&mut self) -> Result<(), ModuleError> {
         *self.observation.lock().expect("observation") = Some(CanonicalAdapterObservation {
-            first_resource: self.resource.read(),
-            second_resource: self.resource.read(),
+            first_resource: crate::support::expect_resource_ready(self.resource.read()),
+            second_resource: crate::support::expect_resource_ready(self.resource.read()),
             system: self.system.now(),
-            label: self.configured.label(),
+            label: crate::support::expect_resource_ready(self.configured.label()),
         });
         Ok(())
     }
@@ -450,7 +452,7 @@ fabric::resource! {
         }
 
         api {
-            fn label(&self) -> String;
+            async fn label(&self) -> String;
         }
     }
 }
@@ -481,9 +483,9 @@ fabric::resource! {
         }
 
         api {
-            fn increment(&self) -> usize;
-            fn mark_degraded(&self);
-            fn mark_unavailable(&self);
+            async fn increment(&self) -> usize;
+            async fn mark_degraded(&self);
+            async fn mark_unavailable(&self);
         }
 
         state {
@@ -491,15 +493,15 @@ fabric::resource! {
         }
 
         runtime {
-            fn increment(&self) -> usize {
+            async fn increment(&self) -> usize {
                 self.state.get().value.fetch_add(1, Ordering::SeqCst) + 1
             }
 
-            fn mark_unavailable(&self) {
+            async fn mark_unavailable(&self) {
                 self.state.get().health.store(2, Ordering::SeqCst);
             }
 
-            fn mark_degraded(&self) {
+            async fn mark_degraded(&self) {
                 self.state.get().health.store(1, Ordering::SeqCst);
             }
         }
@@ -588,7 +590,7 @@ fabric::resource! {
 
         config {}
 
-        api { fn current(&self) -> usize; }
+        api { async fn current(&self) -> usize; }
     }
 }
 
@@ -611,7 +613,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn current(&self) -> usize {
+            async fn current(&self) -> usize {
                 self.state.get().value.fetch_add(1, Ordering::SeqCst)
             }
         }
@@ -853,13 +855,13 @@ fn stateful_resource_runtime_is_fresh_shared_and_lifecycle_aware() {
         .expect("first materialization");
     first.start().expect("first start");
     let service = first.export(&export).expect("resource export");
-    assert_eq!(service.increment(), 1);
-    assert_eq!(service.increment(), 2);
+    assert_eq!(futures::executor::block_on(service.increment()), 1);
+    assert_eq!(futures::executor::block_on(service.increment()), 2);
     assert_eq!(first.report().health, Health::Healthy);
-    service.mark_degraded();
+    futures::executor::block_on(service.mark_degraded());
     assert_eq!(first.lifecycle(), LifecycleState::Running);
     assert_eq!(first.report().health, Health::Degraded);
-    service.mark_unavailable();
+    futures::executor::block_on(service.mark_unavailable());
     assert_eq!(first.lifecycle(), LifecycleState::Running);
     assert_eq!(first.report().health, Health::Unavailable);
     first.stop().expect("first stop");
@@ -869,7 +871,7 @@ fn stateful_resource_runtime_is_fresh_shared_and_lifecycle_aware() {
         .expect("second materialization");
     second.start().expect("second start");
     let second_service = second.export(&export).expect("second export");
-    assert_eq!(second_service.increment(), 1);
+    assert_eq!(futures::executor::block_on(second_service.increment()), 1);
     second.stop().expect("second stop");
 
     assert_eq!(
@@ -1166,7 +1168,7 @@ fabric::adapter! {
     RenamedIdentityWitness for CanonicalAdapterResource {
         id: "test.explicit-name-independent";
         runtime {
-            fn read(&self) -> usize { 7 }
+            async fn read(&self) -> usize { 7 }
         }
     }
 }

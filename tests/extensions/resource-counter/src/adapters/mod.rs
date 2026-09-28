@@ -15,7 +15,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }
@@ -32,7 +32,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }
@@ -48,7 +48,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }

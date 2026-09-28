@@ -3,7 +3,7 @@ use fabric::{component, resource};
 resource! {
     Store {
         id: "fabric.test.component.relation-store";
-        api { fn get(&self) -> usize; }
+        api { async fn get(&self) -> usize; }
     }
 }
 

@@ -181,7 +181,7 @@ fabric::adapter! {
     ExampleAdapter for ExampleResource {
         config { value: u64; }
         runtime {
-            fn current_value(&self) -> ExampleValue {
+            async fn current_value(&self) -> ExampleValue {
                 ExampleValue::new(self.config().value)
             }
         }
@@ -196,6 +196,9 @@ interface and no `for resource` / `for system` discriminator. Adapter config
 stays normal typed Rust, and Adapter selection stays Composition truth. A
 differential realization boundary is available when a semantic owner
 intentionally uses a different lower-level contract.
+Resource operations are uniformly awaitable, so local adapters can return
+immediately while event-loop-backed adapters can await without a blocking
+bridge.
 
 ## Component declaration and transitional operations
 

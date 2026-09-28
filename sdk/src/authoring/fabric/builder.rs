@@ -888,7 +888,7 @@ mod realization_provenance_tests {
     crate::resource! {
         ProvenanceTargetStore {
             id: "fabric.test.relation-provenance.target-store";
-            api { fn get(&self) -> u64; }
+            api { async fn get(&self) -> u64; }
         }
     }
 
@@ -915,8 +915,8 @@ mod realization_provenance_tests {
                     signal: ProvenanceTargetSignal;
                 }
             }
-            api { fn read(&self) -> u64; }
-            runtime { fn read(&self) -> u64 { self.store.get() + self.signal.now() } }
+            api { async fn read(&self) -> u64; }
+            runtime { async fn read(&self) -> u64 { self.store.get().await + self.signal.now() } }
         }
     }
 
@@ -924,12 +924,12 @@ mod realization_provenance_tests {
         ProvenanceMediatedResource {
             id: "fabric.test.relation-provenance.mediated-resource";
             relations { requires { signal: ProvenanceTargetSignal; } }
-            api { fn read(&self) -> u64; }
+            api { async fn read(&self) -> u64; }
             realization {
                 mediate read;
-                fn raw_read(&self) -> u64;
+                async fn raw_read(&self) -> u64;
             }
-            runtime { fn read(&self) -> u64 { self.realization.raw_read() + self.signal.now() } }
+            runtime { async fn read(&self) -> u64 { self.realization.raw_read().await + self.signal.now() } }
         }
     }
 
@@ -943,7 +943,7 @@ mod realization_provenance_tests {
                 }
             }
             api { fn read(&self) -> u64; }
-            runtime { fn read(&self) -> u64 { self.store.get() + self.signal.now() } }
+            runtime { fn read(&self) -> u64 { futures::executor::block_on(self.store.get()) + self.signal.now() } }
         }
     }
 
@@ -951,14 +951,14 @@ mod realization_provenance_tests {
         ProvenanceResourceAdapter for ProvenanceOwnerResource {
             id: "test.relation-provenance.resource-adapter";
             relations { requires { adapter_signal: ProvenanceAdapterSignal; } }
-            runtime { fn read(&self) -> u64 { self.adapter_signal.now() } }
+            runtime { async fn read(&self) -> u64 { self.adapter_signal.now() } }
         }
     }
 
     crate::adapter! {
         ProvenanceMediatedResourceAdapter for ProvenanceMediatedResource {
             id: "test.relation-provenance.mediated-resource-adapter";
-            runtime { fn raw_read(&self) -> u64 { 1 } }
+            runtime { async fn raw_read(&self) -> u64 { 1 } }
         }
     }
 

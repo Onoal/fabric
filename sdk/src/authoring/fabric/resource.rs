@@ -211,22 +211,22 @@ mod realization_provenance_tests {
     crate::resource! {
         ProvenanceResource {
             id: "fabric.test.provenance.resource";
-            api { fn read(&self) -> u64; }
+            api { async fn read(&self) -> u64; }
         }
     }
 
     crate::resource! {
         ProvenanceSelfResource {
             id: "fabric.test.provenance.self-resource";
-            api { fn read(&self) -> u64; }
-            runtime { fn read(&self) -> u64 { 1 } }
+            api { async fn read(&self) -> u64; }
+            runtime { async fn read(&self) -> u64 { 1 } }
         }
     }
 
     crate::adapter! {
         ProvenanceResourceAdapter for ProvenanceResource {
             id: "test.provenance.resource-adapter";
-            runtime { fn read(&self) -> u64 { 1 } }
+            runtime { async fn read(&self) -> u64 { 1 } }
         }
     }
 

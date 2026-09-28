@@ -15,7 +15,7 @@ fabric::adapter! {
         }
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }
@@ -33,7 +33,7 @@ fabric::adapter! {
         host: HostRequirement::new().require_facility(external_counter_host_facility());
 
         runtime {
-            fn current_value(&self) -> CounterValue {
+            async fn current_value(&self) -> CounterValue {
                 CounterValue::new(self.config.value)
             }
         }

@@ -27,6 +27,8 @@ mod materialization_profile_witness;
 #[cfg(test)]
 mod public_surface_witness;
 #[cfg(test)]
+mod resource_async_witness;
+#[cfg(test)]
 mod resource_augmentation_witness;
 #[cfg(test)]
 mod runtime_lifecycle_witness;

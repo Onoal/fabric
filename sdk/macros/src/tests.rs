@@ -151,7 +151,8 @@ fn resource_macro_codegen_supports_dependencies_and_realizations() {
     assert!(
         validate.contains("invalid resource dependency version requirement")
             && validate.contains("duplicate resource dependency field")
-            && validate.contains("async resource API methods are not supported"),
+            && validate.contains("resource API methods must be async")
+            && validate.contains("resource runtime methods must be async"),
         "resource! validation should cover relation and API syntax integrity"
     );
 }
@@ -226,8 +227,7 @@ fn adapter_macro_codegen_exposes_one_type_driven_canonical_path() {
         "adapter! should reject removed target/interface ceremony with a direct migration"
     );
     assert!(
-        validate.contains("async adapter runtime methods are not supported")
-            && validate.contains("generic adapter runtime methods are not supported")
+        validate.contains("generic adapter runtime methods are not supported")
             && validate.contains("duplicate system dependency field")
             && validate.contains("must use an `&self` receiver"),
         "adapter! validation should reject unsupported runtime syntax clearly"

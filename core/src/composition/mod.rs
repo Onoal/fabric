@@ -19,7 +19,7 @@ use crate::export::{CompositionExport, CompositionExportDeclaration};
 use crate::host_materialization::HostMaterializationRequirement;
 use crate::identifiers::{CompositionId, ContractId, InstanceId, ModuleId};
 use crate::instance::{Instance, InstanceRuntimeContext};
-use crate::{ModuleDeclaration, ModuleRuntime};
+use crate::{ModuleDeclaration, ModuleMaterializationContext, ModuleRuntime};
 
 type RuntimeBlockLocation = (usize, usize);
 type MaterializedRuntimeBlocks = (
@@ -199,7 +199,11 @@ impl Composition {
                     .collect(),
             });
         }
-        self.materialize_with_host(instance_id, None)
+        self.materialize_with_host_and_context(
+            instance_id,
+            None,
+            &ModuleMaterializationContext::empty(),
+        )
     }
 
     pub fn materialize_on(
@@ -207,13 +211,59 @@ impl Composition {
         instance_id: InstanceId,
         host: &HostDescriptor,
     ) -> Result<Instance, CompositionError> {
-        self.materialize_with_host(instance_id, Some(host))
+        self.materialize_with_host_and_context(
+            instance_id,
+            Some(host),
+            &ModuleMaterializationContext::empty(),
+        )
     }
 
-    fn materialize_with_host(
+    pub fn materialize_with_input<T>(
+        &self,
+        instance_id: InstanceId,
+        input: &T,
+    ) -> Result<Instance, CompositionError>
+    where
+        T: Send + Sync + 'static,
+    {
+        let requirements =
+            declared_host_materialization_requirements(&self.resolution.declarations);
+        if !requirements.is_empty() {
+            return Err(CompositionError::HostDescriptorRequired {
+                module_ids: requirements
+                    .into_iter()
+                    .map(|requirement| requirement.module_id().clone())
+                    .collect(),
+            });
+        }
+        self.materialize_with_host_and_context(
+            instance_id,
+            None,
+            &ModuleMaterializationContext::with_input(input),
+        )
+    }
+
+    pub fn materialize_on_with_input<T>(
+        &self,
+        instance_id: InstanceId,
+        host: &HostDescriptor,
+        input: &T,
+    ) -> Result<Instance, CompositionError>
+    where
+        T: Send + Sync + 'static,
+    {
+        self.materialize_with_host_and_context(
+            instance_id,
+            Some(host),
+            &ModuleMaterializationContext::with_input(input),
+        )
+    }
+
+    fn materialize_with_host_and_context(
         &self,
         instance_id: InstanceId,
         host: Option<&HostDescriptor>,
+        materialization: &ModuleMaterializationContext<'_>,
     ) -> Result<Instance, CompositionError> {
         if let Some(host) = host {
             validate_host_materialization_requirements(&self.resolution.declarations, host)?;
@@ -224,6 +274,7 @@ impl Composition {
             &self.blocks,
             &self.resolution,
             &context,
+            materialization,
         )?;
         Ok(Instance::materialize(
             self.composition_id.clone(),
@@ -381,6 +432,7 @@ fn materialize_runtime_blocks(
     blocks: &[Block],
     resolution: &CompositionResolution,
     context: &InstanceRuntimeContext,
+    materialization: &ModuleMaterializationContext<'_>,
 ) -> Result<MaterializedRuntimeBlocks, CompositionError> {
     let counts = blocks
         .iter()
@@ -392,14 +444,29 @@ fn materialize_runtime_blocks(
         .flat_map(|block| block.modules.iter())
         .enumerate()
     {
-        let Some(runtime) = module.materialize() else {
-            return Err(abandon_materialized_runtimes(
-                CompositionError::MissingRuntimeMaterializer {
-                    module_id: resolution.declarations[module_index].module_id().clone(),
-                },
-                &mut modules,
-                &resolution.start_order,
-            ));
+        let runtime = match module.materialize_in(materialization) {
+            Ok(Some(runtime)) => runtime,
+            Ok(None) => {
+                return Err(abandon_materialized_runtimes(
+                    CompositionError::MissingRuntimeMaterializer {
+                        module_id: resolution.declarations[module_index].module_id().clone(),
+                    },
+                    &mut modules,
+                    &resolution.start_order,
+                ));
+            }
+            Err(source) => {
+                return Err(abandon_materialized_runtimes(
+                    CompositionError::ModuleFailure {
+                        composition_id: composition_id.clone(),
+                        module_id: resolution.declarations[module_index].module_id().clone(),
+                        phase: "materialize",
+                        source,
+                    },
+                    &mut modules,
+                    &resolution.start_order,
+                ));
+            }
         };
         modules.push(runtime);
     }

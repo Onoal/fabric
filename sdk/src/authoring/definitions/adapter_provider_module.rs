@@ -1,7 +1,7 @@
 use fabric_core::{
     ContractRequirementDeclaration, Health, HostMaterializationRequirement, InstanceRuntimeContext,
     Module, ModuleBindings, ModuleContract, ModuleDeclaration, ModuleError, ModuleId,
-    ModuleRuntime, ProvidedContractDeclaration,
+    ModuleMaterializationContext, ModuleRuntime, ProvidedContractDeclaration,
 };
 
 use super::AdapterDefinition;
@@ -86,6 +86,21 @@ where
                     semantic_requirements: self.semantic_requirements.clone(),
                 }) as Box<dyn ModuleRuntime>
             })
+    }
+
+    fn materialize_in(
+        &self,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Option<Box<dyn ModuleRuntime>>, ModuleError> {
+        Ok(self
+            .adapter
+            .materialize_provider_in(self.provider_module_id.clone(), context)?
+            .map(|inner| {
+                Box::new(AdapterRequirementsRuntime {
+                    inner,
+                    semantic_requirements: self.semantic_requirements.clone(),
+                }) as Box<dyn ModuleRuntime>
+            }))
     }
 }
 

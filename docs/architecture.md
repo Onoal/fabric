@@ -90,6 +90,18 @@ architecture checkpoint.
 The same resolved graph supplies dependency ordering, startup, and reverse
 cleanup. It is not a service locator or a second resolver.
 
+A live materialization input is the one optional typed root value supplied only
+for a single materialization operation. It is construction machinery for
+selected realizations whose live state depends on invocation/platform-owned
+machinery unavailable at Composition construction time. It may help construct a
+realization, but it does not become semantic Composition truth, Host truth,
+Profile truth, Plan truth, RuntimeContext, an Instance Facility, or
+automatically retained Instance state. Fabric supports zero or one live root
+input per materialization; platforms that need several platform-owned handles
+must put those inside their own root type. Fabric does not provide named
+materialization services, a global registry, or a dependency-injection
+container.
+
 `InstanceFacility` is live-only operational machinery attached after
 materialization to one Instance generation. It is useful for local diagnostics,
 profiling, tracing bridges, or other operational tooling around that live

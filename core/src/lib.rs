@@ -24,6 +24,7 @@ mod host_materialization;
 mod identifiers;
 mod instance;
 mod lifecycle;
+mod materialization_input;
 mod module;
 mod module_runtime;
 
@@ -52,5 +53,6 @@ pub use host_materialization::HostMaterializationRequirement;
 pub use identifiers::{BlockId, CompositionId, ContractId, InstanceId, ModuleId};
 pub use instance::{Instance, InstanceGeneration, InstanceReport, InstanceRuntimeContext};
 pub use lifecycle::LifecycleState;
+pub use materialization_input::{MaterializationInput, ModuleMaterializationContext};
 pub use module::{Module, ModuleDeclaration, ModuleFactory, module_factory};
 pub use module_runtime::ModuleRuntime;

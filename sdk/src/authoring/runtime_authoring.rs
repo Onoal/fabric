@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use fabric_core::{
     ContractKey, Health, InstanceGeneration, InstanceId, InstanceRuntimeContext, ModuleBindings,
-    ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleRuntime,
+    ModuleContract, ModuleDeclaration, ModuleError, ModuleId, ModuleMaterializationContext,
+    ModuleRuntime,
 };
 use fabric_host::HostRequirement;
 
@@ -115,6 +116,8 @@ impl RuntimeContext {
 type RuntimeHook<S> =
     Arc<dyn Fn(&RuntimeState<S>, &RuntimeContext) -> Result<(), ModuleError> + Send + Sync>;
 type RuntimeHealth<S> = Arc<dyn Fn(&RuntimeState<S>, &RuntimeContext) -> Health + Send + Sync>;
+type RuntimeStateFactory<S> =
+    Arc<dyn Fn(&ModuleMaterializationContext<'_>) -> Result<S, ModuleError> + Send + Sync>;
 
 /// Public SDK machinery for a stateful, lifecycle-aware provider runtime.
 ///
@@ -122,7 +125,7 @@ type RuntimeHealth<S> = Arc<dyn Fn(&RuntimeState<S>, &RuntimeContext) -> Health 
 /// bridges normal authoring closures to Core's advanced `ModuleRuntime`
 /// protocol so package authors do not need to implement that protocol.
 pub struct StatefulRuntimeAuthoring<S, Contract> {
-    state: Arc<dyn Fn() -> S + Send + Sync>,
+    state: RuntimeStateFactory<S>,
     service: Arc<dyn Fn(RuntimeState<S>) -> Contract + Send + Sync>,
     initialize: RuntimeHook<S>,
     start: RuntimeHook<S>,
@@ -153,7 +156,28 @@ where
         service: impl Fn(RuntimeState<S>) -> Contract + Send + Sync + 'static,
     ) -> Self {
         Self {
-            state: Arc::new(state),
+            state: Arc::new(move |_| Ok(state())),
+            service: Arc::new(service),
+            initialize: Arc::new(|_, _| Ok(())),
+            start: Arc::new(|_, _| Ok(())),
+            stop: Arc::new(|_, _| Ok(())),
+            health: Arc::new(|_, _| Health::Healthy),
+        }
+    }
+
+    pub fn new_with_materialization_input<T>(
+        state: impl Fn(&T) -> Result<S, ModuleError> + Send + Sync + 'static,
+        service: impl Fn(RuntimeState<S>) -> Contract + Send + Sync + 'static,
+        expected_input: &'static str,
+    ) -> Self
+    where
+        T: Send + Sync + 'static,
+    {
+        Self {
+            state: Arc::new(move |context| {
+                let input = context.require_input::<T>(expected_input)?;
+                state(input)
+            }),
             service: Arc::new(service),
             initialize: Arc::new(|_, _| Ok(())),
             start: Arc::new(|_, _| Ok(())),
@@ -217,9 +241,19 @@ where
         module_id: ModuleId,
         contract: ContractKey<Contract>,
     ) -> Box<dyn ModuleRuntime> {
-        let state = RuntimeState::new((self.state)());
+        self.materialize_in(module_id, contract, &ModuleMaterializationContext::empty())
+            .expect("config-only stateful runtime materialization should not fail")
+    }
+
+    pub fn materialize_in(
+        &self,
+        module_id: ModuleId,
+        contract: ContractKey<Contract>,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Box<dyn ModuleRuntime>, ModuleError> {
+        let state = RuntimeState::new((self.state)(context)?);
         let service = Arc::new((self.service)(state.clone()));
-        Box::new(StatefulRuntimeBridge {
+        Ok(Box::new(StatefulRuntimeBridge {
             module_id,
             contract,
             state,
@@ -229,7 +263,7 @@ where
             start: Arc::clone(&self.start),
             stop: Arc::clone(&self.stop),
             health: Arc::clone(&self.health),
-        })
+        }))
     }
 }
 
@@ -322,10 +356,23 @@ where
     }
 
     fn materialize_provider(&self, provider_module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
-        Some(
-            self.runtime
-                .materialize(provider_module_id, self.contract.clone()),
-        )
+        self.runtime
+            .materialize_in(
+                provider_module_id,
+                self.contract.clone(),
+                &ModuleMaterializationContext::empty(),
+            )
+            .ok()
+    }
+
+    fn materialize_provider_in(
+        &self,
+        provider_module_id: ModuleId,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Option<Box<dyn ModuleRuntime>>, ModuleError> {
+        self.runtime
+            .materialize_in(provider_module_id, self.contract.clone(), context)
+            .map(Some)
     }
 }
 

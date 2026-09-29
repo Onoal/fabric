@@ -5,8 +5,8 @@ pub use fabric_core::{
     ContractProviderSelection, ContractRequirement, ContractRequirementDeclaration,
     ContractVersion, ContractVersionRequirement, Health, HostMaterializationRequirement, Instance,
     InstanceError, InstanceGeneration, InstanceId, InstanceReport, InstanceRuntimeContext,
-    LifecycleState, Module, ModuleBindings, ModuleCleanupFailure, ModuleContract,
-    ModuleDeclaration, ModuleError, ModuleFactory, ModuleId, ModuleReport, ModuleRuntime,
-    ProvidedContractDeclaration, ResolvedContract, ResolvedProviderBinding, RuntimeCleanupError,
-    module_factory,
+    LifecycleState, MaterializationInput, Module, ModuleBindings, ModuleCleanupFailure,
+    ModuleContract, ModuleDeclaration, ModuleError, ModuleFactory, ModuleId,
+    ModuleMaterializationContext, ModuleReport, ModuleRuntime, ProvidedContractDeclaration,
+    ResolvedContract, ResolvedProviderBinding, RuntimeCleanupError, module_factory,
 };

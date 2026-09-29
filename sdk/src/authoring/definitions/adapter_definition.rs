@@ -1,7 +1,10 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use fabric_core::{ContractRequirementDeclaration, ModuleDeclaration, ModuleId, ModuleRuntime};
+use fabric_core::{
+    ContractRequirementDeclaration, ModuleDeclaration, ModuleError, ModuleId,
+    ModuleMaterializationContext, ModuleRuntime,
+};
 use fabric_host::HostRequirement;
 use fabric_resource::{
     AdapterResourceSchemaSupport, ResourceCompatibilityError, ResourceSchemaDescriptor,
@@ -359,6 +362,15 @@ pub trait AdapterDefinition: Clone + Send + Sync + 'static {
     fn materialize_provider(&self, provider_module_id: ModuleId) -> Option<Box<dyn ModuleRuntime>> {
         let _ = provider_module_id;
         None
+    }
+
+    fn materialize_provider_in(
+        &self,
+        provider_module_id: ModuleId,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Option<Box<dyn ModuleRuntime>>, ModuleError> {
+        let _ = context;
+        Ok(self.materialize_provider(provider_module_id))
     }
 }
 

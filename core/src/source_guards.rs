@@ -34,6 +34,9 @@ fn core_keeps_canonical_resolution_seams() {
         .expect("read core composition source");
     let module =
         fs::read_to_string(crate_root().join("src/module.rs")).expect("read core module source");
+    let materialization_input =
+        fs::read_to_string(crate_root().join("src/materialization_input.rs"))
+            .expect("read materialization input source");
     let host_materialization = fs::read_to_string(crate_root().join("src/host_materialization.rs"))
         .expect("read host materialization source");
     let runtime = fs::read_to_string(crate_root().join("src/module_runtime.rs"))
@@ -54,6 +57,14 @@ fn core_keeps_canonical_resolution_seams() {
     assert!(
         composition.contains("pub fn materialize_on("),
         "core composition should expose explicit host-aware materialization"
+    );
+    assert!(
+        composition.contains("pub fn materialize_with_input")
+            && composition.contains("pub fn materialize_on_with_input")
+            && module.contains("fn materialize_in(")
+            && materialization_input.contains("pub struct MaterializationInput")
+            && materialization_input.contains("pub struct ModuleMaterializationContext"),
+        "core must expose one additive live materialization input seam"
     );
     assert!(
         composition.contains("resolution.start_order.iter()"),
@@ -95,6 +106,23 @@ fn core_keeps_canonical_resolution_seams() {
             && !runtime.contains("HostMaterializationRequirement"),
         "module runtime must stay free of ambient host compatibility state"
     );
+    for source in [&composition, &module, &materialization_input] {
+        for forbidden in [
+            "thread_local!",
+            "static mut",
+            "HashMap<String",
+            "HashMap<TypeId",
+            "register_service",
+            "resolve_service",
+            "get_service",
+            "materialization_services",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "live materialization input must not become a service locator: {forbidden}"
+            );
+        }
+    }
     for source in [composition, module, host_materialization] {
         for forbidden in [
             "AdapterDefinition",

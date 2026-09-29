@@ -9,7 +9,8 @@ use fabric_component::{
 };
 use fabric_core::{
     Block, BlockId, CompositionError, CompositionExport, CompositionId, ContractId,
-    ContractProviderSelection, Module, ModuleDeclaration, ModuleRuntime,
+    ContractProviderSelection, Module, ModuleDeclaration, ModuleError,
+    ModuleMaterializationContext, ModuleRuntime,
 };
 
 struct StoredTypedModule {
@@ -29,6 +30,13 @@ impl Module for StoredTypedModule {
 
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
         self.inner.materialize()
+    }
+
+    fn materialize_in(
+        &self,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Option<Box<dyn ModuleRuntime>>, ModuleError> {
+        self.inner.materialize_in(context)
     }
 }
 

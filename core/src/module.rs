@@ -1,6 +1,7 @@
 use crate::host_materialization::HostMaterializationRequirement;
+use crate::materialization_input::ModuleMaterializationContext;
 use crate::module_runtime::ModuleRuntime;
-use crate::{ContractRequirementDeclaration, ModuleId, ProvidedContractDeclaration};
+use crate::{ContractRequirementDeclaration, ModuleError, ModuleId, ProvidedContractDeclaration};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModuleDeclaration {
@@ -81,6 +82,14 @@ pub trait Module: Send + Sync {
 
     fn materialize(&self) -> Option<Box<dyn ModuleRuntime>> {
         None
+    }
+
+    fn materialize_in(
+        &self,
+        context: &ModuleMaterializationContext<'_>,
+    ) -> Result<Option<Box<dyn ModuleRuntime>>, ModuleError> {
+        let _ = context;
+        Ok(self.materialize())
     }
 }
 

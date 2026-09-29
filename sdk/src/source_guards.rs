@@ -677,6 +677,8 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
             && materialization.contains("impl Composition")
             && materialization.contains("pub struct MaterializationPlan")
             && materialization.contains("pub fn materialize")
+            && materialization.contains("pub fn materialize_with_input")
+            && materialization.contains("pub fn materialize_on_with_input")
             && instance.contains("pub struct Instance")
             && instance.contains("pub fn composition_id")
             && instance.contains("pub fn core(&self)")
@@ -684,6 +686,16 @@ fn fabric_owns_normal_typed_authoring_without_resolution_machinery() {
             && !instance.contains("pub fn report")
             && instance.contains("pub fn components"),
         "SDK Composition must plan and materialize the bounded high-level Instance while CompositionExt remains raw"
+    );
+    assert!(
+        !materialization.contains("HashMap<String")
+            && !materialization.contains("HashMap<TypeId")
+            && !materialization.contains("register_service")
+            && !materialization.contains("resolve_service")
+            && !materialization.contains("get_service")
+            && !instance.contains("materialization_input")
+            && !instance.contains("pub fn input("),
+        "SDK live materialization input must remain an ephemeral one-root construction seam"
     );
     for source in [&builder, &manifest, &resource, &system] {
         for forbidden in [

@@ -58,7 +58,7 @@ pub use authoring::{
 pub use component::{ComponentDesiredState, ComponentError, ComponentId};
 pub use core::{
     CompositionError, CompositionId, Health, InstanceError, InstanceGeneration, InstanceId,
-    LifecycleState, RuntimeCleanupError,
+    LifecycleState, MaterializationInput, ModuleMaterializationContext, RuntimeCleanupError,
 };
 pub use error::SdkAuthoringError;
 pub use host::{

@@ -132,6 +132,14 @@ let instance = plan.materialize("example.local.diagnostic")?;
 runtime state, or `InstanceGeneration`; those belong to the resulting
 `Instance`. V1 does not expose a general `MaterializationPlanner`.
 
+A materialization call may also supply zero or one typed live materialization
+input. The input is ephemeral construction machinery for the fresh generation:
+it may help a selected realization derive owned runtime state, but it does not
+become Composition truth, MaterializationProfile truth, MaterializationPlan
+truth, Host truth, RuntimeContext, an Instance Facility, or automatically
+retained Instance state. Fabric deliberately supports one root input, not a
+dependency-injection container or named service registry.
+
 After materialization, an Instance can be enriched with live-only
 `InstanceFacility` operational tooling. Facilities belong to one
 `InstanceGeneration`; they do not alter Composition or MaterializationPlan
@@ -162,6 +170,10 @@ Configuration is immutable declarative input; it is not live runtime state.
 `RuntimeState`, `RuntimeContext`, `StatefulRuntimeAuthoring`, and
 `StatefulAdapterDefinition` are explicit `fabric::authoring` machinery for
 handwritten advanced authors.
+Advanced Adapter authors may construct state from immutable Config plus the
+one typed live materialization input when a runtime/platform-owned value is
+available only at materialization time. The derived state remains normal
+generation-local Adapter state; the root input is not retained by Fabric.
 The `resource!`, `system!`, and `adapter!` macros also accept optional `state`
 and `lifecycle` sections. State is fresh for each materialization, while
 contract handles and lifecycle hooks for that occurrence share it. Hooks are
